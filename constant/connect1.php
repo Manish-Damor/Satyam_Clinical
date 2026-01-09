@@ -4,7 +4,7 @@
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "mayurik_pharmacy";
+$dbname = "satyam_clinical";
 
 
 // Create connection
