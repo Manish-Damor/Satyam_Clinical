@@ -20,7 +20,7 @@
              // $result_head_title = $conn->query($sql_head_title);
              // $row_head_title = mysqli_fetch_array($result_head_title);
              ?>
-    <title>Dawa Pharma Invoice System - Mayuri K</title>
+    <title>Satyam Clinical</title>
 
     <link href="assets/css/lib/chartist/chartist.min.css" rel="stylesheet">
   <link href="assets/css/lib/owl.carousel.min.css" rel="stylesheet" />

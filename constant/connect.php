@@ -3,7 +3,7 @@
 $localhost = "localhost";
 $username = "root";
 $password = "";
-$dbname = "mayurik_pharmacy";
+$dbname = "satyam_clinical";
 //$store_url = "http://localhost/phpinventory/";
 // db connection
 $connect = new mysqli($localhost, $username, $password, $dbname);
