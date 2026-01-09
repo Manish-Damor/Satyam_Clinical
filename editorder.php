@@ -84,12 +84,15 @@ if($_GET['o'] == 'add') {
         <?php $orderId = $_GET['id'];
         //echo $orderId;exit;
 
-        $sql = "SELECT orders.id, orders.orderDate, orders.clientName, orders.clientContact, orders.subTotal, orders.totalAmount,orders.discount, orders.grandTotalValue, orders.paid, orders.dueValue, orders.paymentType, orders.paymentStatus,orders.paymentPlace,orders.gstn FROM orders  
+        $sql = "SELECT orders.id, orders.orderDate, orders.clientName, orders.clientContact, orders.subTotal, orders.totalAmount,orders.discount, orders.grandTotalValue,orders.gstn, orders.paid, orders.dueValue, orders.paymentType, orders.paymentStatus,orders.paymentPlace FROM orders  
           WHERE orders.id = {$orderId}";
 //echo $sql;exit;
         $result = $connect->query($sql);
         $data = $result->fetch_row();
                 //echo print_r($data);exit;
+                // echo "<pre>";
+                // print_r($data);
+                // echo "</pre>";                
 
         ?>
 
@@ -213,27 +216,27 @@ if($_GET['o'] == 'add') {
                   
           <div class="form-group col-md-6">
             <label for="totalAmount" class=" control-label">Total Amount</label>
-              <input type="text" class="form-control" id="totalAmount" name="totalAmount" disabled="true" value="<?php echo $data[6] ?>" />
-              <input type="hidden" class="form-control" id="totalAmountValue" name="totalAmountValue" value="<?php echo $data[6] ?>"  />
+              <input type="text" class="form-control" id="totalAmount" name="totalAmount" disabled="true" value="<?php echo $data[5] ?>" />
+              <input type="hidden" class="form-control" id="totalAmountValue" name="totalAmountValue" value="<?php echo $data[5] ?>"  />
            </div>       
           <div class="form-group col-md-6">
             <label for="discount" class="control-label">Discount</label>
-              <input type="text" class="form-control" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" value="<?php echo $data[7] ?>" />
+              <input type="text" class="form-control" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" value="<?php echo $data[6] ?>" />
           </div>  
           <div class="form-group col-md-6">
             <label for="grandTotal" class="control-label">Grand Total</label>
-              <input type="text" class="form-control" id="grandTotal" name="grandTotal" disabled="true" value="<?php echo $data[8] ?>"  />
-              <input type="hidden" class="form-control" id="grandTotalValue" name="grandTotalValue" value="<?php echo $data[8] ?>"  />
+              <input type="text" class="form-control" id="grandTotal" name="grandTotal" disabled="true" value="<?php echo $data[7] ?>"  />
+              <input type="hidden" class="form-control" id="grandTotalValue" name="grandTotalValue" value="<?php echo $data[7] ?>"  />
           </div>  
           <div class="form-group col-md-6">
             <label for="vat" class="col-sm-3 control-label gst"><?php if($data[13] == 2) {echo "IGST 18%";} else echo "GST 18%"; ?></label>
-              <input type="text" class="form-control" id="vat" name="vat" disabled="true" value="<?php echo $data[5] ?>"  />
-              <input type="hidden" class="form-control" id="vatValue" name="vatValue" value="<?php echo $data[5] ?>"  />
+              <input type="text" class="form-control" id="vat" name="vat" disabled="true" value="<?php echo $data[8] ?>"  />
+              <input type="hidden" class="form-control" id="vatValue" name="vatValue" value="<?php echo $data[8] ?>"  />
           </div> 
-          <div class="form-group col-md-6">
+          <!-- <div class="form-group col-md-6">
             <label for="gstn" class="control-label gst">G.S.T.IN</label>
-              <input type="text" class="form-control" id="gstn" name="gstn" value="<?php echo $data[14] ?>"  />
-          </div>          
+              <input type="text" class="form-control" id="gstn" name="gstn" value="<?php echo "Not Applicable" ?>"  />
+          </div>           -->
        
 
        
