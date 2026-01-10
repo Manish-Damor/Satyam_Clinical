@@ -1,4 +1,6 @@
 <?php 	
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
 require_once 'core.php';
 
@@ -7,10 +9,14 @@ $valid['success'] = array('success' => false, 'messages' => array());
 
 //$orderId = $_POST['orderId'];
 $orderId= $_GET['id'];
+if (!$orderId) {
+    echo "No order ID provided.";
+    exit;
+}
 if($orderId) { 
 
- $sql = "UPDATE orders SET order_status = 2 WHERE order_id = {$orderId}";
-
+ $sql = "UPDATE orders SET delete_status = 2 WHERE id = {$orderId}";
+	
  $orderItem = "UPDATE order_item SET order_item_status = 2 WHERE  order_id = {$orderId}";
 
  if($connect->query($sql) === TRUE && $connect->query($orderItem) === TRUE) {

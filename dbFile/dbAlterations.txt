@@ -1,6 +1,9 @@
 ALTER TABLE orders 
   MODIFY clientContact VARCHAR(20) NOT NULL;
 
+ALTER TABLE order_item
+  ADD COLUMN order_item_state TINYINT(5) DEFAULT 0;
+
 
 ALTER TABLE orders
   MODIFY subTotal DECIMAL(10,2) NOT NULL,
