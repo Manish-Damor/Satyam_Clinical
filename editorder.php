@@ -767,7 +767,7 @@ function addRow() {
           '<input type="hidden" name="totalValue[]" id="totalValue'+count+'" autocomplete="off" class="form-control" />'+
         '</td>'+
         '<td>'+
-          '<button class="btn btn-default removeProductRowBtn" type="button" onclick="removeProductRow('+count+')"><i class="glyphicon glyphicon-trash"></i></button>'+
+          '<button class="btn btn-xs btn-danger removeProductRowBtn" type="button" onclick="removeProductRow('+count+')"><i class="fa fa-trash"></i></button>'+
         '</td>'+
       '</tr>';
       if(tableLength > 0) {             
