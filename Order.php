@@ -71,7 +71,7 @@ $no+=1;
                                                  $paymentStatus = "<label class='label label-success' ><h4>Full Payment</h4></label>";
                                                  echo $paymentStatus;
                                             }
-                                            else if($row['payment_status']==2){
+                                            else if($row['paymentStatus']==2){
                                                 $paymentStatus = "<label class='label label-danger'><h4>Advance Payment</h4></label>";
                                                 echo $paymentStatus;
                                             }else {
