@@ -262,6 +262,15 @@ if($_GET['o'] == 'add') {
                 <option value="3" <?php if($data[11] == 3) {
                   echo "selected";
                 } ?> >Credit Card</option>
+                <option value="4" <?php if($data[11] == 4) {
+                  echo "selected";
+                } ?> >Phone Pe</option>
+                <option value="5" <?php if($data[11] == 5) {
+                  echo "selected";
+                } ?>  >Google Pay</option>
+                <option value="6" <?php if($data[11] == 6) {
+                  echo "selected";
+                } ?> >Amazon Pay</option>
               </select>
           </div>               
           <div class="form-group col-md-6">
