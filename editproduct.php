@@ -2,9 +2,7 @@
 <?php include('./constant/layout/header.php');?>
 
 <?php include('./constant/layout/sidebar.php');?>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->   
+  
 
 <?php include('./constant/connect.php');
 
@@ -81,9 +79,7 @@ $sql="SELECT * from product where  product_id='".$_GET['id']."'";
                                             <div class="col-md-2 mx-auto">
                                         <button type="submit"  name="btn" id="changeUsernameBtn" class="btn btn-primary btn-flat m-b-30 m-t-30">Save Changes</button></div>
                                         </fieldset>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->
+
 
                                     </form>
                                      <form method="POST"  id="submitProductForm" action="php_action/editProduct.php?id=<?php echo $_GET['id'];?>"enctype="multipart/form-data">
@@ -164,9 +160,7 @@ $sql="SELECT * from product where  product_id='".$_GET['id']."'";
                                         </div>
                                        
                                         </fieldset>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->
+
 
                                     </form>
                                 </div>
@@ -181,8 +175,6 @@ $sql="SELECT * from product where  product_id='".$_GET['id']."'";
 
  
 <?php include('./constant/layout/footer.php');?>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->
+
 
 <script src="custom/js/product.js"></script>

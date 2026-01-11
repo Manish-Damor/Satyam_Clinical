@@ -2,9 +2,7 @@
 <?php include('./constant/layout/header.php');?>
 
 <?php include('./constant/layout/sidebar.php');?>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->   
+  
 <?php include('./constant/connect');
 $sql = "SELECT brand_id, brand_name, brand_active, brand_status FROM brands WHERE brand_status = 1";
 $result = $connect->query($sql);
@@ -85,8 +83,6 @@ foreach ($result as $row) {
 
  
 <?php include('./constant/layout/footer.php');?>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->
+
 
 

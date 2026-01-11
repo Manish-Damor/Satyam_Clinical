@@ -2,9 +2,7 @@
 <?php include('./constant/layout/header.php');?>
 
 <?php include('./constant/layout/sidebar.php');?>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->
+
 
 <?php include('./constant/connect');
  $user=$_SESSION['userId'];
@@ -105,8 +103,6 @@ $no+=1;
 
  
 <?php include('./constant/layout/footer.php');?>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->
+
 
 

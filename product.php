@@ -2,9 +2,7 @@
 <?php include('./constant/layout/header.php');?>
 
 <?php include('./constant/layout/sidebar.php');?>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->   
+  
 <?php include('./constant/connect');
 $sql = "SELECT product_id, product_name,product_image,rate,quantity,brand_id,expdate,categories_id,active,status FROM product WHERE status = 1";
 $result = $connect->query($sql);
@@ -123,8 +121,6 @@ foreach ($result as $row) {
 
  
 <?php include('./constant/layout/footer.php');?>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->
+
 
 

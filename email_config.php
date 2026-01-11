@@ -3,9 +3,7 @@
 <?php include('./constant/layout/header.php');?>
 
 <?php include('./constant/layout/sidebar.php');?>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com --> 
+
 <link rel="stylesheet" href="assets/css/popup_style.css">
  <?php
 //session_start();
@@ -147,6 +145,4 @@ while($row=mysqli_fetch_array($query))
 
  
 <?php include('./constant/layout/footer.php');?>
-<!--  Author Name: Mayuri K. 
- for any PHP, Codeignitor, Laravel OR Python work contact me at mayuri.infospace@gmail.com  
- Visit website : www.mayurik.com -->
+

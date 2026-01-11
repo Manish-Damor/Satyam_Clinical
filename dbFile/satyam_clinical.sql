@@ -109,7 +109,7 @@ INSERT INTO `orders` (`id`, `uno`, `orderDate`, `clientName`, `projectName`, `cl
 (1, 'INV-0001', '2022-02-28', 'Santosh Kadam', '', 2147483647, '', 100, 10, 108, 49, 0, 49, 49, 2, 1, 0, 0),
 (2, 'INV-0002', '2022-03-24', 'Aishwarya Joshi', '', 2147483647, '', 300, 0, 354, 0, 0, 354, 354, 3, 3, 1, 0),
 (3, 'INV-0003', '2022-04-15', 'Saurabh Katkar', '', 2147483647, '', 860, 1015, 10, 1005, 155, 500, 505, 2, 2, 1, 0),
-(4, 'INV-0004', '2022-04-15', 'Mayuri K', '', 2147483647, '', 60, 71, 0, 71, 11, 50, 21, 5, 2, 1, 0);
+(4, 'INV-0004', '2022-04-15', 'Rohan Surti', '', 2147483647, '', 60, 71, 0, 71, 11, 50, 21, 5, 2, 1, 0);
 
 -- --------------------------------------------------------
 
@@ -189,7 +189,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `username`, `password`, `email`) VALUES
-(1, 'admin', '88a49c3695747772777310af4038d420', 'mayuri.infospace@gmail.com');
+(1, 'Satyam_Clinic', 'eac9a0492960ccc2971c769d34985a82', 'satyamclinical@gmail.com');
 
 --
 -- Indexes for dumped tables
