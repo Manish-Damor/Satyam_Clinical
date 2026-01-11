@@ -20,10 +20,10 @@ if($_POST) {
   $paymentType 					= $_POST['paymentType'];
   $paymentStatus 				= $_POST['paymentStatus'];
   $paymentPlace 				= $_POST['paymentPlace'];
-  $gstn 				= $_POST['gstn'];
+  $gstn 				= $_POST['vatValue'];
 	$userid 				= $_SESSION['userId'];
 				
-	$sql = "UPDATE orders SET orderDate = '$orderDate',clientName = '$clientName', 	clientContact = '$clientContact', subTotal = '$subTotalValue', totalAmount = '$totalAmountValue', discount = '$discount', grandTotalValue = '$grandTotalValue', paid = '$paid', paymentType = '$paymentType',paymentStatus = '$paymentStatus',paymentPlace = '$paymentPlace' , gstn = '$gstn' WHERE id = {$orderId}";
+	$sql = "UPDATE orders SET orderDate = '$orderDate',clientName = '$clientName', 	clientContact = '$clientContact', subTotal = '$subTotalValue', totalAmount = '$totalAmountValue', discount = '$discount', grandTotalValue = '$grandTotalValue', paid = '$paid', dueValue = '$dueValue', paymentType = '$paymentType',paymentStatus = '$paymentStatus',paymentPlace = '$paymentPlace' , gstn = '$gstn' WHERE id = {$orderId}";
 	//echo $sql;exit;	
 	$connect->query($sql);
 	$readyToUpdateOrderItem = false;
