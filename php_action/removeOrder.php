@@ -17,7 +17,7 @@ if($orderId) {
 
  $sql = "UPDATE orders SET delete_status = 2 WHERE id = {$orderId}";
 	
- $orderItem = "UPDATE order_item SET order_item_status = 2 WHERE  order_id = {$orderId}";
+ $orderItem = "UPDATE order_item SET order_item_status = 2 WHERE  lastid = {$orderId}";
 
  if($connect->query($sql) === TRUE && $connect->query($orderItem) === TRUE) {
  	$valid['success'] = true;
