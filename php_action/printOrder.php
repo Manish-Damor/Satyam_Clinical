@@ -39,7 +39,7 @@ $orderItemResult = $connect->query($orderItemSql);
                      <td colspan="5" style="text-align:center;color: red;text-decoration: underline;    font-size: 25px;">TAX INVOICE</td>
                   </tr>
                   <tr>
-                     <td rowspan="8" colspan="2" style="border-left:1px solid black;" background-image="logo.jpg"><img src="/logo.jpg" alt="logo" width="250px;"></td>
+                     <td rowspan="8" colspan="2" style="border-left:1px solid black;" background-image="logo.jpeg"><img src="/logo.jpeg" alt="logo" width="250px;"></td>
                      <td colspan="3" style=" text-align: right;">ORIGINAL</td>
                   </tr>
                   <tr>

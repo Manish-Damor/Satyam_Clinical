@@ -189,7 +189,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `username`, `password`, `email`) VALUES
-(1, 'Satyam_Clinic', 'eac9a0492960ccc2971c769d34985a82', 'satyamclinical@gmail.com');
+(1, 'Satyam_Clinic', '0f2cdafc6b1adf94892b17f355bd9110', 'satyamclinical@gmail.com');
 
 --
 -- Indexes for dumped tables
@@ -272,6 +272,11 @@ ALTER TABLE `users`
   MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 COMMIT;
 
+ALTER TABLE orders 
+  MODIFY clientContact VARCHAR(20) NOT NULL;
+
+ALTER TABLE order_item
+  ADD COLUMN order_item_state TINYINT(5) DEFAULT 0;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
