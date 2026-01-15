@@ -50,276 +50,264 @@ if($_GET['o'] == 'add') {
  -->
 
 
- 
-        <div class="page-wrapper">
-            
-            <div class="row page-titles">
-                <div class="col-md-5 align-self-center">
-                    <h3 class="text-primary">Edit Utilization Management</h3> </div>
-                <div class="col-md-7 align-self-center">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="javascript:void(0)">Home</a></li>
-                        <li class="breadcrumb-item active">Edit Utilization</li>
-                    </ol>
-                </div>
-            </div>
-            
-            
-            <div class="container-fluid">
-                
-                
-                
-                
-                <div class="row">
-                    <div class="col-lg-8" style="    margin-left: 10%;">
-                        <div class="card">
-                            <div class="card-title">
-                               
-                            </div>
-                            <div id="add-brand-messages"></div>
-                            <div class="card-body">
-                                <div class="input-states">
-                                    <form class="row" method="POST" action="php_action/editOrder.php" id="editOrderForm">
+<div class="page-wrapper">
 
-        <?php $orderId = $_GET['id'];
-        //echo $orderId;exit;
+    <div class="row page-titles">
+        <div class="col-md-5 align-self-center">
+            <h3 class="text-primary">Edit Utilization Management</h3> </div>
+        <div class="col-md-7 align-self-center">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="javascript:void(0)">Home</a></li>
+                <li class="breadcrumb-item active">Edit Utilization</li>
+            </ol>
+        </div>
+    </div>
 
-        $sql = "SELECT orders.id, orders.orderDate, orders.clientName, orders.clientContact, orders.subTotal, orders.totalAmount,orders.discount, orders.grandTotalValue,orders.gstn, orders.paid, orders.dueValue, orders.paymentType, orders.paymentStatus,orders.paymentPlace FROM orders  
+    <div class="container-fluid">
+
+        <div class="row">
+            <div class="col-lg-8" style="    margin-left: 10%;">
+                <div class="card">
+                    <div class="card-title">
+
+                    </div>
+                    <div id="add-brand-messages"></div>
+                    <div class="card-body">
+                        <div class="input-states">
+                            <form class="row" method="POST" action="php_action/editOrder.php" id="editOrderForm">
+
+                                <?php $orderId = $_GET['id'];
+                                //echo $orderId;exit;
+
+                                $sql = "SELECT orders.id, orders.orderDate, orders.clientName, orders.clientContact, orders.subTotal, orders.totalAmount,orders.discount, orders.grandTotalValue,orders.gstn, orders.paid, orders.dueValue, orders.paymentType, orders.paymentStatus,orders.paymentPlace FROM orders  
           WHERE orders.id = {$orderId}";
 //echo $sql;exit;
-        $result = $connect->query($sql);
-        $data = $result->fetch_row();
-                //echo print_r($data);exit;
-                // echo "<pre>";
-                // print_r($data);
-                // echo "</pre>";                
+                                $result = $connect->query($sql);
+                                $data = $result->fetch_row();
+                                //echo print_r($data);exit;
+                                // echo "<pre>";
+                                // print_r($data);
+                                // echo "</pre>";                
 
-        ?>
+                                ?>
 
-        <div class="form-group col-md-6">
-          <label class="control-label">Utilization Date</label>
-            <input type="text" class="form-control" id="orderDate" name="orderDate" autocomplete="off" value="<?php echo $data[1] ?>" />
-      </div>
-        <div class="form-group col-md-6">
-            <label class="control-label">Client Name</label>
-            <input type="text" class="form-control" id="clientName" name="clientName" placeholder="Client Name" autocomplete="off" value="<?php echo $data[2] ?>" />
-        </div> 
-        <div class="form-group col-md-12">
-           <label class="control-label">Client Contact</label>
-            <input type="text" class="form-control" id="clientContact" name="clientContact" placeholder="Contact Number" autocomplete="off" value="<?php echo $data[3] ?>" pattern="^[0][1-9]\d{9}$|^[1-9]\d{9}$"/>
-      </div>       
+                                <div class="form-group col-md-6">
+                                    <label class="control-label">Utilization Date</label>
+                                    <input type="text" class="form-control" id="orderDate" name="orderDate" autocomplete="off" value="<?php echo $data[1] ?>" />
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label class="control-label">Client Name</label>
+                                    <input type="text" class="form-control" id="clientName" name="clientName" placeholder="Client Name" autocomplete="off" value="<?php echo $data[2] ?>" />
+                                </div> 
+                                <div class="form-group col-md-12">
+                                    <label class="control-label">Client Contact</label>
+                                    <input type="text" class="form-control" id="clientContact" name="clientContact" placeholder="Contact Number" autocomplete="off" value="<?php echo $data[3] ?>" pattern="^[0][1-9]\d{9}$|^[1-9]\d{9}$"/>
+                                </div>       
 
-        <table class="table" id="productTable">
-          <thead>
-            <tr>              
-              <th style="width:40%;">Medicine</th>
-              <th style="width:20%;">Rate</th>
-              <th style="width:15%;">Available Quantity</th>              
-              <th style="width:15%;">Quantity</th>              
-              <th style="width:15%;">Total</th>             
-              <th style="width:10%;"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php
+                                <table class="table" id="productTable">
+                                    <thead>
+                                        <tr>              
+                                            <th style="width:40%;">Medicine</th>
+                                            <th style="width:20%;">Rate</th>
+                                            <th style="width:15%;">Available Quantity</th>              
+                                            <th style="width:15%;">Quantity</th>              
+                                            <th style="width:15%;">Total</th>             
+                                            <th style="width:10%;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php
 
-            $orderItemSql = "SELECT order_item.id, order_item.productName, order_item.quantity, order_item.rate, order_item.total FROM order_item WHERE order_item.lastid = {$orderId}";
-            //echo $orderItemSql;exit;
-            $orderItemResult = $connect->query($orderItemSql);
-            // $orderItemData = $orderItemResult->fetch_all();            
+                                        $orderItemSql = "SELECT order_item.id, order_item.productName, order_item.quantity, order_item.rate, order_item.total FROM order_item WHERE order_item.lastid = {$orderId}";
+                                        //echo $orderItemSql;exit;
+                                        $orderItemResult = $connect->query($orderItemSql);
+                                        // $orderItemData = $orderItemResult->fetch_all();            
             
-            // print_r($orderItemData);
-            $arrayNumber = 0;
-            // for($x = 1; $x <= count($orderItemData); $x++) {
-            $x = 1;
-            while($orderItemData = $orderItemResult->fetch_array()) { 
-              // print_r($orderItemData); ?>
-              <tr id="row<?php echo $x; ?>" class="<?php echo $arrayNumber; ?>">                
-                <td>
-                  <div class="form-group">
+                                        // print_r($orderItemData);
+                                        $arrayNumber = 0;
+                                        // for($x = 1; $x <= count($orderItemData); $x++) {
+                                        $x = 1;
+                                        while($orderItemData = $orderItemResult->fetch_array()) { 
+                                            // print_r($orderItemData); ?>
+                                            <tr id="row<?php echo $x; ?>" class="<?php echo $arrayNumber; ?>">                
+                                                <td>
+                                                    <div class="form-group">
 
-                  <select class="form-control" name="productName[]" id="productName<?php echo $x; ?>" onchange="getProductData(<?php echo $x; ?>)" >
-                    <option value="">~~SELECT~~</option>
-                    <?php
-                      $productSql = "SELECT * FROM product WHERE active = 1 AND status = 1 AND quantity != 0";
-                      $productData = $connect->query($productSql);
+                                                        <select class="form-control" name="productName[]" id="productName<?php echo $x; ?>" onchange="getProductData(<?php echo $x; ?>)" >
+                                                            <option value="">~~SELECT~~</option>
+                                                            <?php
+                                                            $productSql = "SELECT * FROM product WHERE active = 1 AND status = 1 AND quantity != 0";
+                                                            $productData = $connect->query($productSql);
 
-                      while($row = $productData->fetch_array()) {                     
-                        $selected = "";
-                        if($row['product_id'] == $orderItemData['productName']) {
-                          $selected = "selected";
-                        } else {
-                          $selected = "";
-                        }
+                                                            while($row = $productData->fetch_array()) {                     
+                                                                $selected = "";
+                                                                if($row['product_id'] == $orderItemData['productName']) {
+                                                                    $selected = "selected";
+                                                                } else {
+                                                                    $selected = "";
+                                                                }
 
-                        echo "<option value='".$row['product_id']."' id='changeProduct".$row['product_id']."' ".$selected." >".$row['product_name']."</option>";
-                      } // /while 
+                                                                echo "<option value='".$row['product_id']."' id='changeProduct".$row['product_id']."' ".$selected." >".$row['product_name']."</option>";
+                                                            } // /while 
 
-                    ?>
-                  </select>
-                  </div>
-                </td>
-                <td>                 
-                  <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" value="<?php echo $orderItemData['rate']; ?>" />                  
-                  <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" value="<?php echo $orderItemData['rate']; ?>" />                  
-                </td>
-              <td>
-                  <div class="form-group">
-                  <?php
-                      $productSql = "SELECT * FROM product WHERE active = 1 AND status = 1 AND quantity != 0";
-                      $productData = $connect->query($productSql);
+                                                            ?>
+                                                        </select>
+                                                    </div>
+                                                </td>
+                                                <td>                 
+                                                    <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" value="<?php echo $orderItemData['rate']; ?>" />                  
+                                                    <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" value="<?php echo $orderItemData['rate']; ?>" />                  
+                                                </td>
+                                                <td>
+                                                    <div class="form-group">
+                                                        <?php
+                                                        $productSql = "SELECT * FROM product WHERE active = 1 AND status = 1 AND quantity != 0";
+                                                        $productData = $connect->query($productSql);
 
-                      while($row = $productData->fetch_array()) {                     
-                        $selected = "";
-                        if($row['product_id'] == $orderItemData['product_id']) { 
-                          echo "<p id='available_quantity".$row['product_id']."'>".$row['quantity']."</p>";
-                      }
-                         else {
-                          $selected = "";
-                        }
+                                                        while($row = $productData->fetch_array()) {                     
+                                                            $selected = "";
+                                                            if($row['product_id'] == $orderItemData['productName']) { 
+                                                                echo "<p id='available_quantity".$row['product_id']."'>".$row['quantity']."</p>";
+                                                            }
+                                                            else {
+                                                                $selected = "";
+                                                            }
 
-                        //echo "<option value='".$row['product_id']."' id='changeProduct".$row['product_id']."' ".$selected." >".$row['product_name']."</option>";
-                      } // /while 
+                                                            //echo "<option value='".$row['product_id']."' id='changeProduct".$row['product_id']."' ".$selected." >".$row['product_name']."</option>";
+                                                        } // /while 
 
-                    ?>
-                  
-                  </div>
-                </td>
-                <td>
-                  <div class="form-group">
-                  <input type="number" name="quantity[]" id="quantity<?php echo $x; ?>" onkeyup="getTotal(<?php echo $x ?>)" autocomplete="off" class="form-control" min="1" value="<?php echo $orderItemData['quantity']; ?>" />
-                  </div>
-                </td>
-                <td>                 
-                  <input type="text" name="total[]" id="total<?php echo $x; ?>" autocomplete="off" class="form-control" disabled="true" value="<?php echo $orderItemData['total']; ?>"/>                  
-                  <input type="hidden" name="totalValue[]" id="totalValue<?php echo $x; ?>" autocomplete="off" class="form-control" value="<?php echo $orderItemData['total']; ?>"/>                  
-                </td>
-                <td>
+                                                        ?>
 
-                  <button class="btn btn-xs btn-danger removeProductRowBtn" type="button" id="removeProductRowBtn" onclick="removeProductRow(<?php echo $x; ?>)"><i class="fa fa-trash"></i></button>
-                </td>
-              </tr>
-            <?php
-            $arrayNumber++;
-            $x++;
-            } // /for
-            ?>
-          </tbody>          
-        </table>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="form-group">
+                                                        <input type="number" name="quantity[]" id="quantity<?php echo $x; ?>" onkeyup="getTotal(<?php echo $x ?>)" autocomplete="off" class="form-control" min="1" value="<?php echo $orderItemData['quantity']; ?>" />
+                                                    </div>
+                                                </td>
+                                                <td>                 
+                                                    <input type="text" name="total[]" id="total<?php echo $x; ?>" autocomplete="off" class="form-control" disabled="true" value="<?php echo $orderItemData['total']; ?>"/>                  
+                                                    <input type="hidden" name="totalValue[]" id="totalValue<?php echo $x; ?>" autocomplete="off" class="form-control" value="<?php echo $orderItemData['total']; ?>"/>                  
+                                                </td>
+                                                <td>
 
-       
-          <div class="form-group col-md-6">
-            <label for="subTotal" class="control-label">Sub Amount</label>
-              <input type="text" class="form-control" id="subTotal" name="subTotal" disabled="true" value="<?php echo $data[4] ?>" />
-              <input type="hidden" class="form-control" id="subTotalValue" name="subTotalValue" value="<?php echo $data[4] ?>" />
-          </div>        
-                  
-          <div class="form-group col-md-6">
-            <label for="totalAmount" class=" control-label">Total Amount</label>
-              <input type="text" class="form-control" id="totalAmount" name="totalAmount" disabled="true" value="<?php echo $data[5] ?>" />
-              <input type="hidden" class="form-control" id="totalAmountValue" name="totalAmountValue" value="<?php echo $data[5] ?>"  />
-           </div>       
-          <div class="form-group col-md-6">
-            <label for="discount" class="control-label">Discount</label>
-              <input type="text" class="form-control" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" value="<?php echo $data[6] ?>" />
-          </div>  
-          <div class="form-group col-md-6">
-            <label for="grandTotal" class="control-label">Grand Total</label>
-              <input type="text" class="form-control" id="grandTotal" name="grandTotal" disabled="true" value="<?php echo $data[7] ?>"  />
-              <input type="hidden" class="form-control" id="grandTotalValue" name="grandTotalValue" value="<?php echo $data[7] ?>"  />
-          </div>  
-          <div class="form-group col-md-6">
-            <label for="vat" class="col-sm-3 control-label gst"><?php if($data[13] == 2) {echo "IGST 18%";} else echo "GST 18%"; ?></label>
-              <input type="text" class="form-control" id="vat" name="vat" disabled="true" value="<?php echo $data[8] ?>"  />
-              <input type="hidden" class="form-control" id="vatValue" name="vatValue" value="<?php echo $data[8] ?>"  />
-          </div> 
-          <!-- <div class="form-group col-md-6">
+                                                    <button class="btn btn-xs btn-danger removeProductRowBtn" type="button" id="removeProductRowBtn" onclick="removeProductRow(<?php echo $x; ?>)"><i class="fa fa-trash"></i></button>
+                                                </td>
+                                            </tr>
+                                            <?php
+                                            $arrayNumber++;
+                                            $x++;
+                                        } // /for
+                                        ?>
+                                    </tbody>          
+                                </table>
+
+                                <div class="form-group col-md-6">
+                                    <label for="subTotal" class="control-label">Sub Amount</label>
+                                    <input type="text" class="form-control" id="subTotal" name="subTotal" disabled="true" value="<?php echo $data[4] ?>" />
+                                    <input type="hidden" class="form-control" id="subTotalValue" name="subTotalValue" value="<?php echo $data[4] ?>" />
+                                </div>        
+
+                                <div class="form-group col-md-6">
+                                    <label for="totalAmount" class=" control-label">Total Amount</label>
+                                    <input type="text" class="form-control" id="totalAmount" name="totalAmount" disabled="true" value="<?php echo $data[5] ?>" />
+                                    <input type="hidden" class="form-control" id="totalAmountValue" name="totalAmountValue" value="<?php echo $data[5] ?>"  />
+                                </div>       
+                                <div class="form-group col-md-6">
+                                    <label for="discount" class="control-label">Discount</label>
+                                    <input type="text" class="form-control" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" value="<?php echo $data[6] ?>" />
+                                </div>  
+                                <div class="form-group col-md-6">
+                                    <label for="grandTotal" class="control-label">Grand Total</label>
+                                    <input type="text" class="form-control" id="grandTotal" name="grandTotal" disabled="true" value="<?php echo $data[7] ?>"  />
+                                    <input type="hidden" class="form-control" id="grandTotalValue" name="grandTotalValue" value="<?php echo $data[7] ?>"  />
+                                </div>  
+                                <div class="form-group col-md-6">
+                                    <label for="vat" class="col-sm-3 control-label gst"><?php if($data[13] == 2) {echo "IGST 18%";} else echo "GST 18%"; ?></label>
+                                    <input type="text" class="form-control" id="vat" name="vat" disabled="true" value="<?php echo $data[8] ?>"  />
+                                    <input type="hidden" class="form-control" id="vatValue" name="vatValue" value="<?php echo $data[8] ?>"  />
+                                </div> 
+                                <!-- <div class="form-group col-md-6">
             <label for="gstn" class="control-label gst">G.S.T.IN</label>
               <input type="text" class="form-control" id="gstn" name="gstn" value="<?php echo "Not Applicable" ?>"  />
           </div>           -->
-       
 
-       
-          <div class="form-group col-md-6">
-            <label for="paid" class="control-label">Paid Amount</label>
-              <input type="text" class="form-control" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" value="<?php echo $data[9] ?>"  />
-          </div>        
-          <div class="form-group col-md-6">
-            <label for="due" class="control-label">Due Amount</label>
-              <input type="text" class="form-control" id="due" name="due" disabled="true" value="<?php echo $data[10] ?>"  />
-              <input type="hidden" class="form-control" id="dueValue" name="dueValue" value="<?php echo $data[10] ?>"  />
-        </div>   
-          <div class="form-group col-md-6">
-            <label for="clientContact" class="control-label">Payment Type</label>
-              <select class="form-control" name="paymentType" id="paymentType" >
-                <option value="">~~SELECT~~</option>
-                <option value="1" <?php if($data[11] == 1) {
-                  echo "selected";
-                } ?> >Cheque</option>
-                <option value="2" <?php if($data[11] == 2) {
-                  echo "selected";
-                } ?>  >Cash</option>
-                <option value="3" <?php if($data[11] == 3) {
-                  echo "selected";
-                } ?> >Credit Card</option>
-                <option value="4" <?php if($data[11] == 4) {
-                  echo "selected";
-                } ?> >Phone Pe</option>
-                <option value="5" <?php if($data[11] == 5) {
-                  echo "selected";
-                } ?>  >Google Pay</option>
-                <option value="6" <?php if($data[11] == 6) {
-                  echo "selected";
-                } ?> >Amazon Pay</option>
-              </select>
-          </div>               
-          <div class="form-group col-md-6">
-            <label for="clientContact" class="control-label">Payment Status</label>
-              <select class="form-control" name="paymentStatus" id="paymentStatus">
-                <option value="">~~SELECT~~</option>
-                <option value="1" <?php if($data[12] == 1) {
-                  echo "selected";
-                } ?>  >Full Payment</option>
-                <option value="2" <?php if($data[12] == 2) {
-                  echo "selected";
-                } ?> >Advance Payment</option>
-                <option value="3" <?php if($data[10] == 3) {
-                  echo "selected";
-                } ?> >No Payment</option>
-              </select>
-          </div> 
-          <div class="form-group col-md-6">
-            <label for="clientContact" class="control-label">Payment Place</label>
-              <select class="form-control" name="paymentPlace" id="paymentPlace">
-                <option value="">~~SELECT~~</option>
-                <option value="1" <?php if($data[13] == 1) {
-                  echo "selected";
-                } ?>  >In India</option>
-                <option value="2" <?php if($data[13] == 2) {
-                  echo "selected";
-                } ?> >Out Of India</option>
-              </select>
-          </div>                
-        
+                                <div class="form-group col-md-6">
+                                    <label for="paid" class="control-label">Paid Amount</label>
+                                    <input type="text" class="form-control" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" value="<?php echo $data[9] ?>"  />
+                                </div>        
+                                <div class="form-group col-md-6">
+                                    <label for="due" class="control-label">Due Amount</label>
+                                    <input type="text" class="form-control" id="due" name="due" disabled="true" value="<?php echo $data[10] ?>"  />
+                                    <input type="hidden" class="form-control" id="dueValue" name="dueValue" value="<?php echo $data[10] ?>"  />
+                                </div>   
+                                <div class="form-group col-md-6">
+                                    <label for="clientContact" class="control-label">Payment Type</label>
+                                    <select class="form-control" name="paymentType" id="paymentType" >
+                                        <option value="">~~SELECT~~</option>
+                                        <option value="1" <?php if($data[11] == 1) {
+                                            echo "selected";
+                                        } ?> >Cheque</option>
+                                        <option value="2" <?php if($data[11] == 2) {
+                                            echo "selected";
+                                        } ?>  >Cash</option>
+                                        <option value="3" <?php if($data[11] == 3) {
+                                            echo "selected";
+                                        } ?> >Credit Card</option>
+                                        <option value="4" <?php if($data[11] == 4) {
+                                            echo "selected";
+                                        } ?> >Phone Pe</option>
+                                        <option value="5" <?php if($data[11] == 5) {
+                                            echo "selected";
+                                        } ?>  >Google Pay</option>
+                                        <option value="6" <?php if($data[11] == 6) {
+                                            echo "selected";
+                                        } ?> >Amazon Pay</option>
+                                    </select>
+                                </div>               
+                                <div class="form-group col-md-6">
+                                    <label for="clientContact" class="control-label">Payment Status</label>
+                                    <select class="form-control" name="paymentStatus" id="paymentStatus">
+                                        <option value="">~~SELECT~~</option>
+                                        <option value="1" <?php if($data[12] == 1) {
+                                            echo "selected";
+                                        } ?>  >Full Payment</option>
+                                        <option value="2" <?php if($data[12] == 2) {
+                                            echo "selected";
+                                        } ?> >Advance Payment</option>
+                                        <option value="3" <?php if($data[10] == 3) {
+                                            echo "selected";
+                                        } ?> >No Payment</option>
+                                    </select>
+                                </div> 
+                                <div class="form-group col-md-6">
+                                    <label for="clientContact" class="control-label">Payment Place</label>
+                                    <select class="form-control" name="paymentPlace" id="paymentPlace">
+                                        <option value="">~~SELECT~~</option>
+                                        <option value="1" <?php if($data[13] == 1) {
+                                            echo "selected";
+                                        } ?>  >In India</option>
+                                        <option value="2" <?php if($data[13] == 2) {
+                                            echo "selected";
+                                        } ?> >Out Of India</option>
+                                    </select>
+                                </div>                
 
+                                <div class="form-group editButtonFooter col-md-12 mx-auto text-center">
+                                    <button type="button" class="btn btn-default" onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="glyphicon glyphicon-plus-sign"></i> Add Row </button>
 
-        <div class="form-group editButtonFooter col-md-12 mx-auto text-center">
-          <button type="button" class="btn btn-default" onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="glyphicon glyphicon-plus-sign"></i> Add Row </button>
+                                    <input type="hidden" name="orderId" id="orderId" value="<?php echo $orderId; ?>" />
 
-          <input type="hidden" name="orderId" id="orderId" value="<?php echo $orderId; ?>" />
+                                    <button type="submit" id="editOrderBtn" data-loading-text="Loading..." class="btn btn-success"><i class="glyphicon glyphicon-ok-sign"></i> Save Changes</button>
 
-          <button type="submit" id="editOrderBtn" data-loading-text="Loading..." class="btn btn-success"><i class="glyphicon glyphicon-ok-sign"></i> Save Changes</button>
-            
-          </div>
-      </form>
                                 </div>
-                            </div>
+                            </form>
                         </div>
                     </div>
-                  
                 </div>
-                
-               
+            </div>
+
+        </div>               
 
 
  
