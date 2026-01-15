@@ -164,16 +164,11 @@ if($_GET['o'] == 'add') {
                                                         $productSql = "SELECT * FROM product WHERE active = 1 AND status = 1 AND quantity != 0";
                                                         $productData = $connect->query($productSql);
 
-                                                        while($row = $productData->fetch_array()) {                     
-                                                            $selected = "";
-                                                            if($row['product_id'] == $orderItemData['productName']) { 
+                                                        while($row = $productData->fetch_array()) {             
+                                                
                                                                 echo "<p id='available_quantity".$row['product_id']."'>".$row['quantity']."</p>";
-                                                            }
-                                                            else {
-                                                                $selected = "";
-                                                            }
-
-                                                            //echo "<option value='".$row['product_id']."' id='changeProduct".$row['product_id']."' ".$selected." >".$row['product_name']."</option>";
+                                                                break;
+                                                            
                                                         } // /while 
 
                                                         ?>
