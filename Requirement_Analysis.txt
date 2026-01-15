@@ -1,0 +1,8 @@
+GST 5% DEFAULT AUTO
+12
+18
+24
+
+Autocomplete in the tablet selection using search
+
+PO reqirements analysis
