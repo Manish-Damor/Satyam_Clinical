@@ -55,6 +55,18 @@
                                 <li><a href="Order.php">Manage Invoices</a></li>
                             </ul>
                         </li>
+
+                        <?php if(isset($_SESSION['userId']) && $_SESSION['userId']==1) { ?>
+                        <li> <a class="has-arrow" href="#" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Purchase Order</span></a>
+                            <ul aria-expanded="false" class="collapse">
+                           
+                                <li><a href="add-purchase-order.php">Add Purchase Order</a></li>
+                           
+                                <li><a href="purchase_order.php">Manage Purchase Orders</a></li>
+                            </ul>
+                        </li>
+
+                    <?php }?>
                          
                         <?php if(isset($_SESSION['userId']) && $_SESSION['userId']==1) { ?>
                          <!-- <li><a href="report.php" href="#" aria-expanded="false"><i class="fa fa-print"></i><span class="hide-menu">Reports</span></a></li> -->
