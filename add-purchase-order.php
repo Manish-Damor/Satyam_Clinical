@@ -304,11 +304,25 @@ $(document).ready(function() {
             url: 'php_action/fetchProducts.php',
             type: 'GET',
             success: function(response) {
-                const products = JSON.parse(response);
+                let products = [];
+                try {
+                    if (typeof response === 'string') {
+                        products = JSON.parse(response);
+                    } else {
+                        products = response;
+                    }
+                } catch(e) {
+                    console.error('JSON Parse Error:', e);
+                    alert('Error loading products. Please refresh the page.');
+                    return;
+                }
+
                 let options = '<option value="">Select Product</option>';
-                products.forEach(product => {
-                    options += '<option value="' + product.id + '">' + product.productName + '</option>';
-                });
+                if(Array.isArray(products)) {
+                    products.forEach(product => {
+                        options += '<option value="' + product.id + '">' + product.productName + '</option>';
+                    });
+                }
 
                 const newRow = `
                     <tr class="item-row">
@@ -324,6 +338,11 @@ $(document).ready(function() {
                     </tr>
                 `;
                 $('#itemsTable tbody').append(newRow);
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', status, error);
+                console.error('Response:', xhr.responseText);
+                alert('Error loading products. Check browser console.');
             }
         });
     }
