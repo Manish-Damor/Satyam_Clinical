@@ -68,11 +68,10 @@ foreach ($result as $row) {
                                                 
                                                 </td>
                                         </tr>
-                                      
-                                    </tbody>
                                    <?php    
 }
 ?>
+                                    </tbody>
                                </table>
                                 </div>
                             </div>

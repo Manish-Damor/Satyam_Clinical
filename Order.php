@@ -90,12 +90,11 @@ $no+=1;
                                                 
                                                 </td>
                                         </tr>
-                                     
-                                    </tbody>
                                    <?php    
 }
 
 ?>
+                                    </tbody>
                                </table>
                                 </div>
                             </div>
