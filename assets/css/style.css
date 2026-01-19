@@ -1583,8 +1583,7 @@ textarea {
   color: #0B2A97;
 }
 .sidebar-nav ul li a:hover i {
-  /*color: #1976d2;*/
-  #f9fdff;
+  color: #1976d2;
 }
 .sidebar-nav ul li a.active {
   color: #0B2A97;
@@ -2123,9 +2122,9 @@ textarea {
   stroke-linejoin: round;
   stroke-linecap: round;
   stroke-dasharray: 500%;
-  stroke-dasharray: 0 /;
+  stroke-dasharray: 0 ;
   /* fixes IE prob */
-  stroke-dashoffset: 0 /;
+  stroke-dashoffset: 0 ;
   /* fixes IE prob */
   -webkit-animation: am-draw 40s;
   animation: am-draw 40s;

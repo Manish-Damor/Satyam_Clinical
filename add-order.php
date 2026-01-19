@@ -1143,47 +1143,88 @@ $(document).on('input', '.invoice-product-input', function() {
     });
 
     $.ajax({
-        url: 'php_action/searchProducts.php',
-        type: 'GET',
-        data: {q: searchTerm},
-        success: function(response) {
-            let products = [];
-            try {
-                if (typeof response === 'string') {
-                    products = JSON.parse(response);
-                } else {
-                    products = response;
-                }
-            } catch(e) {
-                console.error('JSON Parse Error:', e);
-                return;
-            }
-
-            if(products.length === 0) {
-                $dropdown.html('<div style="padding: 10px;">No medicines found</div>').show();
-                return;
-            }
-
-            let html = '';
-            products.forEach(product => {
-                html += `<div class="invoice-product-item" style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s;" data-id="${product.id}" data-name="${product.productName}" data-price="${product.price}" data-quantity="${product.quantity || 0}" data-row-id="${rowId}">
-                    <strong>${product.productName}</strong><br>
-                    <small style="color: #666;">Price: ₹${parseFloat(product.price).toFixed(2)}</small>
-                </div>`;
-            });
-            $dropdown.html(html).show();
-
-            // Hover effect
-            $dropdown.find('.invoice-product-item').hover(
-                function() { $(this).css('background-color', '#f5f5f5'); },
-                function() { $(this).css('background-color', 'white'); }
-            );
-        },
-        error: function(xhr, status, error) {
-            console.error('AJAX Error:', status, error);
+      url: 'php_action/searchProducts.php',
+      type: 'GET',
+      data: {q: searchTerm},
+      success: function(response) {
+        let products = [];
+        try {
+          if (typeof response === 'string') {
+            products = JSON.parse(response);
+          } else {
+            products = response;
+          }
+        } catch(e) {
+          console.error('JSON Parse Error:', e);
+          return;
         }
+
+        if(products.length === 0) {
+          $dropdown.html('<div style="padding: 10px;">No medicines found</div>').show();
+          return;
+        }
+
+        var html = '';
+        products.forEach(function(product) {
+          html += '<div class="invoice-product-item" style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s;" data-id="'+product.id+'" data-name="'+product.productName+'" data-price="'+product.price+'" data-quantity="'+(product.quantity||0)+'" data-row-id="'+rowId+'">'
+            +'<strong>'+product.productName+'</strong><br>'
+            +'<small style="color: #666;">Price: ₹'+parseFloat(product.price).toFixed(2)+'</small>'
+          +'</div>';
+        });
+
+        $dropdown.html(html).show().attr('data-highlight', 0);
+        $dropdown.find('.invoice-product-item').each(function(i){ $(this).attr('data-index', i); });
+        var $items = $dropdown.find('.invoice-product-item');
+        if($items.length) {
+          $items.css('background-color','white').removeClass('selected');
+          $items.eq(0).addClass('selected').css('background-color','#f5f5f5');
+        }
+
+        // Hover effect (keep hover but preserve selected state)
+        $dropdown.find('.invoice-product-item').hover(
+          function() { $(this).css('background-color', '#f5f5f5'); },
+          function() { if(!$(this).hasClass('selected')) $(this).css('background-color', 'white'); }
+        );
+      },
+      error: function(xhr, status, error) {
+        console.error('AJAX Error:', status, error);
+      }
     });
 });
+
+  // Keyboard navigation for dropdown: ArrowUp, ArrowDown, Enter to select
+  $(document).on('keydown', '.invoice-product-input', function(e) {
+    var $input = $(this);
+    var rowId = $input.data('row-id');
+    var $dropdown = $('#dropdown' + rowId);
+    if(!$dropdown.is(':visible')) return;
+    var $items = $dropdown.find('.invoice-product-item');
+    if($items.length === 0) return;
+    var index = parseInt($dropdown.attr('data-highlight') || 0, 10);
+
+    if(e.key === 'ArrowDown') {
+      e.preventDefault();
+      index = Math.min(index + 1, $items.length - 1);
+    } else if(e.key === 'ArrowUp') {
+      e.preventDefault();
+      index = Math.max(index - 1, 0);
+    } else if(e.key === 'Enter') {
+      e.preventDefault();
+      $items.eq(index).trigger('click');
+      return;
+    } else {
+      return;
+    }
+
+    $items.removeClass('selected').css('background-color','white');
+    $items.eq(index).addClass('selected').css('background-color','#f5f5f5');
+    $dropdown.attr('data-highlight', index);
+  });
+
+  // inject small style for selected item if not present
+  if(!$('head').find('#invoice-product-autocomplete-style').length){
+    $('head').append('<style id="invoice-product-autocomplete-style">.invoice-product-item.selected{background-color:#f5f5f5;}</style>');
+  }
 
 // Product selection from dropdown
 $(document).on('click', '.invoice-product-item', function() {
