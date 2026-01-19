@@ -144,20 +144,10 @@ $n="INV-000";
             for($x = 1; $x < 2; $x++) { ?>
               <tr id="row<?php echo $x; ?>" class="<?php echo $arrayNumber; ?>">                
                 <td style="margin-left:20px;">
-                  <div class="form-group">
-
-                  <select class="form-control" name="productName[]" id="productName<?php echo $x; ?>" onchange="getProductData(<?php echo $x; ?>)" >
-                    <option value="">~~SELECT~~</option>
-                    <?php
-                      $productSql = "SELECT * FROM product WHERE active = 1 AND status = 1 AND quantity != 0";
-                      $productData = $connect->query($productSql);
-
-                      while($row = $productData->fetch_array()) {                     
-                        echo "<option value='".$row['product_id']."' id='changeProduct".$row['product_id']."'>".$row['product_name']."</option>";
-                      } // /while 
-
-                    ?>
-                  </select>
+                  <div class="form-group" style="position: relative;">
+                    <input type="text" class="form-control invoice-product-input" name="productName[]" id="productName<?php echo $x; ?>" placeholder="Type to search medicines..." autocomplete="off" data-row-id="<?php echo $x; ?>" style="position: relative; z-index: 1;" />
+                    <input type="hidden" class="invoice-product-id" name="productId[]" id="productId<?php echo $x; ?>" />
+                    <div class="invoice-product-dropdown" id="dropdown<?php echo $x; ?>" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>
                   </div>
                 </td>
                 <td style="padding-left:20px;">                 
@@ -809,28 +799,13 @@ function removeProductRow(row = null) {
 function getProductData(row = null) {
 
   if(row) {
-    var productId = $("#productName"+row).val();    
+    var productId = $("#productId"+row).val();    
     
     if(productId == "") {
       $("#rate"+row).val("");
 
       $("#quantity"+row).val("");           
       $("#total"+row).val("");
-
-      // remove check if product name is selected
-      // var tableProductLength = $("#productTable tbody tr").length;     
-      // for(x = 0; x < tableProductLength; x++) {
-      //  var tr = $("#productTable tbody tr")[x];
-      //  var count = $(tr).attr('id');
-      //  count = count.substring(3);
-
-      //  var productValue = $("#productName"+row).val()
-
-      //  if($("#productName"+count).val() == "") {         
-      //    $("#productName"+count).find("#changeProduct"+productId).removeClass('div-hide'); 
-      //    console.log("#changeProduct"+count);
-      //  }                     
-      // } // /for
 
     } else {
       $.ajax({
@@ -1147,5 +1122,90 @@ function paymentOrder(orderId = null) {
   }
 }
 
-</script>
+// Invoice Product Autocomplete
+$(document).on('input', '.invoice-product-input', function() {
+    const $input = $(this);
+    const rowId = $input.data('row-id');
+    const $dropdown = $('#dropdown' + rowId);
+    const searchTerm = $input.val();
 
+    if(searchTerm.length < 1) {
+        $dropdown.hide();
+        return;
+    }
+
+    // Position dropdown below input
+    const offset = $input.offset();
+    $dropdown.css({
+        top: $input.outerHeight() + 'px',
+        left: 0+'px',
+        width: $input.outerWidth() + 'px'
+    });
+
+    $.ajax({
+        url: 'php_action/searchProducts.php',
+        type: 'GET',
+        data: {q: searchTerm},
+        success: function(response) {
+            let products = [];
+            try {
+                if (typeof response === 'string') {
+                    products = JSON.parse(response);
+                } else {
+                    products = response;
+                }
+            } catch(e) {
+                console.error('JSON Parse Error:', e);
+                return;
+            }
+
+            if(products.length === 0) {
+                $dropdown.html('<div style="padding: 10px;">No medicines found</div>').show();
+                return;
+            }
+
+            let html = '';
+            products.forEach(product => {
+                html += `<div class="invoice-product-item" style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s;" data-id="${product.id}" data-name="${product.productName}" data-price="${product.price}" data-quantity="${product.quantity || 0}" data-row-id="${rowId}">
+                    <strong>${product.productName}</strong><br>
+                    <small style="color: #666;">Price: ₹${parseFloat(product.price).toFixed(2)}</small>
+                </div>`;
+            });
+            $dropdown.html(html).show();
+
+            // Hover effect
+            $dropdown.find('.invoice-product-item').hover(
+                function() { $(this).css('background-color', '#f5f5f5'); },
+                function() { $(this).css('background-color', 'white'); }
+            );
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX Error:', status, error);
+        }
+    });
+});
+
+// Product selection from dropdown
+$(document).on('click', '.invoice-product-item', function() {
+    const $item = $(this);
+    const rowId = $item.data('row-id');
+    const $input = $('#productName' + rowId);
+    const $idField = $('#productId' + rowId);
+    const $dropdown = $('#dropdown' + rowId);
+
+    $input.val($item.data('name'));
+    $idField.val($item.data('id'));
+    $dropdown.hide();
+
+    // Trigger getProductData to fetch rate and quantity
+    getProductData(rowId);
+});
+
+// Hide dropdown when clicking outside
+$(document).on('click', function(e) {
+    if(!$(e.target).closest('.form-group').length) {
+        $('.invoice-product-dropdown').hide();
+    }
+});
+
+</script>

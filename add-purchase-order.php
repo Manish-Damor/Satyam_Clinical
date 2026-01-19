@@ -121,16 +121,11 @@ $poNumber = 'PO-' . $year . $month . '-' . str_pad($nextPONum, 4, '0', STR_PAD_L
                                     <tbody>
                                         <tr class="item-row">
                                             <td>
-                                                <select class="form-control product-select" name="productName[]" required>
-                                                    <option value="">Select Product</option>
-                                                    <?php 
-                                                    $productSql = "SELECT product_id as id, product_name as productName FROM product WHERE status = 1";
-                                                    $productResult = $connect->query($productSql);
-                                                    while($prow = $productResult->fetch_assoc()) {
-                                                        echo "<option value='".intval($prow['id'])."'>".htmlspecialchars($prow['productName'])."</option>";
-                                                    }
-                                                    ?>
-                                                </select>
+                                                <div class="position-relative" style="position: relative;">
+                                                    <input type="text" class="form-control product-input" name="productName[]" placeholder="Type to search medicines..." autocomplete="off" required style="position: relative; z-index: 1;">
+                                                    <input type="hidden" class="product-id" name="productId[]">
+                                                    <div class="product-dropdown" style="position: fixed; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>
+                                                </div>
                                             </td>
                                             <td><input type="number" class="form-control quantity" name="quantity[]" min="1" required></td>
                                             <td><input type="number" class="form-control unit-price" name="unitPrice[]" step="0.01" min="0" required></td>
@@ -216,6 +211,91 @@ $(document).ready(function() {
         calculateTotals();
     });
 
+    // Product autocomplete search
+    $(document).on('input', '.product-input', function() {
+        const $input = $(this);
+        const $dropdown = $input.closest('.position-relative').find('.product-dropdown');
+        const searchTerm = $input.val();
+
+        if(searchTerm.length < 1) {
+            $dropdown.hide();
+            return;
+        }
+
+        // Position dropdown below input
+        const offset = $input.offset();
+        $dropdown.css({
+            top: (offset.top + $input.outerHeight() + 5) + 'px',
+            left: offset.left + 'px',
+            width: $input.outerWidth() + 'px'
+        });
+
+        $.ajax({
+            url: 'php_action/searchProducts.php',
+            type: 'GET',
+            data: {q: searchTerm},
+            success: function(response) {
+                let products = [];
+                try {
+                    if (typeof response === 'string') {
+                        products = JSON.parse(response);
+                    } else {
+                        products = response;
+                    }
+                } catch(e) {
+                    console.error('JSON Parse Error:', e);
+                    return;
+                }
+
+                if(products.length === 0) {
+                    $dropdown.html('<div style="padding: 10px;">No medicines found</div>').show();
+                    return;
+                }
+
+                let html = '';
+                products.forEach(product => {
+                    html += `<div class="product-item" style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s;" data-id="${product.id}" data-name="${product.productName}" data-price="${product.price}">
+                        <strong>${product.productName}</strong><br>
+                        <small style="color: #666;">Price: ₹${parseFloat(product.price).toFixed(2)}</small>
+                    </div>`;
+                });
+                $dropdown.html(html).show();
+
+                // Hover effect
+                $dropdown.find('.product-item').hover(
+                    function() { $(this).css('background-color', '#f5f5f5'); },
+                    function() { $(this).css('background-color', 'white'); }
+                );
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', status, error);
+            }
+        });
+    });
+
+    // Product selection from dropdown
+    $(document).on('click', '.product-item', function() {
+        const $item = $(this);
+        const $input = $item.closest('.position-relative').find('.product-input');
+        const $idField = $item.closest('.position-relative').find('.product-id');
+        const $dropdown = $item.closest('.product-dropdown');
+
+        $input.val($item.data('name'));
+        $idField.val($item.data('id'));
+        $dropdown.hide();
+
+        // Auto-fill unit price
+        const $unitPriceInput = $input.closest('tr').find('.unit-price');
+        $unitPriceInput.val(parseFloat($item.data('price')).toFixed(2)).trigger('input');
+    });
+
+    // Hide dropdown when clicking outside
+    $(document).on('click', function(e) {
+        if(!$(e.target).closest('.position-relative').length) {
+            $('.product-dropdown').hide();
+        }
+    });
+
     // Calculate item total
     $(document).on('input', '.quantity, .unit-price', function() {
         const row = $(this).closest('tr');
@@ -254,13 +334,13 @@ $(document).ready(function() {
         };
 
         $('#itemsTable tbody tr').each(function() {
-            const productId = $(this).find('.product-select').val();
-            const productName = $(this).find('.product-select option:selected').text();
+            const productId = $(this).find('.product-id').val();
+            const productName = $(this).find('.product-input').val();
             const quantity = $(this).find('.quantity').val();
             const unitPrice = $(this).find('.unit-price').val();
             const total = $(this).find('.item-total').val();
 
-            if(productId && quantity && unitPrice) {
+            if(productId && productName && quantity && unitPrice) {
                 formData.items.push({
                     productId: productId,
                     productName: productName,
@@ -283,7 +363,6 @@ $(document).ready(function() {
             contentType: 'application/json',
             dataType: 'json',
             success: function(result) {
-                // jQuery auto-parses JSON, so result is already an object
                 if(result.success) {
                     alert('Purchase Order created successfully');
                     window.location.href = 'purchase_order.php';
@@ -300,51 +379,22 @@ $(document).ready(function() {
     });
 
     function addNewRow() {
-        $.ajax({
-            url: 'php_action/fetchProducts.php',
-            type: 'GET',
-            success: function(response) {
-                let products = [];
-                try {
-                    if (typeof response === 'string') {
-                        products = JSON.parse(response);
-                    } else {
-                        products = response;
-                    }
-                } catch(e) {
-                    console.error('JSON Parse Error:', e);
-                    alert('Error loading products. Please refresh the page.');
-                    return;
-                }
-
-                let options = '<option value="">Select Product</option>';
-                if(Array.isArray(products)) {
-                    products.forEach(product => {
-                        options += '<option value="' + product.id + '">' + product.productName + '</option>';
-                    });
-                }
-
-                const newRow = `
-                    <tr class="item-row">
-                        <td>
-                            <select class="form-control product-select" name="productName[]" required>
-                                ` + options + `
-                            </select>
-                        </td>
-                        <td><input type="number" class="form-control quantity" name="quantity[]" min="1" required></td>
-                        <td><input type="number" class="form-control unit-price" name="unitPrice[]" step="0.01" min="0" required></td>
-                        <td><input type="number" class="form-control item-total" name="itemTotal[]" readonly></td>
-                        <td><button type="button" class="btn btn-danger btn-sm remove-row">Remove</button></td>
-                    </tr>
-                `;
-                $('#itemsTable tbody').append(newRow);
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX Error:', status, error);
-                console.error('Response:', xhr.responseText);
-                alert('Error loading products. Check browser console.');
-            }
-        });
+        const newRow = `
+            <tr class="item-row">
+                <td>
+                    <div class="position-relative" style="position: relative;">
+                        <input type="text" class="form-control product-input" name="productName[]" placeholder="Type to search medicines..." autocomplete="off" required style="position: relative; z-index: 1;">
+                        <input type="hidden" class="product-id" name="productId[]">
+                        <div class="product-dropdown" style="position: fixed; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>
+                    </div>
+                </td>
+                <td><input type="number" class="form-control quantity" name="quantity[]" min="1" required></td>
+                <td><input type="number" class="form-control unit-price" name="unitPrice[]" step="0.01" min="0" required></td>
+                <td><input type="number" class="form-control item-total" name="itemTotal[]" readonly></td>
+                <td><button type="button" class="btn btn-danger btn-sm remove-row">Remove</button></td>
+            </tr>
+        `;
+        $('#itemsTable tbody').append(newRow);
     }
 
     function calculateTotals() {
