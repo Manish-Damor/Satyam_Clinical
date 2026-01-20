@@ -191,7 +191,6 @@ if(!$itemsResult) {
                     <!-- Totals Section -->
                     <div class="row mt-4">
                         <div class="col-md-6 offset-md-6">
-                        <div class="col-md-6 offset-md-6">
                             <div class="form-group">
                                 <label>Sub Total</label>
                                 <input type="number" class="form-control" name="subTotal" id="subTotal" step="0.01" readonly value="<?php echo floatval($po['sub_total']); ?>">
@@ -252,6 +251,7 @@ $(document).ready(function() {
     
     // Add row button
     $('#addRowBtn').click(function() {
+        // alert('Button clicked');
         addNewRow();
     });
 
@@ -344,34 +344,150 @@ $(document).ready(function() {
         });
     });
 
-    function addNewRow() {
-        $.ajax({
-            url: 'php_action/fetchProducts.php',
-            type: 'GET',
-            success: function(response) {
-                const products = JSON.parse(response);
-                let options = '<option value="">Select Product</option>';
-                products.forEach(product => {
-                    options += '<option value="' + product.id + '">' + product.productName + '</option>';
-                });
+    // below is original version
+    // function addNewRow() {
+    //     $.ajax({
+    //         url: 'php_action/fetchProducts.php',
+    //         type: 'GET',
+    //         success: function(response) {
+    //             const products = JSON.parse(response);
+    //             let options = '<option value="">Select Product</option>';
+    //             products.forEach(product => {
+    //                 options += '<option value="' + product.id + '">' + product.productName + '</option>';
+    //             });
 
-                const newRow = `
-                    <tr class="item-row">
-                        <td>
-                            <select class="form-control product-select" name="productName[]" required>
-                                ` + options + `
-                            </select>
-                        </td>
-                        <td><input type="number" class="form-control quantity" name="quantity[]" min="1" required></td>
-                        <td><input type="number" class="form-control unit-price" name="unitPrice[]" step="0.01" min="0" required></td>
-                        <td><input type="number" class="form-control item-total" name="itemTotal[]" readonly></td>
-                        <td><button type="button" class="btn btn-danger btn-sm remove-row">Remove</button></td>
-                    </tr>
-                `;
-                $('#itemsTable tbody').append(newRow);
-            }
-        });
-    }
+    //             const newRow = `
+    //                 <tr class="item-row">
+    //                     <td>
+    //                         <select class="form-control product-select" name="productName[]" required>
+    //                             ` + options + `
+    //                         </select>
+    //                     </td>
+    //                     <td><input type="number" class="form-control quantity" name="quantity[]" min="1" required></td>
+    //                     <td><input type="number" class="form-control unit-price" name="unitPrice[]" step="0.01" min="0" required></td>
+    //                     <td><input type="number" class="form-control item-total" name="itemTotal[]" readonly></td>
+    //                     <td><button type="button" class="btn btn-danger btn-sm remove-row">Remove</button></td>
+    //                 </tr>
+    //             `;
+    //             $('#itemsTable tbody').append(newRow);
+    //         }
+    //     });
+    // }
+
+    function addNewRow() {
+    console.log('Add Row clicked');
+
+    $.ajax({
+        url: 'php_action/fetchProducts.php',
+        type: 'GET',
+        dataType: 'json',   // VERY IMPORTANT
+
+        success: function(products) {
+            console.log('Products received:', products);
+
+            let options = '<option value="">Select Product</option>';
+
+            products.forEach(function(product) {
+                options += '<option value="' + product.id + '">' + product.productName + '</option>';
+            });
+
+            const newRow = `
+                <tr class="item-row">
+                    <td>
+                        <select class="form-control product-select" name="productName[]" required>
+                            ${options}
+                        </select>
+                    </td>
+                    <td><input type="number" class="form-control quantity" name="quantity[]" min="1" required></td>
+                    <td><input type="number" class="form-control unit-price" name="unitPrice[]" step="0.01" min="0" required></td>
+                    <td><input type="number" class="form-control item-total" name="itemTotal[]" readonly></td>
+                    <td><button type="button" class="btn btn-danger btn-sm remove-row">Remove</button></td>
+                </tr>
+            `;
+
+            $('#itemsTable tbody').append(newRow);
+
+            console.log('Row added successfully');
+        },
+
+        error: function(xhr, status, error) {
+            console.error('AJAX error:', error);
+            console.error('Response:', xhr.responseText);
+            alert('Failed to load products');
+        }
+    });
+}
+
+
+//     function addNewRow() {
+//     console.log('Add Row clicked');
+
+//     $.ajax({
+//         url: 'php_action/fetchProducts.php',
+//         type: 'GET',
+
+//         beforeSend: function () {
+//             console.log('Sending request to fetchProducts.php...');
+//         },
+
+//         success: function(response) {
+//             console.log('Raw response from server:', response);
+
+//             let products;
+//             try {
+//                 products = JSON.parse(response);
+//                 console.log('Parsed products:', products);
+//             } catch (e) {
+//                 console.error('JSON parse error:', e);
+//                 alert('Response is not valid JSON. Check console.');
+//                 return;
+//             }
+
+//             if (!Array.isArray(products)) {
+//                 console.error('Response is not an array:', products);
+//                 alert('Response format is wrong. Check console.');
+//                 return;
+//             }
+
+//             let options = '<option value="">Select Product</option>';
+
+//             products.forEach(function(product, index) {
+//                 console.log('Product', index, product);
+
+//                 options += '<option value="' + product.id + '">' + product.productName + '</option>';
+//             });
+
+//             const newRow = `
+//                 <tr class="item-row">
+//                     <td>
+//                         <select class="form-control product-select" name="productName[]" required>
+//                             ${options}
+//                         </select>
+//                     </td>
+//                     <td><input type="number" class="form-control quantity" name="quantity[]" min="1" required></td>
+//                     <td><input type="number" class="form-control unit-price" name="unitPrice[]" step="0.01" min="0" required></td>
+//                     <td><input type="number" class="form-control item-total" name="itemTotal[]" readonly></td>
+//                     <td><button type="button" class="btn btn-danger btn-sm remove-row">Remove</button></td>
+//                 </tr>
+//             `;
+
+//             console.log('Appending new row to table...');
+//             $('#itemsTable tbody').append(newRow);
+
+//             console.log('Row added successfully');
+//         },
+
+//         error: function(xhr, status, error) {
+//             console.error('AJAX error:');
+//             console.error('Status:', status);
+//             console.error('Error:', error);
+//             console.error('Response:', xhr.responseText);
+
+//             alert('AJAX failed. Check console.');
+//         }
+//     });
+// }
+
 
     function calculateTotals() {
         let subTotal = 0;
