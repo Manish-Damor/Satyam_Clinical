@@ -107,7 +107,7 @@ $poNumber = 'PO-' . $year . $month . '-' . str_pad($nextPONum, 4, '0', STR_PAD_L
                     <div class="row mt-4">
                         <div class="col-md-12">
                             <h5>Purchase Order Items</h5>
-                            <div class="table-responsive">
+                            <div class="table-responsive" style="overflow: visible !important;">
                                 <table class="table table-bordered" id="itemsTable">
                                     <thead>
                                         <tr>
@@ -121,10 +121,10 @@ $poNumber = 'PO-' . $year . $month . '-' . str_pad($nextPONum, 4, '0', STR_PAD_L
                                     <tbody>
                                         <tr class="item-row">
                                             <td>
-                                                <div class="position-relative" style="position: relative;">
+                                                <div class="position-relative form-group" style="position: relative; overflow: visible;">
                                                     <input type="text" class="form-control product-input" name="productName[]" placeholder="Type to search medicines..." autocomplete="off" required style="position: relative; z-index: 1;">
                                                     <input type="hidden" class="product-id" name="productId[]">
-                                                    <div class="product-dropdown" style="position: fixed; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>
+                                                    <div class="product-dropdown" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>
                                                 </div>
                                             </td>
                                             <td><input type="number" class="form-control quantity" name="quantity[]" min="1" required></td>
@@ -225,12 +225,13 @@ $(document).ready(function() {
         // Position dropdown below input
         const offset = $input.offset();
         $dropdown.css({
-            top: (offset.top + $input.outerHeight() + 5) + 'px',
-            left: offset.left + 'px',
-            width: $input.outerWidth() + 'px'
+
+            //top: (offset.top + $input.outerHeight() + 5) + 'px',
+            //left: offset.left + 'px',
+            //width: $input.outerWidth() + 'px'
         });
 
-        $.ajax({
+                $.ajax({
             url: 'php_action/searchProducts.php',
             type: 'GET',
             data: {q: searchTerm},
@@ -261,11 +262,21 @@ $(document).ready(function() {
                 });
                 $dropdown.html(html).show();
 
-                // Hover effect
-                $dropdown.find('.product-item').hover(
-                    function() { $(this).css('background-color', '#f5f5f5'); },
-                    function() { $(this).css('background-color', 'white'); }
-                );
+                // Select the first item by default
+                $dropdown.find('.product-item').removeClass('selected').css('background-color', 'white');
+                const $firstItem = $dropdown.find('.product-item').first();
+                if($firstItem.length) {
+                    $firstItem.addClass('selected').css('background-color', '#f5f5f5');
+                }
+
+                // Hover effect (delegated handlers will also update selection via mouse)
+                $dropdown.find('.product-item').on('mouseenter', function() {
+                    $dropdown.find('.product-item').removeClass('selected').css('background-color', 'white');
+                    $(this).addClass('selected').css('background-color', '#f5f5f5');
+                });
+                $dropdown.find('.product-item').on('mouseleave', function() {
+                    // keep selection on mouseleave (no-op) so keyboard stays in sync
+                });
             },
             error: function(xhr, status, error) {
                 console.error('AJAX Error:', status, error);
@@ -293,6 +304,57 @@ $(document).ready(function() {
     $(document).on('click', function(e) {
         if(!$(e.target).closest('.position-relative').length) {
             $('.product-dropdown').hide();
+        }
+    });
+
+    // Keyboard navigation for product dropdowns (Arrow Up/Down, Enter, Escape)
+    $(document).on('keydown', '.product-input', function(e) {
+        const $input = $(this);
+        const $dropdown = $input.closest('.position-relative').find('.product-dropdown');
+        if(!$dropdown.is(':visible')) return;
+        const $items = $dropdown.find('.product-item');
+        if($items.length === 0) return;
+
+        const key = e.key || e.which;
+
+        if(key === 'ArrowDown' || key === 'Down' || e.which === 40) {
+            e.preventDefault();
+            let $selected = $items.filter('.selected');
+            if($selected.length === 0) {
+                $items.first().addClass('selected').css('background-color', '#f5f5f5')[0].scrollIntoView({block: 'nearest'});
+            } else {
+                const $next = $selected.nextAll('.product-item').first();
+                if($next.length) {
+                    $selected.removeClass('selected').css('background-color', 'white');
+                    $next.addClass('selected').css('background-color', '#f5f5f5')[0].scrollIntoView({block: 'nearest'});
+                } else {
+                    $selected.removeClass('selected').css('background-color', 'white');
+                    $items.first().addClass('selected').css('background-color', '#f5f5f5')[0].scrollIntoView({block: 'nearest'});
+                }
+            }
+        } else if(key === 'ArrowUp' || key === 'Up' || e.which === 38) {
+            e.preventDefault();
+            let $selected = $items.filter('.selected');
+            if($selected.length === 0) {
+                $items.last().addClass('selected').css('background-color', '#f5f5f5')[0].scrollIntoView({block: 'nearest'});
+            } else {
+                const $prev = $selected.prevAll('.product-item').first();
+                if($prev.length) {
+                    $selected.removeClass('selected').css('background-color', 'white');
+                    $prev.addClass('selected').css('background-color', '#f5f5f5')[0].scrollIntoView({block: 'nearest'});
+                } else {
+                    $selected.removeClass('selected').css('background-color', 'white');
+                    $items.last().addClass('selected').css('background-color', '#f5f5f5')[0].scrollIntoView({block: 'nearest'});
+                }
+            }
+        } else if(key === 'Enter' || e.which === 13) {
+            e.preventDefault();
+            const $sel = $items.filter('.selected');
+            if($sel.length) {
+                $sel.trigger('click');
+            }
+        } else if(key === 'Escape' || e.which === 27) {
+            $dropdown.hide();
         }
     });
 
@@ -385,7 +447,7 @@ $(document).ready(function() {
                     <div class="position-relative" style="position: relative;">
                         <input type="text" class="form-control product-input" name="productName[]" placeholder="Type to search medicines..." autocomplete="off" required style="position: relative; z-index: 1;">
                         <input type="hidden" class="product-id" name="productId[]">
-                        <div class="product-dropdown" style="position: fixed; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>
+                        <div class="product-dropdown" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>
                     </div>
                 </td>
                 <td><input type="number" class="form-control quantity" name="quantity[]" min="1" required></td>
