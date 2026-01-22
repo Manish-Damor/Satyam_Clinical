@@ -51,267 +51,245 @@ if($_GET['o'] == 'add') {
 
 
  
-        <div class="page-wrapper">
+  <div class="page-wrapper">
             
-            <div class="row page-titles">
-                <div class="col-md-5 align-self-center">
-                    <h3 class="text-primary">Invoice Management</h3> </div>
-                <div class="col-md-7 align-self-center">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="javascript:void(0)">Home</a></li>
-                        <li class="breadcrumb-item active">Invoice Management</li>
-                    </ol>
-                </div>
+    <div class="row page-titles">
+      <div class="col-md-5 align-self-center">
+        <h3 class="text-primary">Invoice Management</h3>
+      </div>
+      <div class="col-md-7 align-self-center">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="javascript:void(0)">Home</a></li>
+            <li class="breadcrumb-item active">Invoice Management</li>
+        </ol>
+      </div>
+    </div>   
+            
+    <div class="container-fluid">
+              
+      <div class="row">
+        <div class="col-lg-11" style="    margin-left: 5%;">
+          <div class="card">
+            <div class="card-title">
+                
             </div>
-            
-            
-            <div class="container-fluid">
-                
-                
-                
-                
-                <div class="row">
-                    <div class="col-lg-11" style="    margin-left: 5%;">
-                        <div class="card">
-                            <div class="card-title">
-                               
-                            </div>
-                            <div id="add-brand-messages"></div>
-                            <div class="card-body">
-                                <div class="input-states">
-                                    <form class="form-horizontal" method="POST"  id="createOrderForm" action="php_action/order.php" action="php_action/order.php">
+            <div id="add-brand-messages">
 
-                                        
-                                        <div class="form-group">
-                                            <div class="row">
-
-                                              <label class="col-sm-2 control-label">Invoice No</label>
-                                               <div class="col-sm-4">
-                                                <?php 
-$user ="select * from orders where  id=(select max(id) from orders)";
-//echo $user;exit;
-$result = $connect->query($user);
-foreach ($result as $res ) {
-   # code...
-}
-
-$n="INV-000";
-   $l=$res['id']+1;
-   $stall_no= $n."".$l; ?>
-                                                <input type="text" class="form-control" placeholder="Invoice Number" value="<?php echo $stall_no; ?>" autocomplete="off" name="uno" required/>
-                                               </div>
-
-
-                                                <label class="col-sm-2 control-label">Invoice Date</label>
-
-                                                <div class="col-sm-4">
-                                                 <input type="date" class="form-control" value="<?php echo date('Y-m-d');?>" id="orderDate" name="orderDate" autocomplete="off" />
-                                               </div>
-                                            </div>
-                                        </div>
-                                     <div class="form-group">
-                                            <div class="row">
-                                                <label class="col-sm-2 control-label">Client Name</label>
-                                                <div class="col-sm-4">
-                                                 <input type="text" class="form-control" id="clientName" name="clientName" placeholder="Client Name" autocomplete="off" />
-                                               </div>
-
-                                                <label class="col-sm-2 control-label">Client Contact No.</label>
-                                                <div class="col-sm-4">
-                                                <input type="text" class="form-control" id="clientContact" name="clientContact" placeholder="Contact Number No." autocomplete="off" pattern="^[0][1-9]\d{9}$|^[1-9]\d{9}$" required/>
-                                               </div>
-                                            
-
-                                            </div>
-
-                                        </div>
-                                                       
-
-                                     <table class="table" id="productTable">
-          <thead>
-            <tr>              
-              <th style="width:40%;">Medicine</th>
-              <th style="width:20%;">Rate</th>
-              <th style="width:10%;">Avail.</th>
-              <th style="width:15%;">Quantity</th>              
-              <th style="width:25%;">Total</th>             
-              <th style="width:10%;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php
-            $arrayNumber = 0;
-            for($x = 1; $x < 2; $x++) { ?>
-              <tr id="row<?php echo $x; ?>" class="<?php echo $arrayNumber; ?>">                
-                <td style="margin-left:20px;">
-                  <div class="form-group" style="position: relative;">
-                    <input type="text" class="form-control invoice-product-input" name="productName[]" id="productName<?php echo $x; ?>" placeholder="Type to search medicines..." autocomplete="off" data-row-id="<?php echo $x; ?>" style="position: relative; z-index: 1;" />
-                    <input type="hidden" class="invoice-product-id" name="productId[]" id="productId<?php echo $x; ?>" />
-                    <div class="invoice-product-dropdown" id="dropdown<?php echo $x; ?>" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>
-                  </div>
-                </td>
-                <td style="padding-left:20px;">                 
-                  <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />                  
-                  <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
-                </td>
-              <td style="padding-left:20px;">
+            </div>
+            <div class="card-body">
+              <div class="input-states">
+                <form class="form-horizontal" method="POST"  id="createOrderForm" action="php_action/order.php" action="php_action/order.php">
                   <div class="form-group">
-                  <p id="available_quantity<?php echo $x; ?>"></p>
+                    <div class="row">
+
+                      <label class="col-sm-2 control-label">Invoice No</label>
+                      <div class="col-sm-4">
+                        <?php 
+                          $user ="select * from orders where  id=(select max(id) from orders)";
+                          //echo $user;exit;
+                          $result = $connect->query($user);
+                          foreach ($result as $res ) {
+                            # code...
+                            $n="INV-000";
+                            $l=$res['id']+1;
+                            $stall_no= $n."".$l; 
+                            }
+                        ?>
+
+                        <input type="text" class="form-control" placeholder="Invoice Number" value="<?php echo $stall_no; ?>" autocomplete="off" name="uno" required/>
+                      </div>
+
+
+                      <label class="col-sm-2 control-label">Invoice Date</label>
+
+                      <div class="col-sm-4">
+                        <input type="date" class="form-control" value="<?php echo date('Y-m-d');?>" id="orderDate" name="orderDate" autocomplete="off" />
+                      </div>
+                    </div>
                   </div>
-                </td>
-                <td style="padding-left:20px;">
                   <div class="form-group">
-                  <input type="number" name="quantity[]" id="quantity<?php echo $x; ?>" onkeyup="getTotal(<?php echo $x ?>)" autocomplete="off" class="form-control" min="1" />
+                    <div class="row">
+                      <label class="col-sm-2 control-label">Client Name</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="clientName" name="clientName" placeholder="Client Name" autocomplete="off" />
+                      </div>
+
+                      <label class="col-sm-2 control-label">Client Contact No.</label>
+                      <div class="col-sm-4">
+                      <input type="text" class="form-control" id="clientContact" name="clientContact" placeholder="Contact Number No." autocomplete="off" pattern="^[0][1-9]\d{9}$|^[1-9]\d{9}$" required/>
+                      </div>
+
+                    </div>
                   </div>
-                </td>
-                <td >                 
-                  <input type="text" name="total[]" id="total<?php echo $x; ?>" autocomplete="off" class="form-control" disabled="true" />                  
-                  <input type="hidden" name="totalValue[]" id="totalValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
-                </td>
-                <td >
-                 
-                   <button type="button" class="btn btn-primary btn-flat " onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="fa fa-plus"></i></button>
+                                                        
 
-          
+                  <table class="table" id="productTable">
+                    <thead>
+                      <tr>              
+                        <th style="width:40%;">Medicine</th>
+                        <th style="width:20%;">Rate</th>
+                        <th style="width:10%;">Avail.</th>
+                        <th style="width:15%;">Quantity</th>              
+                        <th style="width:25%;">Total</th>             
+                        <th style="width:10%;">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <?php
+                        $arrayNumber = 0;
+                        for($x = 1; $x < 2; $x++) { 
+                      ?>
+                      <tr id="row<?php echo $x; ?>" class="<?php echo $arrayNumber; ?>">                
+                        <td style="margin-left:20px;">
+                          <div class="form-group" style="position: relative;">
+                            <input type="text" class="form-control invoice-product-input" name="productName[]" id="productName<?php echo $x; ?>" placeholder="Type to search medicines..." autocomplete="off" data-row-id="<?php echo $x; ?>" style="position: relative; z-index: 1;" />
+                            <input type="hidden" class="invoice-product-id" name="productId[]" id="productId<?php echo $x; ?>" />
+                            <div class="invoice-product-dropdown" id="dropdown<?php echo $x; ?>" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>
+                          </div>
+                        </td>
+                        <td style="padding-left:20px;">                 
+                          <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />                  
+                          <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
+                        </td>
+                        <td style="padding-left:20px;">
+                          <div class="form-group">
+                          <p id="available_quantity<?php echo $x; ?>"></p>
+                          </div>
+                        </td>
+                        <td style="padding-left:20px;">
+                          <div class="form-group">
+                          <input type="number" name="quantity[]" id="quantity<?php echo $x; ?>" onkeyup="getTotal(<?php echo $x ?>)" autocomplete="off" class="form-control" min="1" />
+                          </div>
+                        </td>
+                        <td >                 
+                          <input type="text" name="total[]" id="total<?php echo $x; ?>" autocomplete="off" class="form-control" disabled="true" />                  
+                          <input type="hidden" name="totalValue[]" id="totalValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
+                        </td>
+                        <td >
+                          <div class="form-group">
+                            <button type="button" class="btn btn-primary btn-flat " onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="fa fa-plus"></i></button>                  
+                          </div>
+                        </td>
+                        <td > 
+                          <div class="form-group">              
+                            <button type="button" class="btn btn-danger  removeProductRowBtn" type="button" id="removeProductRowBtn" onclick="removeProductRow(<?php echo $x; ?>)"><i class="fa fa-trash"></i></button>
+                          </div>
+                        </td>
+                      </tr>
+                      <?php
+                      $arrayNumber++;
+                      } // /for
+                      ?>
+                    </tbody>          
+                  </table>         
+                  <div class="form-group">
+                    <div class="row">
+                      <label class="col-sm-2 control-label">Sub Amount</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="subTotal" name="subTotal" disabled="true" />
+                        <input type="hidden" class="form-control" id="subTotalValue" name="subTotalValue" />
+                      </div>
+                      <label for="totalAmount" class="col-sm-2 control-label">Total Amount</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="totalAmount" name="totalAmount" disabled="true"/>
+                        <input type="hidden" class="form-control" id="totalAmountValue" name="totalAmountValue" />
+                      </div>
+                    </div>
+                  </div>                                       
+                  <div class="form-group">
+                    <div class="row">
+                      <label for="discount" class="col-sm-2 control-label">Discount</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" / pattern="^[0-9]+$"/>
+                      </div>
+                      <label for="grandTotal" class="col-sm-2 control-label">Grand Total</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="grandTotal" name="grandTotal" disabled="true" />
+                        <input type="hidden" class="form-control" id="grandTotalValue" name="grandTotalValue" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <div class="row">                          
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <div class="row">
+                      <label for="vat" class="col-sm-2 control-label gst">GST 18%</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="vat" name="gstn" readonly="true" />
+                        <input type="hidden" class="form-control" id="vatValue" name="vatValue" />
+                      </div>
+
+                      <label for="paid" class="col-sm-2 control-label">Paid Amount</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="form-group">
+                    <div class="row">
+                      <label for="due" class="col-sm-2 control-label">Due Amount</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="due" name="due" disabled="true" />
+                        <input type="hidden" class="form-control" id="dueValue" name="dueValue" />
+                      </div>
+                      <label for="clientContact" class="col-sm-2 control-label">Payment Type</label>
+                      <div class="col-sm-4">
+                        <select class="form-control" name="paymentType" id="paymentType">
+                          <option value="">~~SELECT~~</option>
+                          <option value="2">Cash</option>
+                          <option value="4">Phone Pe</option>
+                          <option value="5">Google Pay</option>
+                          <option value="6">Amazon Pay</option>
+                          <option value="1">Cheque</option>
+                          <option value="3">Credit Card</option>                      
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="form-group">
+                    <div class="row">
+                      <label for="clientContact" class="col-sm-2 control-label">Payment Status</label>
+                      <div class="col-sm-4">
+                        <select class="form-control" name="paymentStatus" id="paymentStatus">
+                          <option value="">~~SELECT~~</option>
+                          <option value="1">Full Payment</option>
+                          <option value="2">Advance Payment</option>
+                          <option value="3">No Payment</option>
+                        </select>
+                      </div>
+
+                      <label for="clientContact" class="col-sm-2 control-label">Payment Place</label>
+                      <div class="col-sm-4">
+                        <select class="form-control" name="paymentPlace" id="paymentPlace">
+                          <option value="">~~SELECT~~</option>
+                          <option value="1">In India</option>
+                          <option value="2">Out Of India</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-group submitButtonFooter">
+                    <div class="col-sm-offset-2 col-sm-10">
+                      <button type="submit" id="createOrderBtn" data-loading-text="Loading..." class="btn btn-success btn-flat m-b-30 m-t-30"><i class="glyphicon glyphicon-ok-sign"></i> Submit</button>
+
+                      <button type="reset" class="btn btn-danger btn-flat m-b-30 m-t-30" onclick="resetOrderForm()"><i class="glyphicon glyphicon-erase"></i> Reset</button>
+                    </div>
+                  </div>        
+                </form>
+              </div>
             </div>
-                </td>
-
-<td >
-                 
-                 
-
-            <button type="button" class="btn btn-danger  removeProductRowBtn" type="button" id="removeProductRowBtn" onclick="removeProductRow(<?php echo $x; ?>)"><i class="fa fa-trash"></i></button>
-            </div>
-                </td>
-
-
-              </tr>
-            <?php
-            $arrayNumber++;
-            } // /for
-            ?>
-          </tbody>          
-        </table>
-       
-                                        
-                                        <div class="form-group">
-                                            <div class="row">
-                                                <label class="col-sm-2 control-label">Sub Amount</label>
-                                                <div class="col-sm-4">
-                                                 <input type="text" class="form-control" id="subTotal" name="subTotal" disabled="true" />
-              <input type="hidden" class="form-control" id="subTotalValue" name="subTotalValue" />
-                                                </div>
-
-                                                <label for="totalAmount" class="col-sm-2 control-label">Total Amount</label>
-                                                  <div class="col-sm-4">
-                                                    <input type="text" class="form-control" id="totalAmount" name="totalAmount" disabled="true"/>
-                                                    <input type="hidden" class="form-control" id="totalAmountValue" name="totalAmountValue" />
-                                                     </div>
-
-                                            </div>
-                                        </div>
-                                       
-                                        <div class="form-group">
-                                            <div class="row">
-                                                <label for="discount" class="col-sm-2 control-label">Discount</label>
-                                                <div class="col-sm-4">
-                                                  <input type="text" class="form-control" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" / pattern="^[0-9]+$"/>
-                                                </div>
-                                                <label for="grandTotal" class="col-sm-2 control-label">Grand Total</label>
-                                                 <div class="col-sm-4">
-                                                  <input type="text" class="form-control" id="grandTotal" name="grandTotal" disabled="true" />
-                                                  <input type="hidden" class="form-control" id="grandTotalValue" name="grandTotalValue" />
-                                                </div>
-
-                                              </div>
-                                            </div>
-                                        <div class="form-group">
-                                            <div class="row">
-                                                 
-                                            </div>
-                                        </div>
-
-                                        <div class="form-group">
-                                            <div class="row">
-                                                <label for="vat" class="col-sm-2 control-label gst">GST 18%</label>
-                                                <div class="col-sm-4">
-                                                  <input type="text" class="form-control" id="vat" name="gstn" readonly="true" />
-                                                  <input type="hidden" class="form-control" id="vatValue" name="vatValue" />
-                                                </div>
-
-                                                <label for="paid" class="col-sm-2 control-label">Paid Amount</label>
-                                               <div class="col-sm-4">
-                                                <input type="text" class="form-control" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" />
-                                              </div>
-
-                                            </div>
-                                        </div>
-                                       
-                                             <div class="form-group">
-                                            <div class="row">
-                                               <label for="due" class="col-sm-2 control-label">Due Amount</label>
-                                               <div class="col-sm-4">
-                                                <input type="text" class="form-control" id="due" name="due" disabled="true" />
-                                                <input type="hidden" class="form-control" id="dueValue" name="dueValue" />
-                                              </div>
-
-                                              <label for="clientContact" class="col-sm-2 control-label">Payment Type</label>
-            <div class="col-sm-4">
-              <select class="form-control" name="paymentType" id="paymentType">
-                <option value="">~~SELECT~~</option>
-                <option value="2">Cash</option>
-                 <option value="4">Phone Pe</option>
-                <option value="5">Google Pay</option>
-                <option value="6">Amazon Pay</option>
-                <option value="1">Cheque</option>
-                <option value="3">Credit Card</option>
-               
-              </select>
-            </div>
-                   
-
-                                               </div>
-                                            </div>
-                                             
-                                            <div class="form-group">
-                                            <div class="row">
-                                               <label for="clientContact" class="col-sm-2 control-label">Payment Status</label>
-            <div class="col-sm-4">
-              <select class="form-control" name="paymentStatus" id="paymentStatus">
-                <option value="">~~SELECT~~</option>
-                <option value="1">Full Payment</option>
-                <option value="2">Advance Payment</option>
-                <option value="3">No Payment</option>
-              </select>
-            </div>
-
-            <label for="clientContact" class="col-sm-2 control-label">Payment Place</label>
-            <div class="col-sm-4">
-              <select class="form-control" name="paymentPlace" id="paymentPlace">
-                <option value="">~~SELECT~~</option>
-                <option value="1">In India</option>
-                <option value="2">Out Of India</option>
-              </select>
-            </div>
-                                               </div>
-                                            </div>
-        <div class="form-group submitButtonFooter">
-          <div class="col-sm-offset-2 col-sm-10">
-            <button type="submit" id="createOrderBtn" data-loading-text="Loading..." class="btn btn-success btn-flat m-b-30 m-t-30"><i class="glyphicon glyphicon-ok-sign"></i> Submit</button>
-
-            <button type="reset" class="btn btn-danger btn-flat m-b-30 m-t-30" onclick="resetOrderForm()"><i class="glyphicon glyphicon-erase"></i> Reset</button>
           </div>
         </div>
-        
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                  
-                </div>
-                
-               
+      </div>
+    </div>
+  </div>
+              
+              
 
 
  
