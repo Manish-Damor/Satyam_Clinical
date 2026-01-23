@@ -111,12 +111,12 @@ if($_GET['o'] == 'add') {
                     <div class="row">
                       <label class="col-sm-2 control-label">Client Name</label>
                       <div class="col-sm-4">
-                        <input type="text" class="form-control" id="clientName" name="clientName" placeholder="Client Name" autocomplete="off" />
+                        <input type="text" class="form-control" id="clientName" name="clientName" placeholder="Client Name" autocomplete="on" />
                       </div>
 
                       <label class="col-sm-2 control-label">Client Contact No.</label>
                       <div class="col-sm-4">
-                      <input type="text" class="form-control" id="clientContact" name="clientContact" placeholder="Contact Number No." autocomplete="off" pattern="^[0][1-9]\d{9}$|^[1-9]\d{9}$" required/>
+                      <input type="text" class="form-control numeric-only" id="clientContact" name="clientContact" placeholder="Contact Number No." inputmode="numeric" autocomplete="on" pattern="^[0][1-9]\d{9}$|^[1-9]\d{9}$" required/>
                       </div>
 
                     </div>
@@ -144,19 +144,19 @@ if($_GET['o'] == 'add') {
                           <div class="form-group" style="position: relative;">
                             <input type="text" class="form-control invoice-product-input" name="productName[]" id="productName<?php echo $x; ?>" placeholder="Type to search medicines..." autocomplete="off" data-row-id="<?php echo $x; ?>" style="position: relative; z-index: 1;" />
                             <input type="hidden" class="invoice-product-id" name="productId[]" id="productId<?php echo $x; ?>" />
-                            <div class="invoice-product-dropdown" id="dropdown<?php echo $x; ?>" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>
+                            <div class="invoice-product-dropdown" id="dropdown<?php echo $x; ?>" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15);"></div>
                           </div>
                         </td>
-                        <td style="padding-left:20px;">                 
+                        <td>                 
                           <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />                  
                           <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
                         </td>
-                        <td style="padding-left:20px;">
+                        <td>
                           <div class="form-group">
-                          <p id="available_quantity<?php echo $x; ?>"></p>
+                          <p style="padding-left:4%;" id="available_quantity<?php echo $x; ?>"></p>
                           </div>
                         </td>
-                        <td style="padding-left:20px;">
+                        <td>
                           <div class="form-group">
                           <input type="number" name="quantity[]" id="quantity<?php echo $x; ?>" onkeyup="getTotal(<?php echo $x ?>)" autocomplete="off" class="form-control" min="1" />
                           </div>
@@ -200,7 +200,7 @@ if($_GET['o'] == 'add') {
                     <div class="row">
                       <label for="discount" class="col-sm-2 control-label">Discount</label>
                       <div class="col-sm-4">
-                        <input type="text" class="form-control" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" / pattern="^[0-9]+$"/>
+                        <input type="text" class="form-control numeric-only" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" / pattern="^[0-9]+$"/>
                       </div>
                       <label for="grandTotal" class="col-sm-2 control-label">Grand Total</label>
                       <div class="col-sm-4">
@@ -224,7 +224,7 @@ if($_GET['o'] == 'add') {
 
                       <label for="paid" class="col-sm-2 control-label">Paid Amount</label>
                       <div class="col-sm-4">
-                        <input type="text" class="form-control" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" />
+                        <input type="text" class="form-control numeric-only" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" />
                       </div>
                     </div>
                   </div>
@@ -294,6 +294,46 @@ if($_GET['o'] == 'add') {
 
  
 <?php include('./constant/layout/footer.php');?>
+
+<script>
+// Select all elements with the "numeric-only" class
+const numericFields = document.querySelectorAll('.numeric-only');
+
+numericFields.forEach(field => {
+    // 1. Block keys as they are pressed
+    field.addEventListener('keydown', (event) => {
+        // Added '.' to the allowed list
+        const allowedKeys = ['Backspace', 'Tab', 'Enter', 'Delete', 'ArrowLeft', 'ArrowRight', '.'];
+        
+        // Check if the key is a digit [0-9]
+        const isDigit = /^[0-9]$/.test(event.key);
+
+        // If it's not a digit and not an allowed key, block it
+        if (!isDigit && !allowedKeys.includes(event.key)) {
+            event.preventDefault();
+        }
+
+        // Prevent entering more than one decimal point
+        if (event.key === '.' && event.target.value.includes('.')) {
+            event.preventDefault();
+        }
+    });
+
+    // 2. Safety for Pasted text (allows digits and one decimal point)
+    field.addEventListener('input', function() {
+        // Remove everything except numbers and dots
+        this.value = this.value.replace(/[^0-9.]/g, '');
+        
+        // Ensure only the first dot stays if there are multiples
+        const parts = this.value.split('.');
+        if (parts.length > 2) {
+            this.value = parts[0] + '.' + parts.slice(1).join('');
+        }
+    });
+});
+
+
+</script>
 
 
 <script>
@@ -712,42 +752,59 @@ function addRow() {
       $("#addRowBtn").button("reset");      
 
       var tr = '<tr id="row'+count+'" class="'+arrayNumber+'">'+                
-        '<td>'+
-          '<div class="form-group">'+
+        // '<td>'+
+        //   '<div class="form-group">'+
 
-          '<select class="form-control" name="productName[]" id="productName'+count+'" onchange="getProductData('+count+')" >'+
-            '<option value="">~~SELECT~~</option>';
-            // console.log(response);
-            $.each(response, function(index, value) {
-              tr += '<option value="'+value[0]+'">'+value[1]+'</option>';             
-            });
+        //   '<select class="form-control" name="productName[]" id="productName'+count+'" onchange="getProductData('+count+')" >'+
+        //     '<option value="">~~SELECT~~</option>';
+        //     // console.log(response);
+        //     $.each(response, function(index, value) {
+        //       tr += '<option value="'+value[0]+'">'+value[1]+'</option>';             
+        //     });
                           
-          tr += '</select>'+
+        //   tr += '</select>'+
+        //   '</div>'+
+        // '</td>'+
+
+        '<td style="margin-left:20px;">'+
+          '<div class="form-group" style="position: relative;">'+
+            '<input type="text" class="form-control invoice-product-input" name="productName[]" id="productName'+count+'" placeholder="Type to search medicines..." autocomplete="off" data-row-id="'+count+'" style="position: relative; z-index: 1;" />'+
+            '<input type="hidden" class="invoice-product-id" name="productId[]" id="productId'+count+'" />'+
+            '<div class="invoice-product-dropdown" id="dropdown'+count+'" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>'+
           '</div>'+
         '</td>'+
-        '<td style="padding-left:20px;"">'+
-          '<input type="text" name="rate[]" id="rate'+count+'" autocomplete="off" disabled="true" class="form-control" />'+
-          '<input type="hidden" name="rateValue[]" id="rateValue'+count+'" autocomplete="off" class="form-control" />'+
-        '</td style="padding-left:20px;">'+
-        '<td style="padding-left:20px;">'+
+        '<td>'+
+          '<div class="form-group">'+
+            '<input type="text" name="rate[]" id="rate'+count+'" autocomplete="off" disabled="true" class="form-control" />'+
+            '<input type="hidden" name="rateValue[]" id="rateValue'+count+'" autocomplete="off" class="form-control" />'+
+          '</div>'+
+        '</td>'+
+        '<td>'+
           '<div class="form-group">'+
           '<p id="available_quantity'+count+'"></p>'+
           '</div>'+
         '</td>'+
-        '<td style="padding-left:20px;">'+
+        '<td>'+
           '<div class="form-group">'+
-          '<input type="number" name="quantity[]" id="quantity'+count+'" onkeyup="getTotal('+count+')" autocomplete="off" class="form-control" min="1" />'+
+            '<input type="number" name="quantity[]" id="quantity'+count+'" onkeyup="getTotal('+count+')" autocomplete="off" class="form-control" min="1" />'+
           '</div>'+
         '</td>'+
-        '<td style="padding-left:20px;">'+
-          '<input type="text" name="total[]" id="total'+count+'" autocomplete="off" class="form-control" disabled="true" />'+
-          '<input type="hidden" name="totalValue[]" id="totalValue'+count+'" autocomplete="off" class="form-control" />'+
-        '</td>'+
-                '<td>'+
-          '<button class="btn btn-primary removeProductRowBtn" type="button" onclick="addRow('+count+')"><i class="fa fa-plus"></i></button>'+
+        '<td>'+
+          '<div class="form-group">'+
+            '<input type="text" name="total[]" id="total'+count+'" autocomplete="off" class="form-control" disabled="true" />'+
+            '<input type="hidden" name="totalValue[]" id="totalValue'+count+'" autocomplete="off" class="form-control" />'+
+          '</div>'+
         '</td>'+
         '<td>'+
-          '<button class="btn btn-danger removeProductRowBtn" type="button" onclick="removeProductRow('+count+')"><i class="fa fa-trash"></i></i></button>'+
+          '<div class="form-group">'+
+            // '<button class="btn btn-primary removeProductRowBtn" type="button" onclick="addRow('+count+')"><i class="fa fa-plus"></i></button>'+
+            '<button type="button" class="btn btn-primary btn-flat " onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="fa fa-plus"></i></button>'+
+          '</div>'+
+        '</td>'+
+        '<td>'+
+          '<div class="form-group">'+
+            '<button class="btn btn-danger removeProductRowBtn" type="button" onclick="removeProductRow('+count+')"><i class="fa fa-trash"></i></i></button>'+
+          '</div>'+
         '</td>'+
 
       '</tr>';

@@ -28,37 +28,44 @@ if($_POST) {
 	//$type = explode('.', $_FILES['productImage']['name']);
 	
 	
-				$sql = "INSERT INTO orders (uno, orderDate, clientName,gstn, clientContact, subTotal, totalAmount, discount, grandTotalValue, paid, dueValue, paymentType, paymentStatus, paymentPlace) 
-				VALUES ('$uno', '$orderDate', '$clientName', '$gstn', '$clientContact', '$subTotal', '$totalAmount', '$discount', '$grandTotalValue', '$paid', '$dueValue', '$paymentType', '$paymentStatus', '$paymentPlace')";
-//echo $sql;exit;
-				if($connect->query($sql) === TRUE) {
-//echo "gfghh";exit;
-					$lastid = mysqli_insert_id($connect);
-					$checkbox1 =count($_POST['productName']);
-	 //print_r ($checkbox1);exit;
-for ($i=0; $i<($checkbox1);$i++) {extract($_POST);
-$added_date=date('Y-m-d');
-					$sql1 = "INSERT INTO order_item (productName, quantity,rate,total,lastid,added_date) 
-				VALUES ('$productName[$i]', '$quantity[$i]', '$rateValue[$i]', '$totalValue[$i]','$lastid','$added_date')";
-				//echo $sql1;exit;
-if($connect->query($sql1) === TRUE) {
-					//echo $lastid;exit;
-					$valid['success'] = true;
-					$valid['messages'] = "Successfully Added";
-					header('location:../Order.php');	
-				} }}
-				else {
-					$valid['success'] = false;
-					$valid['messages'] = "Error while adding the members";
-					header('location:../add-order.php');
-				}
+	$sql = "INSERT INTO orders (uno, orderDate, clientName,gstn, clientContact, subTotal, totalAmount, discount, grandTotalValue, paid, dueValue, paymentType, paymentStatus, paymentPlace) 
+			VALUES ('$uno', '$orderDate', '$clientName', '$gstn', '$clientContact', '$subTotal', '$totalAmount', '$discount', '$grandTotalValue', '$paid', '$dueValue', '$paymentType', '$paymentStatus', '$paymentPlace')";
+	//echo $sql;exit;
+	if($connect->query($sql) === TRUE) 
+	{
+		//echo "gfghh";exit;
+		$lastid = mysqli_insert_id($connect);
+		$checkbox1 =count($_POST['productId']);
+		// print_r ($checkbox1);exit;
+		for($i=0; $i<($checkbox1);$i++)
+			{
+				extract($_POST);
+				$added_date=date('Y-m-d');
+				$sql1 = "INSERT INTO order_item (productName, quantity,rate,total,lastid,added_date) 
+				VALUES ('$productId[$i]', '$quantity[$i]', '$rateValue[$i]', '$totalValue[$i]','$lastid','$added_date')";
+				// echo $sql1;exit;
+				if($connect->query($sql1) === TRUE)
+					{
+					// echo $lastid;exit;
 
-			// /else	
-		// if
+						$valid['success'] = true;
+						$valid['messages'] = "Successfully Added";
+						header('location:../Order.php');	
+					} 
+			}
+	}
+	else {
+		$valid['success'] = false;
+		$valid['messages'] = "Error while adding the members";
+		header('location:../add-order.php');
+	}
+
+	// /else	
+	// if
 	// if in_array 		
 
 	$connect->close();
 
 	echo json_encode($valid);
- 
-} // /if $_POST
+
+	} // /if $_POST
