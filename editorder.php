@@ -18,6 +18,8 @@ if($_GET['o'] == 'add') {
   echo "<div class='div-request div-hide'>manord</div>";
 } else if($_GET['o'] == 'editOrd') { 
   echo "<div class='div-request div-hide'>editOrd</div>";
+  // Auto load product data for existing rows
+
 } // /else manage order
 
 
@@ -118,7 +120,12 @@ if($_GET['o'] == 'add') {
                                     <tbody>
                                         <?php
 
-                                        $orderItemSql = "SELECT order_item.id, order_item.productName, order_item.quantity, order_item.rate, order_item.total FROM order_item WHERE order_item.lastid = {$orderId}";
+                                        // $orderItemSql = "SELECT order_item.id, order_item.productName, order_item.quantity, order_item.rate, order_item.total FROM order_item WHERE order_item.lastid = {$orderId}";
+                                        $orderItemSql = "SELECT order_item.id, order_item.productName, order_item.quantity, order_item.rate, order_item.total, product.product_name
+                                        FROM order_item 
+                                        INNER JOIN product ON order_item.productName = product.product_id 
+                                        WHERE order_item.lastid = {$orderId}";
+
                                         //echo $orderItemSql;exit;
                                         $orderItemResult = $connect->query($orderItemSql);
                                         // $orderItemData = $orderItemResult->fetch_all();            
@@ -130,51 +137,72 @@ if($_GET['o'] == 'add') {
                                         while($orderItemData = $orderItemResult->fetch_array()) { 
                                             // print_r($orderItemData); ?>
                                             <tr id="row<?php echo $x; ?>" class="<?php echo $arrayNumber; ?>">                
-                                                <td>
+                                                <!-- <td>
                                                     <div class="form-group">
 
                                                         <select class="form-control" name="productName[]" id="productName<?php echo $x; ?>" onchange="getProductData(<?php echo $x; ?>)" >
                                                             <option value="">~~SELECT~~</option>
                                                             <?php
-                                                            $productSql = "SELECT * FROM product WHERE active = 1 AND status = 1 AND quantity != 0";
-                                                            $productData = $connect->query($productSql);
+                                                            // $productSql = "SELECT * FROM product WHERE active = 1 AND status = 1 AND quantity != 0";
+                                                            // $productData = $connect->query($productSql);
 
-                                                            while($row = $productData->fetch_array()) {                     
-                                                                $selected = "";
-                                                                if($row['product_id'] == $orderItemData['productName']) {
-                                                                    $selected = "selected";
-                                                                } else {
-                                                                    $selected = "";
-                                                                }
+                                                            // while($row = $productData->fetch_array()) {                     
+                                                            //     $selected = "";
+                                                            //     if($row['product_id'] == $orderItemData['productName']) {
+                                                            //         $selected = "selected";
+                                                            //     } else {
+                                                            //         $selected = "";
+                                                            //     }
 
-                                                                echo "<option value='".$row['product_id']."' id='changeProduct".$row['product_id']."' ".$selected." >".$row['product_name']."</option>";
-                                                            } // /while 
+                                                            //     echo "<option value='".$row['product_id']."' id='changeProduct".$row['product_id']."' ".$selected." >".$row['product_name']."</option>";
+                                                            // } // /while 
 
                                                             ?>
                                                         </select>
                                                     </div>
+                                                </td> -->
+                                                <td style="margin-left:20px;">
+                                                  <div class="form-group" style="position: relative;">
+                                                    <input type="text" class="form-control invoice-product-input" name="productName[]" id="productName<?php echo $x; ?>" value="<?php echo $orderItemData['product_name']; ?>" placeholder="Type to search medicines..." autocomplete="off" data-row-id="<?php echo $x; ?>" style="position: relative; z-index: 1;" />
+                                                    <input type="hidden" class="invoice-product-id" name="productId[]" id="productId<?php echo $x; ?>" value="<?php echo $orderItemData['productName'];?>" />
+                                                    <div class="invoice-product-dropdown" id="dropdown<?php echo $x; ?>" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15);"></div>
+                                                  </div>
                                                 </td>
                                                 <td>                 
                                                     <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" value="<?php echo $orderItemData['rate']; ?>" />                  
                                                     <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" value="<?php echo $orderItemData['rate']; ?>" />                  
                                                 </td>
                                                 <td>
+                                                  <div class="form-group">
+                                                    <?php
+                                                      $pid = $orderItemData['productName']; // this is product_id
+                                                      $qSql = "SELECT quantity FROM product WHERE product_id = '$pid'";
+                                                      $qRes = $connect->query($qSql);
+                                                      $qRow = $qRes->fetch_assoc();
+                                                    ?>
+                                                    <p id="available_quantity<?php echo $x; ?>">
+                                                      <?php echo $qRow['quantity']; ?>
+                                                    </p>
+                                                  </div>
+                                                </td>
+
+                                                <!-- <td>
                                                     <div class="form-group">
                                                         <?php
-                                                        $productSql = "SELECT * FROM product WHERE active = 1 AND status = 1 AND quantity != 0";
-                                                        $productData = $connect->query($productSql);
+                                                        // $productSql = "SELECT * FROM product WHERE active = 1 AND status = 1 AND quantity != 0";
+                                                        // $productData = $connect->query($productSql);
 
-                                                        while($row = $productData->fetch_array()) {             
+                                                        // while($row = $productData->fetch_array()) {             
                                                 
-                                                                echo "<p id='available_quantity".$row['product_id']."'>".$row['quantity']."</p>";
-                                                                break;
+                                                        //         echo "<p id='available_quantity".$row['product_id']."'>".$row['quantity']."</p>";
+                                                        //         break;
                                                             
-                                                        } // /while 
+                                                        // } // /while 
 
                                                         ?>
 
                                                     </div>
-                                                </td>
+                                                </td> -->
                                                 <td>
                                                     <div class="form-group">
                                                         <input type="number" name="quantity[]" id="quantity<?php echo $x; ?>" onkeyup="getTotal(<?php echo $x ?>)" autocomplete="off" class="form-control" min="1" value="<?php echo $orderItemData['quantity']; ?>" />
@@ -724,35 +752,42 @@ function addRow() {
     success:function(response) {
       $("#addRowBtn").button("reset");      
 
-      var tr = '<tr id="row'+count+'" class="'+arrayNumber+'">'+                
-        '<td>'+
-          '<div class="form-group">'+
-
-          '<select class="form-control" name="productName[]" id="productName'+count+'" onchange="getProductData('+count+')" >'+
-            '<option value="">~~SELECT~~</option>';
-            // console.log(response);
-            $.each(response, function(index, value) {
-              tr += '<option value="'+value[0]+'">'+value[1]+'</option>';             
-            });
-                          
-          tr += '</select>'+
+      var tr = '<tr id="row'+count+'" class="'+arrayNumber+'">'+     
+        '<td style="margin-left:20px;">'+
+          '<div class="form-group" style="position: relative;">'+
+            '<input type="text" class="form-control invoice-product-input" name="productName[]" id="productName'+count+'" placeholder="Type to search medicines..." autocomplete="off" data-row-id="'+count+'" style="position: relative; z-index: 1;" />'+
+            '<input type="hidden" class="invoice-product-id" name="productId[]" id="productId'+count+'" />'+
+            '<div class="invoice-product-dropdown" id="dropdown'+count+'" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15);"></div>'+
           '</div>'+
-        '</td>'+
-        '<td style="padding-left:20px;"">'+
+        '</td>'+           
+        // '<td>'+
+        //   '<div class="form-group">'+
+
+        //   '<select class="form-control" name="productName[]" id="productName'+count+'" onchange="getProductData('+count+')" >'+
+        //     '<option value="">~~SELECT~~</option>';
+        //     // console.log(response);
+        //     $.each(response, function(index, value) {
+        //       tr += '<option value="'+value[0]+'">'+value[1]+'</option>';             
+        //     });
+                          
+        //   tr += '</select>'+
+        //   '</div>'+
+        // '</td>'+
+        '<td>'+
           '<input type="text" name="rate[]" id="rate'+count+'" autocomplete="off" disabled="true" class="form-control" />'+
           '<input type="hidden" name="rateValue[]" id="rateValue'+count+'" autocomplete="off" class="form-control" />'+
-        '</td style="padding-left:20px;">'+
-        '<td style="padding-left:20px;">'+
+        '</td>'+
+        '<td>'+
           '<div class="form-group">'+
           '<p id="available_quantity'+count+'"></p>'+
           '</div>'+
         '</td>'+
-        '<td style="padding-left:20px;">'+
+        '<td>'+
           '<div class="form-group">'+
           '<input type="number" name="quantity[]" id="quantity'+count+'" onkeyup="getTotal('+count+')" autocomplete="off" class="form-control" min="1" />'+
           '</div>'+
         '</td>'+
-        '<td style="padding-left:20px;">'+
+        '<td>'+
           '<input type="text" name="total[]" id="total'+count+'" autocomplete="off" class="form-control" disabled="true" />'+
           '<input type="hidden" name="totalValue[]" id="totalValue'+count+'" autocomplete="off" class="form-control" />'+
         '</td>'+
@@ -786,13 +821,14 @@ function removeProductRow(row = null) {
 function getProductData(row = null) {
 
   if(row) {
-    var productId = $("#productName"+row).val();    
+    var productId = $("#productId"+row).val();    
     
     if(productId == "") {
       $("#rate"+row).val("");
 
       $("#quantity"+row).val("");           
       $("#total"+row).val("");
+      $("#available_quantity"+row).text("");
 
       // remove check if product name is selected
       // var tableProductLength = $("#productTable tbody tr").length;     
@@ -1123,6 +1159,153 @@ function paymentOrder(orderId = null) {
     alert('Error ! Refresh the page again');
   }
 }
+
+// Invoice Product Autocomplete
+$(document).on('input', '.invoice-product-input', function() {
+    const $input = $(this);
+    const rowId = $input.data('row-id');
+    const $dropdown = $('#dropdown' + rowId);
+    const searchTerm = $input.val();
+
+    if(searchTerm.length < 1) {
+        $dropdown.hide();
+        return;
+    }
+
+    // Position dropdown below input
+    const offset = $input.offset();
+    $dropdown.css({
+        top: $input.outerHeight() + 'px',
+        left: 0+'px',
+        width: $input.outerWidth() + 'px'
+    });
+
+    $.ajax({
+      url: 'php_action/searchProducts.php',
+      type: 'GET',
+      data: {q: searchTerm},
+      success: function(response) {
+        let products = [];
+        try {
+          if (typeof response === 'string') {
+            products = JSON.parse(response);
+          } else {
+            products = response;
+          }
+        } catch(e) {
+          console.error('JSON Parse Error:', e);
+          return;
+        }
+
+        if(products.length === 0) {
+          $dropdown.html('<div style="padding: 10px;">No medicines found</div>').show();
+          return;
+        }
+
+        var html = '';
+        products.forEach(function(product) {
+          html += '<div class="invoice-product-item" style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s;" data-id="'+product.id+'" data-name="'+product.productName+'" data-price="'+product.price+'" data-quantity="'+(product.quantity||0)+'" data-row-id="'+rowId+'">'
+            +'<strong>'+product.productName+'</strong><br>'
+            +'<small style="color: #666;">Price: ₹'+parseFloat(product.price).toFixed(2)+'</small>'
+          +'</div>';
+        });
+
+        $dropdown.html(html).show().attr('data-highlight', 0);
+        $dropdown.find('.invoice-product-item').each(function(i){ $(this).attr('data-index', i); });
+        var $items = $dropdown.find('.invoice-product-item');
+        if($items.length) {
+          $items.css('background-color','white').removeClass('selected');
+          $items.eq(0).addClass('selected').css('background-color','#f5f5f5');
+        }
+
+        // Hover effect (keep hover but preserve selected state)
+        $dropdown.find('.invoice-product-item').hover(
+          function() { $(this).css('background-color', '#f5f5f5'); },
+          function() { if(!$(this).hasClass('selected')) $(this).css('background-color', 'white'); }
+        );
+      },
+      error: function(xhr, status, error) {
+        console.error('AJAX Error:', status, error);
+      }
+    });
+});
+
+// Reset row fields when user manually edits medicine name
+$(document).on('input', '.invoice-product-input', function() {
+    const rowId = $(this).data('row-id');
+
+    // Clear hidden product id
+    $('#productId' + rowId).val('');
+
+    // Clear rate, quantity, total, stock
+    $('#rate' + rowId).val('');
+    $('#rateValue' + rowId).val('');
+    $('#quantity' + rowId).val('');
+    $('#total' + rowId).val('');
+    $('#totalValue' + rowId).val('');
+    $('#available_quantity' + rowId).text('');
+
+    subAmount(); // recalc totals
+});
+
+
+  // Keyboard navigation for dropdown: ArrowUp, ArrowDown, Enter to select
+  $(document).on('keydown', '.invoice-product-input', function(e) {
+    var $input = $(this);
+    var rowId = $input.data('row-id');
+    var $dropdown = $('#dropdown' + rowId);
+    if(!$dropdown.is(':visible')) return;
+    var $items = $dropdown.find('.invoice-product-item');
+    if($items.length === 0) return;
+    var index = parseInt($dropdown.attr('data-highlight') || 0, 10);
+
+    if(e.key === 'ArrowDown') {
+      e.preventDefault();
+      index = Math.min(index + 1, $items.length - 1);
+    } else if(e.key === 'ArrowUp') {
+      e.preventDefault();
+      index = Math.max(index - 1, 0);
+    } else if(e.key === 'Enter') {
+      e.preventDefault();
+      $items.eq(index).trigger('click');
+      return;
+    } else {
+      return;
+    }
+
+    $items.removeClass('selected').css('background-color','white');
+    $items.eq(index).addClass('selected').css('background-color','#f5f5f5');
+    $dropdown.attr('data-highlight', index);
+  });
+
+  // inject small style for selected item if not present
+  if(!$('head').find('#invoice-product-autocomplete-style').length){
+    $('head').append('<style id="invoice-product-autocomplete-style">.invoice-product-item.selected{background-color:#f5f5f5;}</style>');
+  }
+
+// Product selection from dropdown
+$(document).on('click', '.invoice-product-item', function() {
+    const $item = $(this);
+    const rowId = $item.data('row-id');
+    const $input = $('#productName' + rowId);
+    const $idField = $('#productId' + rowId);
+    const $dropdown = $('#dropdown' + rowId);
+
+    $input.val($item.data('name'));
+    $idField.val($item.data('id'));
+    $dropdown.hide();
+
+    // Trigger getProductData to fetch rate and quantity
+    getProductData(rowId);
+});
+
+// Hide dropdown when clicking outside
+$(document).on('click', function(e) {
+    if(!$(e.target).closest('.form-group').length) {
+        $('.invoice-product-dropdown').hide();
+    }
+});
+
 
 </script>
 

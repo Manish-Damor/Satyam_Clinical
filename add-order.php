@@ -78,7 +78,7 @@ if($_GET['o'] == 'add') {
             </div>
             <div class="card-body">
               <div class="input-states">
-                <form class="form-horizontal" method="POST"  id="createOrderForm" action="php_action/order.php" action="php_action/order.php">
+                <form class="form-horizontal" method="POST"  id="createOrderForm" action="php_action/order.php">
                   <div class="form-group">
                     <div class="row">
 
@@ -137,48 +137,49 @@ if($_GET['o'] == 'add') {
                     <tbody>
                       <?php
                         $arrayNumber = 0;
-                        for($x = 1; $x < 2; $x++) { 
+                        for($x = 1; $x < 2; $x++)
+                          { 
                       ?>
-                      <tr id="row<?php echo $x; ?>" class="<?php echo $arrayNumber; ?>">                
-                        <td style="margin-left:20px;">
-                          <div class="form-group" style="position: relative;">
-                            <input type="text" class="form-control invoice-product-input" name="productName[]" id="productName<?php echo $x; ?>" placeholder="Type to search medicines..." autocomplete="off" data-row-id="<?php echo $x; ?>" style="position: relative; z-index: 1;" />
-                            <input type="hidden" class="invoice-product-id" name="productId[]" id="productId<?php echo $x; ?>" />
-                            <div class="invoice-product-dropdown" id="dropdown<?php echo $x; ?>" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15);"></div>
-                          </div>
-                        </td>
-                        <td>                 
-                          <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />                  
-                          <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
-                        </td>
-                        <td>
-                          <div class="form-group">
-                          <p style="padding-left:4%;" id="available_quantity<?php echo $x; ?>"></p>
-                          </div>
-                        </td>
-                        <td>
-                          <div class="form-group">
-                          <input type="number" name="quantity[]" id="quantity<?php echo $x; ?>" onkeyup="getTotal(<?php echo $x ?>)" autocomplete="off" class="form-control" min="1" />
-                          </div>
-                        </td>
-                        <td >                 
-                          <input type="text" name="total[]" id="total<?php echo $x; ?>" autocomplete="off" class="form-control" disabled="true" />                  
-                          <input type="hidden" name="totalValue[]" id="totalValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
-                        </td>
-                        <td >
-                          <div class="form-group">
-                            <button type="button" class="btn btn-primary btn-flat " onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="fa fa-plus"></i></button>                  
-                          </div>
-                        </td>
-                        <td > 
-                          <div class="form-group">              
-                            <button type="button" class="btn btn-danger  removeProductRowBtn" type="button" id="removeProductRowBtn" onclick="removeProductRow(<?php echo $x; ?>)"><i class="fa fa-trash"></i></button>
-                          </div>
-                        </td>
-                      </tr>
-                      <?php
-                      $arrayNumber++;
-                      } // /for
+                          <tr id="row<?php echo $x; ?>" class="<?php echo $arrayNumber; ?>">                
+                            <td style="margin-left:20px;">
+                              <div class="form-group" style="position: relative;">
+                                <input type="text" class="form-control invoice-product-input" name="productName[]" id="productName<?php echo $x; ?>" placeholder="Type to search medicines..." autocomplete="off" data-row-id="<?php echo $x; ?>" style="position: relative; z-index: 1;" />
+                                <input type="hidden" class="invoice-product-id" name="productId[]" id="productId<?php echo $x; ?>" />
+                                <div class="invoice-product-dropdown" id="dropdown<?php echo $x; ?>" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15);"></div>
+                              </div>
+                            </td>
+                            <td>                 
+                              <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />                  
+                              <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
+                            </td>
+                            <td>
+                              <div class="form-group">
+                              <p style="padding-left:4%;" id="available_quantity<?php echo $x; ?>"></p>
+                              </div>
+                            </td>
+                            <td>
+                              <div class="form-group">
+                              <input type="number" name="quantity[]" id="quantity<?php echo $x; ?>" onkeyup="getTotal(<?php echo $x ?>)" autocomplete="off" class="form-control" min="1" />
+                              </div>
+                            </td>
+                            <td >                 
+                              <input type="text" name="total[]" id="total<?php echo $x; ?>" autocomplete="off" class="form-control" disabled="true" />                  
+                              <input type="hidden" name="totalValue[]" id="totalValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
+                            </td>
+                            <td >
+                              <div class="form-group">
+                                <button type="button" class="btn btn-primary btn-flat " onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="fa fa-plus"></i></button>                  
+                              </div>
+                            </td>
+                            <td > 
+                              <div class="form-group">              
+                                <button type="button" class="btn btn-danger  removeProductRowBtn" type="button" id="removeProductRowBtn" onclick="removeProductRow(<?php echo $x; ?>)"><i class="fa fa-trash"></i></button>
+                              </div>
+                            </td>
+                          </tr>
+                          <?php
+                          $arrayNumber++;
+                        } // /for
                       ?>
                     </tbody>          
                   </table>         
@@ -875,19 +876,47 @@ function getProductData(row = null) {
 } // /select on product data
 
 // table total
+// function getTotal(row = null) {
+//   if(row) {
+//     var total = Number($("#rate"+row).val()) * Number($("#quantity"+row).val());
+//     total = total.toFixed(2);
+//     $("#total"+row).val(total);
+//     $("#totalValue"+row).val(total);
+    
+//     subAmount();
+
+//   } else {
+//     alert('no row !! please refresh the page');
+//   }
+// }
+
 function getTotal(row = null) {
   if(row) {
-    var total = Number($("#rate"+row).val()) * Number($("#quantity"+row).val());
+
+    var rate = Number($("#rate"+row).val());
+    var qty  = Number($("#quantity"+row).val());
+    var available = Number($("#available_quantity"+row).text());
+
+    // Stock validation
+    if(qty > available) {
+      alert("Only " + available + " items available in stock!");
+      $("#quantity"+row).val(available);
+      qty = available;
+    }
+
+    var total = rate * qty;
     total = total.toFixed(2);
+
     $("#total"+row).val(total);
     $("#totalValue"+row).val(total);
-    
+
     subAmount();
 
   } else {
     alert('no row !! please refresh the page');
   }
 }
+
 
 function subAmount() {
   var tableProductLength = $("#productTable tbody tr").length;
@@ -1159,10 +1188,17 @@ function paymentOrder(orderId = null) {
 
 // Invoice Product Autocomplete
 $(document).on('input', '.invoice-product-input', function() {
+    let searchTimer = null;
     const $input = $(this);
     const rowId = $input.data('row-id');
     const $dropdown = $('#dropdown' + rowId);
-    const searchTerm = $input.val();
+    let searchTerm = $input.val();
+
+    // 🔥 Normalize input: remove extra spaces and trim
+    searchTerm = searchTerm.replace(/\s+/g, '').toLowerCase();
+
+
+    clearTimeout(searchTimer);
 
     if(searchTerm.length < 1) {
         $dropdown.hide();
@@ -1224,8 +1260,28 @@ $(document).on('input', '.invoice-product-input', function() {
       error: function(xhr, status, error) {
         console.error('AJAX Error:', status, error);
       }
-    });
+    },300);
 });
+
+// Reset row fields when user edits medicine name manually
+$(document).on('input', '.invoice-product-input', function() {
+    const rowId = $(this).data('row-id');
+
+    // Clear hidden product id
+    $('#productId' + rowId).val('');
+
+    // Clear rate, quantity, total, stock
+    $('#rate' + rowId).val('');
+    $('#rateValue' + rowId).val('');
+    $('#quantity' + rowId).val('');
+    $('#total' + rowId).val('');
+    $('#totalValue' + rowId).val('');
+    $('#available_quantity' + rowId).text('');
+
+    subAmount();
+});
+
+
 
   // Keyboard navigation for dropdown: ArrowUp, ArrowDown, Enter to select
   $(document).on('keydown', '.invoice-product-input', function(e) {
@@ -1263,11 +1319,41 @@ $(document).on('input', '.invoice-product-input', function() {
 
 // Product selection from dropdown
 $(document).on('click', '.invoice-product-item', function() {
+
+    
+
     const $item = $(this);
     const rowId = $item.data('row-id');
     const $input = $('#productName' + rowId);
     const $idField = $('#productId' + rowId);
     const $dropdown = $('#dropdown' + rowId);
+
+    // Prevent selecting same product twice (correct version)
+    var selectedId = $item.data('id');
+    var currentRow = $item.data('row-id');
+    var duplicate = false;
+
+    $('.invoice-product-id').each(function() {
+
+        var rowId = $(this).attr('id').replace('productId', '');
+        var existingId = $(this).val();
+
+        // Skip current row
+        if(rowId == currentRow) {
+            return true; // continue loop
+        }
+
+        if(existingId == selectedId && existingId != "") {
+            duplicate = true;
+            return false; // break loop
+        }
+    });
+
+    if(duplicate) {
+        alert("This medicine is already added in another row!");
+        return;
+    }
+
 
     $input.val($item.data('name'));
     $idField.val($item.data('id'));

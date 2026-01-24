@@ -21,3 +21,7 @@ ALTER TABLE order_item
   MODIFY rate DECIMAL(10,2) NOT NULL,
   MODIFY total DECIMAL(10,2) NOT NULL,
   MODIFY added_date DATE NOT NULL;
+
+
+
+
