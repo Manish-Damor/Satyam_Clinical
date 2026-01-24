@@ -297,6 +297,8 @@ if($_GET['o'] == 'add') {
 <?php include('./constant/layout/footer.php');?>
 
 <script>
+
+
 // Select all elements with the "numeric-only" class
 const numericFields = document.querySelectorAll('.numeric-only');
 
@@ -338,6 +340,10 @@ numericFields.forEach(field => {
 
 
 <script>
+
+// 🔥 Autocomplete cache
+var productSearchCache = {};
+
 var manageOrderTable;
 
 $(document).ready(function() {
@@ -1195,7 +1201,8 @@ $(document).on('input', '.invoice-product-input', function() {
     let searchTerm = $input.val();
 
     // 🔥 Normalize input: remove extra spaces and trim
-    searchTerm = searchTerm.replace(/\s+/g, '').toLowerCase();
+    searchTerm = searchTerm.replace(/[\s\-]+/g, '').toLowerCase();
+    // searchTerm = searchTerm.replace(/\s+/g, '').toLowerCase();
 
 
     clearTimeout(searchTimer);
@@ -1212,6 +1219,13 @@ $(document).on('input', '.invoice-product-input', function() {
         left: 0+'px',
         width: $input.outerWidth() + 'px'
     });
+
+    // 🔥 Use cache if available (SAFE VERSION)
+if(productSearchCache[searchTerm]) {
+    renderDropdown(productSearchCache[searchTerm], rowId);
+    return;
+}
+
 
     $.ajax({
       url: 'php_action/searchProducts.php',
@@ -1230,17 +1244,50 @@ $(document).on('input', '.invoice-product-input', function() {
           return;
         }
 
+
         if(products.length === 0) {
           $dropdown.html('<div style="padding: 10px;">No medicines found</div>').show();
           return;
         }
 
+        // 🔥 Save result into cache
+        productSearchCache[searchTerm] = products;
+
+        // 🔥 Render normally
+        renderDropdown(products, rowId);
+
         var html = '';
         products.forEach(function(product) {
-          html += '<div class="invoice-product-item" style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s;" data-id="'+product.id+'" data-name="'+product.productName+'" data-price="'+product.price+'" data-quantity="'+(product.quantity||0)+'" data-row-id="'+rowId+'">'
-            +'<strong>'+product.productName+'</strong><br>'
-            +'<small style="color: #666;">Price: ₹'+parseFloat(product.price).toFixed(2)+'</small>'
-          +'</div>';
+
+          let stockText = '';
+          let disabledStyle = '';
+
+          if(product.outOfStock) {
+            stockText = '<span style="color:red; font-weight:bold;">Out of stock</span>';
+            disabledStyle = 'opacity:0.5; pointer-events:none; background:#f9d6d5;';
+          } else {
+            stockText = '<span style="color:green;">In stock: ' + product.quantity + '</span>';
+          }
+
+          html += `
+                  <div class="invoice-product-item" 
+                      style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s; ${disabledStyle}" 
+                      data-id="${product.id}" 
+                      data-name="${product.productName}" 
+                      data-price="${product.price}" 
+                      data-quantity="${product.quantity}" 
+                      data-row-id="${rowId}">
+
+                    <strong>${product.productName}</strong><br>
+                    <small style="color:#666;">Price: ₹${parseFloat(product.price).toFixed(2)}</small><br>
+                    <small>${stockText}</small>
+                  </div>
+                `;
+
+          // html += '<div class="invoice-product-item" style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s;" data-id="'+product.id+'" data-name="'+product.productName+'" data-price="'+product.price+'" data-quantity="'+(product.quantity||0)+'" data-row-id="'+rowId+'">'
+          //   +'<strong>'+product.productName+'</strong><br>'
+          //   +'<small style="color: #666;">Price: ₹'+parseFloat(product.price).toFixed(2)+'</small>'
+          // +'</div>';
         });
 
         $dropdown.html(html).show().attr('data-highlight', 0);
@@ -1369,5 +1416,48 @@ $(document).on('click', function(e) {
         $('.invoice-product-dropdown').hide();
     }
 });
+
+function renderDropdown(products, rowId) {
+
+  const $dropdown = $('#dropdown' + rowId);
+
+  if(products.length === 0) {
+    $dropdown.html('<div style="padding: 10px;">No medicines found</div>').show();
+    return;
+  }
+
+  var html = '';
+
+  products.forEach(function(product) {
+
+    let stockText = '';
+    let disabledStyle = '';
+
+    if(product.outOfStock) {
+      stockText = '<span style="color:red; font-weight:bold;">Out of stock</span>';
+      disabledStyle = 'opacity:0.5; pointer-events:none; background:#f9d6d5;';
+    } else {
+      stockText = '<span style="color:green;">In stock: ' + product.quantity + '</span>';
+    }
+
+    html += `
+      <div class="invoice-product-item" 
+           style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s; ${disabledStyle}" 
+           data-id="${product.id}" 
+           data-name="${product.productName}" 
+           data-price="${product.price}" 
+           data-quantity="${product.quantity}" 
+           data-row-id="${rowId}">
+
+        <strong>${product.productName}</strong><br>
+        <small style="color:#666;">Price: ₹${parseFloat(product.price).toFixed(2)}</small><br>
+        <small>${stockText}</small>
+      </div>
+    `;
+  });
+
+  $dropdown.html(html).show().attr('data-highlight', 0);
+}
+
 
 </script>
