@@ -103,7 +103,7 @@ if($_GET['o'] == 'add') {
                                 </div> 
                                 <div class="form-group col-md-12">
                                     <label class="control-label">Client Contact</label>
-                                    <input type="text" class="form-control" id="clientContact" name="clientContact" placeholder="Contact Number" autocomplete="off" value="<?php echo $data[3] ?>" pattern="^[0][1-9]\d{9}$|^[1-9]\d{9}$"/>
+                                    <input type="text" class="form-control numeric-only" id="clientContact" name="clientContact" placeholder="Contact Number" autocomplete="off" value="<?php echo $data[3] ?>" pattern="^[0][1-9]\d{9}$|^[1-9]\d{9}$"/>
                                 </div>       
 
                                 <table class="table" id="productTable">
@@ -238,7 +238,7 @@ if($_GET['o'] == 'add') {
                                 </div>       
                                 <div class="form-group col-md-6">
                                     <label for="discount" class="control-label">Discount</label>
-                                    <input type="text" class="form-control" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" value="<?php echo $data[6] ?>" />
+                                    <input type="text" class="form-control numeric-only" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" value="<?php echo $data[6] ?>" />
                                 </div>  
                                 <div class="form-group col-md-6">
                                     <label for="grandTotal" class="control-label">Grand Total</label>
@@ -257,7 +257,7 @@ if($_GET['o'] == 'add') {
 
                                 <div class="form-group col-md-6">
                                     <label for="paid" class="control-label">Paid Amount</label>
-                                    <input type="text" class="form-control" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" value="<?php echo $data[9] ?>"  />
+                                    <input type="text" class="form-control numeric-only" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" value="<?php echo $data[9] ?>"  />
                                 </div>        
                                 <div class="form-group col-md-6">
                                     <label for="due" class="control-label">Due Amount</label>
@@ -335,6 +335,48 @@ if($_GET['o'] == 'add') {
 
  
 <?php include('./constant/layout/footer.php');?>
+<script>
+
+
+// Select all elements with the "numeric-only" class
+const numericFields = document.querySelectorAll('.numeric-only');
+
+numericFields.forEach(field => {
+    // 1. Block keys as they are pressed
+    field.addEventListener('keydown', (event) => {
+        // Added '.' to the allowed list
+        const allowedKeys = ['Backspace', 'Tab', 'Enter', 'Delete', 'ArrowLeft', 'ArrowRight', '.'];
+        
+        // Check if the key is a digit [0-9]
+        const isDigit = /^[0-9]$/.test(event.key);
+
+        // If it's not a digit and not an allowed key, block it
+        if (!isDigit && !allowedKeys.includes(event.key)) {
+            event.preventDefault();
+        }
+
+        // Prevent entering more than one decimal point
+        if (event.key === '.' && event.target.value.includes('.')) {
+            event.preventDefault();
+        }
+    });
+
+    // 2. Safety for Pasted text (allows digits and one decimal point)
+    field.addEventListener('input', function() {
+        // Remove everything except numbers and dots
+        this.value = this.value.replace(/[^0-9.]/g, '');
+        
+        // Ensure only the first dot stays if there are multiples
+        const parts = this.value.split('.');
+        if (parts.length > 2) {
+            this.value = parts[0] + '.' + parts.slice(1).join('');
+        }
+    });
+});
+
+
+</script>
+
 
 
 <script>
