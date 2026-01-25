@@ -68,7 +68,7 @@ if($_GET['o'] == 'add') {
     <div class="container-fluid">
               
       <div class="row">
-        <div class="col-lg-11" style="    margin-left: 5%;">
+        <div class="col-lg-12" style="    margin: 0 auto;">
           <div class="card">
             <div class="card-title">
                 
@@ -166,11 +166,11 @@ if($_GET['o'] == 'add') {
                               <input type="text" name="total[]" id="total<?php echo $x; ?>" autocomplete="off" class="form-control" disabled="true" />                  
                               <input type="hidden" name="totalValue[]" id="totalValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
                             </td>
-                            <td >
+                            <!-- <td >
                               <div class="form-group">
                                 <button type="button" class="btn btn-primary btn-flat " onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="fa fa-plus"></i></button>                  
                               </div>
-                            </td>
+                            </td> -->
                             <td > 
                               <div class="form-group">              
                                 <button type="button" class="btn btn-danger  removeProductRowBtn" type="button" id="removeProductRowBtn" onclick="removeProductRow(<?php echo $x; ?>)"><i class="fa fa-trash"></i></button>
@@ -182,7 +182,10 @@ if($_GET['o'] == 'add') {
                         } // /for
                       ?>
                     </tbody>          
-                  </table>         
+                  </table> 
+                  <div class="form-group col-md-12">
+                  <button type="button" class="btn btn-success" onclick="addRow()" id="addRowBtn">Add Item</button>
+                  </div>         
                   <div class="form-group">
                     <div class="row">
                       <label class="col-sm-2 control-label">Sub Amount</label>
@@ -214,22 +217,34 @@ if($_GET['o'] == 'add') {
                     <div class="row">                          
                     </div>
                   </div>
-
                   <div class="form-group">
                     <div class="row">
-                      <label for="vat" class="col-sm-2 control-label gst">GST 18%</label>
+                      <label for="gstPercentage" class="col-sm-2 control-label">GST %</label>
+                      <div class="col-sm-4">
+                        <select class="form-control" id="gstPercentage" name="gstPercentage" onchange="updateGSTLabel(); subAmount();">
+                          <option value="0">0%</option>
+                          <option value="5" selected>5%</option>
+                          <option value="12">12%</option>
+                          <option value="18">18%</option>
+                          <option value="24">24%</option>
+                          <!-- <option value="manual">Manual</option> -->
+                        </select>
+                      </div>
+
+                      <label for="paid" class="col-sm-2 control-label">Paid Amount</label>
+                      <div class="col-sm-4">
+                      <input type="text" class="form-control" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" />
+                      </div>
+                      <label for="vat" class="col-sm-2 control-label gst" id="gstLabel">GST 5%</label>
                       <div class="col-sm-4">
                         <input type="text" class="form-control" id="vat" name="gstn" readonly="true" />
                         <input type="hidden" class="form-control" id="vatValue" name="vatValue" />
                       </div>
 
-                      <label for="paid" class="col-sm-2 control-label">Paid Amount</label>
-                      <div class="col-sm-4">
-                        <input type="text" class="form-control numeric-only" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" />
-                      </div>
+
                     </div>
                   </div>
-                  
+
                   <div class="form-group">
                     <div class="row">
                       <label for="due" class="col-sm-2 control-label">Due Amount</label>
@@ -266,7 +281,7 @@ if($_GET['o'] == 'add') {
 
                       <label for="clientContact" class="col-sm-2 control-label">Payment Place</label>
                       <div class="col-sm-4">
-                        <select class="form-control" name="paymentPlace" id="paymentPlace">
+                        <select class="form-control" name="paymentPlace" id="paymentPlace" onchange="updateGSTLabel();">
                           <option value="">~~SELECT~~</option>
                           <option value="1">In India</option>
                           <option value="2">Out Of India</option>
@@ -347,16 +362,16 @@ var productSearchCache = {};
 var manageOrderTable;
 
 $(document).ready(function() {
-  $("#paymentPlace").change(function(){
-    if($("#paymentPlace").val() == 2)
-    {
-      $(".gst").text("IGST 18%");
-    }
-    else
-    {
-      $(".gst").text("GST 18%");  
-    }
-});
+//   $("#paymentPlace").change(function(){
+//     if($("#paymentPlace").val() == 2)
+//     {
+//       $(".gst").text("IGST 18%");
+//     }
+//     else
+//     {
+//       $(".gst").text("GST 18%");  
+//     }
+// });
 
   var divRequest = $(".div-request").text();
 
@@ -384,7 +399,8 @@ $(document).ready(function() {
       var paid = $("#paid").val();
       var discount = $("#discount").val();
       var paymentType = $("#paymentType").val();
-      var paymentStatus = $("#paymentStatus").val();    
+      var paymentStatus = $("#paymentStatus").val();  
+      var gstPercentage = $("#gstPercentage").val();  
 
       // form validation 
       if(orderDate == "") {
@@ -554,6 +570,7 @@ $(document).ready(function() {
       var discount = $("#discount").val();
       var paymentType = $("#paymentType").val();
       var paymentStatus = $("#paymentStatus").val();    
+      var gstPercentage = $("#gstPercentage").val();
 
       // form validation 
       if(orderDate == "") {
@@ -802,12 +819,12 @@ function addRow() {
             '<input type="hidden" name="totalValue[]" id="totalValue'+count+'" autocomplete="off" class="form-control" />'+
           '</div>'+
         '</td>'+
-        '<td>'+
-          '<div class="form-group">'+
-            // '<button class="btn btn-primary removeProductRowBtn" type="button" onclick="addRow('+count+')"><i class="fa fa-plus"></i></button>'+
-            '<button type="button" class="btn btn-primary btn-flat " onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="fa fa-plus"></i></button>'+
-          '</div>'+
-        '</td>'+
+        // '<td>'+
+          // '<div class="form-group">'+
+          //   // '<button class="btn btn-primary removeProductRowBtn" type="button" onclick="addRow('+count+')"><i class="fa fa-plus"></i></button>'+
+          //   '<button type="button" class="btn btn-primary btn-flat " onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="fa fa-plus"></i></button>'+
+          // '</div>'+
+        // '</td>'+
         '<td>'+
           '<div class="form-group">'+
             '<button class="btn btn-danger removeProductRowBtn" type="button" onclick="removeProductRow('+count+')"><i class="fa fa-trash"></i></i></button>'+
@@ -941,8 +958,14 @@ function subAmount() {
   $("#subTotal").val(totalSubAmount);
   $("#subTotalValue").val(totalSubAmount);
 
+  var gstPercentage = $("#gstPercentage").val();
+  var gstRate = 5; // default
+  if(gstPercentage != 'manual') {
+    gstRate = Number(gstPercentage);
+  }
+
   // vat
-  var vat = (Number($("#subTotal").val())/100) * 18;
+  var vat = (Number($("#subTotal").val())/100) * gstPercentage;
   vat = vat.toFixed(2);
   $("#vat").val(vat);
   $("#vatValue").val(vat);
@@ -1019,6 +1042,17 @@ function paidAmount() {
   } // /if
 } // /paid amoutn function
 
+function updateGSTLabel() {
+  var gstPercentage = $("#gstPercentage").val();
+  var paymentPlace = $("#paymentPlace").val();
+  var prefix = (paymentPlace == 2) ? "IGST" : "GST";
+  
+  if(gstPercentage == 'manual') {
+    $("#gstLabel").text(prefix + " (Manual)");
+  } else {
+    $("#gstLabel").text(prefix + " " + gstPercentage + "%");
+  }
+}
 
 function resetOrderForm() {
   // reset the input field
@@ -1027,6 +1061,9 @@ function resetOrderForm() {
   $(".text-danger").remove();
   // remove form group error 
   $(".form-group").removeClass('has-success').removeClass('has-error');
+
+  $("#gstPercentage").val('5');
+  updateGSTLabel();
 } // /reset order form
 
 
@@ -1221,10 +1258,10 @@ $(document).on('input', '.invoice-product-input', function() {
     });
 
     // 🔥 Use cache if available (SAFE VERSION)
-if(productSearchCache[searchTerm]) {
-    renderDropdown(productSearchCache[searchTerm], rowId);
-    return;
-}
+    if(productSearchCache[searchTerm]) {
+        renderDropdown(productSearchCache[searchTerm], rowId);
+        return;
+    }
 
 
     $.ajax({

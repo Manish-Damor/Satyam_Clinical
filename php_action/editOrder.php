@@ -33,6 +33,7 @@ if ($_POST) {
         $paymentStatus = $_POST['paymentStatus'];
         $paymentPlace = $_POST['paymentPlace'];
         $gstn = $_POST['vatValue'];
+        $gstPercentage    = $_POST['gstPercentage'];
 
         // Basic validation
         if (strlen($clientName) < 2) {
@@ -66,12 +67,13 @@ if ($_POST) {
                 paymentType = ?,
                 paymentStatus = ?,
                 paymentPlace = ?,
-                gstn = ?
+                gstn = ?,
+                gstPercents = ?
             WHERE id = ?
         ");
 
         $stmt->bind_param(
-            "ssssssssiiisii",
+            "ssssssssiiisiii",
             $orderDate,
             $clientName,
             $clientContact,
@@ -85,6 +87,7 @@ if ($_POST) {
             $paymentStatus,
             $paymentPlace,
             $gstn,
+            $gstPercentage,
             $orderId
         );
 

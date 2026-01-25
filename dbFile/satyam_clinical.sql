@@ -320,3 +320,6 @@ CREATE TABLE IF NOT EXISTS `po_items` (
   INDEX `po_master_id` (`po_master_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE `orders`
+ADD COLUMN `gstPercents` INT(5) NOT NULL DEFAULT 0
+AFTER `grandTotalValue`;

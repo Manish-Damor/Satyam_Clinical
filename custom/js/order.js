@@ -1,16 +1,16 @@
 var manageOrderTable;
 
 $(document).ready(function() {
-	$("#paymentPlace").change(function(){
-		if($("#paymentPlace").val() == 2)
-		{
-			$(".gst").text("IGST 18%");
-		}
-		else
-		{
-			$(".gst").text("GST 18%");	
-		}
-});
+// 	$("#paymentPlace").change(function(){
+// 		if($("#paymentPlace").val() == 2)
+// 		{
+// 			$(".gst").text("IGST 18%");
+// 		}
+// 		else
+// 		{
+// 			$(".gst").text("GST 18%");	
+// 		}
+// });
 
 	var divRequest = $(".div-request").text();
 
