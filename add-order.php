@@ -233,7 +233,7 @@ if($_GET['o'] == 'add') {
 
                       <label for="paid" class="col-sm-2 control-label">Paid Amount</label>
                       <div class="col-sm-4">
-                      <input type="text" class="form-control" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" />
+                      <input type="text" class="form-control numeric-only" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" />
                       </div>
                       <label for="vat" class="col-sm-2 control-label gst" id="gstLabel">GST 5%</label>
                       <div class="col-sm-4">
@@ -734,10 +734,10 @@ function printOrder(orderId = null) {
         mywindow.document.close(); // necessary for IE >= 10
         mywindow.focus(); // necessary for IE >= 10
         mywindow.resizeTo(screen.width, screen.height);
-setTimeout(function() {
-    mywindow.print();
-    mywindow.close();
-}, 1250);
+        setTimeout(function() {
+            mywindow.print();
+            mywindow.close();
+        }, 1250);
 
         //mywindow.print();
         //mywindow.close();
