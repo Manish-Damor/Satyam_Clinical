@@ -6,3 +6,18 @@ GST 5% DEFAULT AUTO
 Autocomplete in the tablet selection using search
 
 PO reqirements analysis
+
+PO NUMBER
+PO-26-27/0001
+
+REPLACE Vendor Name with Bill to
+ship to
+PTR Hide
+
+
+50000 due amount
+order cancel po cancel flag remark
+
+discount ? qty disc remove
+
+
