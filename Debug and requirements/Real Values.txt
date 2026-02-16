@@ -1,0 +1,9 @@
+Real Values passed as
+
+po_number = ? text
+po_date date
+po_type /reg/express/urgent
+expected_delivery_date // 
+
+supplier_id == loadSupplierDetails called on select
+reference_number  //line not 134

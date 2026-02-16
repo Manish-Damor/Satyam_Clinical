@@ -1,7 +1,7 @@
 <?php 
 
 include('./constant/check.php');
- require_once('./constant/connect.php');
+require_once('./constant/connect.php');
 ?>
     
     <div id="main-wrapper">
@@ -45,9 +45,9 @@ include('./constant/check.php');
                     <ul class="navbar-nav my-lg-0 ml-auto">
 
                       <img src="./assets/uploadImage/Logo/transalation.png" alt="user" style="height: 30px;
-    width: auto;
-    margin-top: 16px;
-    margin-right: 10px;">
+                                width: auto;
+                                margin-top: 16px;
+                                margin-right: 10px;">
                         <div id="google_translate_element"></div>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle text-muted  " href="#" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

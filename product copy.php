@@ -31,7 +31,7 @@ $result = $connect->query($sql);
                  <div class="card">
                             <div class="card-body">
                               
-                            <a href="add-product.php"><button class="btn btn-primary">Add Medicine</button></a>
+                            <a href="add_medicine.php"><button class="btn btn-primary">Add Medicine</button></a>
                          
                                 <div class="table-responsive m-t-40">
                                     <table id="myTable" class="table table-bordered table-striped">

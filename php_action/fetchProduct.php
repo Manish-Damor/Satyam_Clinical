@@ -77,7 +77,7 @@ if($result->num_rows > 0) {
  } // /while 
 
 }// if num_rows
-header('location:../product.php');
+header('location:../manage_medicine.php');
 $connect->close();
 
 echo json_encode($output);

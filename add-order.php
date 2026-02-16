@@ -85,16 +85,22 @@ if($_GET['o'] == 'add') {
                       <label class="col-sm-2 control-label">Invoice No</label>
                       <div class="col-sm-4">
                         <?php 
-                          $user ="select * from orders where  id=(select max(id) from orders)";
-                          //echo $user;exit;
-                          $result = $connect->query($user);
-                          foreach ($result as $res ) {
-                            # code...
-                            $n="INV-000";
-                            $l=$res['id']+1;
-                            $stall_no= $n."".$l; 
-                            }
+                        $user = "select * from orders where id=(select max(id) from orders)";
+                        $year = date('y');
+                        $month = date('m');
+
+                        $result = $connect->query($user);
+                        $res = $result->fetch_assoc();
+
+                        // Get next invoice number
+                        $nextInvNum = (isset($res['id']) && $res['id']) ? $res['id'] + 1 : 1;
+
+                        // Generate Invoice Number
+                        $stall_no = 'INV-' . $year . '-' . str_pad($nextInvNum, 4, '0', STR_PAD_LEFT);
+
+                        // echo $stall_no;
                         ?>
+
 
                         <input type="text" class="form-control" placeholder="Invoice Number" value="<?php echo $stall_no; ?>" autocomplete="off" name="uno" required/>
                       </div>
@@ -202,7 +208,7 @@ if($_GET['o'] == 'add') {
                   </div>                                       
                   <div class="form-group">
                     <div class="row">
-                      <label for="discount" class="col-sm-2 control-label">Discount</label>
+                      <label for="discount" class="col-sm-2 control-label">Discount RS.</label>
                       <div class="col-sm-4">
                         <input type="text" class="form-control numeric-only" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" / pattern="^[0-9]+$"/>
                       </div>

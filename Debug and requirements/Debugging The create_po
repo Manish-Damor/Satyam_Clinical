@@ -1,0 +1,74 @@
+Values Passed From form 
+
+Po number
+po date
+po type
+expected delivery data
+***  Supplier select = name   check for supplier id
+***  ✔✅ reference number checked
+supplier contact
+supplier email
+***  supplier address   check for delivery address 14th row of database{
+                delivery address
+                delivey city
+                delivery state
+                delivery pincode
+                expected delivery date
+                actual delivery date
+              
+
+            }
+
+            {
+                  reference number
+                  reference date
+            }
+city 
+state 
+pincode
+suppl gst
+payment terms   // 14th item
+
+============  Medicine Table ==============
+medicine name
+hsn codde
+pack size 
+batch no
+expiray 
+MRP
+PTR
+RATE
+QTY
+DISCOUNT
+AMOUNT 
+TAX
+TOTAL  27th item
+
+========= Calculations ==========
+sub TOTAL
+discount == discount perceent
+ total DISCOUNT
+ taxable AMOUNT
+ cgst percent + amount
+ sgst percent + amount
+ igst percent + amount
+ round off
+ grand total
+ payment method
+ {
+    payment status
+    payment terms
+ }
+ po status
+ notes & special instructions   //38
+
+ terms and conditions
+
+ {
+    created by key
+    created actual
+    updated by //not needed to provide
+    updated at
+ }
+
+

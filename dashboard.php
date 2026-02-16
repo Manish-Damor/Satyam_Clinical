@@ -7,7 +7,8 @@
 <?php 
 
 
-$lowStockSql = "SELECT * FROM product WHERE status = 1";
+$lowStockSql = "SELECT COUNT(*) as total FROM product WHERE status = 1";
+// $lowStockSql = "SELECT * FROM product WHERE status = 1";
 $lowStockQuery = $connect->query($lowStockSql);
 $countLowStock = $lowStockQuery->num_rows;
 
@@ -16,7 +17,12 @@ $lowStockQuery1 = $connect->query($lowStockSql1);
 $countLowStock1 = $lowStockQuery1->num_rows;
 
 $date=date('Y-m-d');
-    $lowStockSql3 = "SELECT * FROM product WHERE  expdate<'".$date."' AND status = 1";
+    $lowStockSql3 = "SELECT COUNT(*) as total
+                    FROM product_batches
+                    WHERE expiry_date < CURDATE()
+                    AND status = 'Active'
+                    ";
+    // $lowStockSql3 = "SELECT * FROM product WHERE  expdate<'".$date."' AND status = 1";
     //echo "SELECT * FROM product WHERE  expdate<='".$date."' AND status = 1" ;exit;
 $lowStockQuery3 = $connect->query($lowStockSql3);
 $countLowStock3 = $lowStockQuery3->num_rows;
@@ -48,18 +54,18 @@ $countLowStock2 = $lowStockQuery2->num_rows;
             
             <div class="container-fluid ">
                 
-                 <div class="row">
+                <div class="row">
                 <div class="col-md-6 dashboard">
                        <div class="card" style="background: #2BC155 ">
                            <div class="media widget-ten">
-                               <div class="media-left meida media-middle">
+                               <div class="media-left media media-middle">
                                    <span><i class="ti-agenda"></i></span>
                                </div>
                                <div class="media-body media-text-right">
                                 
                            
                                    <h2 class="color-white"><?php echo $countLowStock; ?></h2>
-                                   <a href="product.php"><p class="m-b-0">Total Medicine</p></a>
+                                   <a href="manage_medicine.php"><p class="m-b-0">Total Medicine</p></a>
                                </div>
                            </div>
                        </div>
@@ -68,7 +74,7 @@ $countLowStock2 = $lowStockQuery2->num_rows;
                     <div class="col-md-6 dashboard">
                         <div class="card" style="background:#A02CFA ">
                             <div class="media widget-ten">
-                                <div class="media-left meida media-middle">
+                                <div class="media-left media media-middle">
                                     <span><i class="ti-widget"></i></span>
                                 </div>
                                 <div class="media-body media-text-right">
@@ -77,7 +83,7 @@ $countLowStock2 = $lowStockQuery2->num_rows;
                     
                             
                                     <h2 class="color-white"><?php echo $countLowStock1; ?></h2>
-                                     <a href="product.php"><p class="m-b-0">Total Manufacturer</p></a>
+                                     <a href="manage_medicine.php"><p class="m-b-0">Total Manufacturer</p></a>
                                 </div>
                             </div>
                         </div>
@@ -87,7 +93,7 @@ $countLowStock2 = $lowStockQuery2->num_rows;
                    <div class="col-md-6 dashboard">
                       <div class="card " style="    background-color: #F94687 ">
                           <div class="media widget-ten">
-                              <div class="media-left meida media-middle">
+                              <div class="media-left media media-middle">
                                   <span><i class="ti-vector"></i></span>
                               </div>
                               <div class="media-body media-text-right">
@@ -104,7 +110,7 @@ $countLowStock2 = $lowStockQuery2->num_rows;
                    <div class="col-md-6 dashboard">
                       <div class="card" style="    background-color: #FFBC11 ">
                           <div class="media widget-ten">
-                              <div class="media-left meida media-middle">
+                              <div class="media-left media media-middle">
                                   <span><i class="ti-agenda"></i></span>
                               </div>
                               <div class="media-body media-text-right">
@@ -207,21 +213,22 @@ foreach ($result as $row) {
 
   //print_r($row);
     $a.=$row["product_name"].',';
-    $b.=$row["quantity"].',';
+    // $b.=$row["quantity"].',';
    
 
  }
     $am= explode(",",$a,-1);
-     $amm= explode(",",$b,-1);
+    //  $amm= explode(",",$b,-1);
      //print_r($a);
      //print_r($b);
 
   $cnt=count($am);
 
   $datavalue1='';
-                    for($i=0;$i<$cnt;$i++){ 
- $datavalue1.="['".$am[$i]."',".$amm[$i]."],";
-         }
+
+    for($i=0;$i<$cnt;$i++){ 
+        // $datavalue1.="['".$am[$i]."',".$amm[$i]."],";
+    }
           //echo 
 
  $datavalue1; //used this $data variable in js
@@ -245,10 +252,10 @@ google.charts.load('current', {'packages':['corechart']});
 google.charts.setOnLoadCallback(drawChart);
 
 function drawChart() {
-var data = google.visualization.arrayToDataTable([ ['Contry', 'Mhl'],<?php echo $datavalue1;?>]);
+var data = google.visualization.arrayToDataTable([ ['Medicine', 'stock'],<?php echo $datavalue1;?>]);
 
 var options = {
-  title:'World Wide Wine Production',
+  title:'All Medicines',
   is3D:true
 };
 

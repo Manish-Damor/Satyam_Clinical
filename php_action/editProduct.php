@@ -22,7 +22,7 @@ if($_POST) {
 	if($connect->query($sql) === TRUE) {
 		$valid['success'] = true;
 		$valid['messages'] = "Successfully Update";	
-		header('location:../product.php');
+		header('location:../manage_medicine.php');
 	} else {
 		$valid['success'] = false;
 		$valid['messages'] = "Error while updating product info";

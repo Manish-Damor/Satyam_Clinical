@@ -45,8 +45,8 @@ $result = $connect->query($sql);
                                        </thead>
                                        <tbody>
                                         <?php
-foreach ($result as $row) {
-    ?>
+                                            foreach ($result as $row) {
+                                        ?>
                                         <tr>
                                             <td class="text-center"><?php echo $row['brand_id'] ?></td>
                                             <td><?php echo $row['brand_name'] ?></td>

@@ -1,5 +1,5 @@
 <link rel="stylesheet" href="assets/css/popup_style.css"> 
-           <style>
+<style>
 .footer1 {
   position: fixed;
   bottom: 0;
@@ -9,10 +9,10 @@
 }
 
 </style>
-   <?php
+<?php
    
 include('./constant/layout/head.php');
-  include('./constant/connect.php');
+include('./constant/connect.php');
 session_start();
 
 if(isset($_SESSION['userId'])) {
@@ -53,12 +53,12 @@ if($_POST) {
 
       
 
-         <div class="popup popup--icon -success js_success-popup popup--visible">
+  <div class="popup popup--icon -success js_success-popup popup--visible">
   <div class="popup__background"></div>
   <div class="popup__content">
     <h3 class="popup__content__title">
       Success 
-    </h1>
+    </h3>
     <p>Login Successfully</p>
     <p>
      

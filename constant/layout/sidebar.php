@@ -13,7 +13,7 @@
                     <ul id="sidebarnav">
                         <li class="nav-devider"></li>
                         <li class="nav-label">Home</li>
-                        <li> <a href="dashboard.php" aria-expanded="false"><i class="fa fa-tachometer"></i>Dashboard</a>
+                        <li><a href="dashboard.php" aria-expanded="false"><i class="fa fa-tachometer"></i>Dashboard</a>
                         </li> 
                  
                          <?php if(isset($_SESSION['userId']) && $_SESSION['userId']==1) { ?>
@@ -23,7 +23,7 @@
                                 <li><a href="add-brand.php">Add Manufacturer</a></li>
                            
                                 <li><a href="brand.php">Manage Manufacturer</a></li>
-                                 <li><a href="importbrand.php">Import Manufacturer</a></li>
+                                 <!-- <li><a href="importbrand.php">Import Manufacturer</a></li> -->
                             </ul>
                         </li>
                     <?php }?>
@@ -41,9 +41,10 @@
                         <li> <a class="has-arrow" href="#" aria-expanded="false"><i class="fa fa-medkit"></i><span class="hide-menu">Medicine</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
-                                <li><a href="add-product.php">Add Medicine</a></li>
+                                <li><a href="addProductStock.php">Add Medicine Stock</a></li>
+                                <li><a href="add_medicine.php">Add Medicine</a></li>
                            
-                                <li><a href="product.php">Manage Medicine</a></li>
+                                <li><a href="manage_medicine.php">Manage Medicine</a></li>
                             </ul>
                         </li>
                     <?php }?>
@@ -60,10 +61,20 @@
                         <li> <a class="has-arrow" href="#" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Purchase Order</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
-                                <li><a href="add-purchase-order.php">Add Purchase Order</a></li>
+                                <li><a href="create_po.php">Create PO</a></li>
                            
-                                <li><a href="purchase_order.php">Manage Purchase Orders</a></li>
+                                <li><a href="po_list.php">Manage POs</a></li>
                             </ul>
+                        </li>
+
+                    <?php }?>
+                        <?php if(isset($_SESSION['userId']) && $_SESSION['userId']==1) { ?>
+                        <li> <a class="has-arrow" href="suppliers.php" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Suppliers</span></a>
+                            <!-- <ul aria-expanded="false" class="collapse">
+                           
+                                <li><a href="supplier.php">Suppliers</a></li>
+                           
+                            </ul> -->
                         </li>
 
                     <?php }?>

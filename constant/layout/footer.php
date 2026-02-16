@@ -1,11 +1,11 @@
 
-             <?php
-             include('./constant/connect.php');
+<?php
+include('./constant/connect.php');
              
-             ?>
-        </div>
-          
+?>
     </div>
+          
+</div>
     
     
     <script src="assets/js/lib/jquery/jquery.min.js"></script>
@@ -21,7 +21,7 @@
     <script src="assets/js/lib/sticky-kit-master/dist/sticky-kit.min.js"></script>
 
 
- <script src="assets/js/lib/sweetalert/sweetalert.min.js"></script>
+    <script src="assets/js/lib/sweetalert/sweetalert.min.js"></script>
     
     <script src="assets/js/lib/sweetalert/sweetalert.init.js"></script>
    
@@ -37,7 +37,7 @@
     <script src="assets/js/custom.min.js"></script>
 
    
-     <script src="assets/js/lib/datatables/datatables.min.js"></script>
+    <script src="assets/js/lib/datatables/datatables.min.js"></script>
     <script src="assets/js/lib/datatables/cdn.datatables.net/buttons/1.2.2/js/dataTables.buttons.min.js"></script>
     <script src="assets/js/lib/datatables/cdn.datatables.net/buttons/1.2.2/js/buttons.flash.min.js"></script>
     <script src="assets/js/lib/datatables/cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"></script>
@@ -49,22 +49,22 @@
 
     
 
-<script>
-function alphaOnly(event) {
-  var key = event.keyCode;
-  return ((key >= 65 && key <= 90) || key == 8);
-};
-                                        </script>
-                                        <script>
-    // WRITE THE VALIDATION SCRIPT.
-    function isNumber(evt) {
-        var iKeyCode = (evt.which) ? evt.which : evt.keyCode
-        if (iKeyCode != 46 && iKeyCode > 31 && (iKeyCode < 48 || iKeyCode > 57))
-            return false;
+    <script>
+    function alphaOnly(event) {
+    var key = event.keyCode;
+    return ((key >= 65 && key <= 90) || key == 8);
+    };
+    </script>
+    <script>
+        // WRITE THE VALIDATION SCRIPT.
+        function isNumber(evt) {
+            var iKeyCode = (evt.which) ? evt.which : evt.keyCode
+            if (iKeyCode != 46 && iKeyCode > 31 && (iKeyCode < 48 || iKeyCode > 57))
+                return false;
 
-        return true;
-    }    
-</script>
+            return true;
+        }    
+    </script>
 <script type="text/javascript">
 function googleTranslateElementInit() {
   new google.translate.TranslateElement({pageLanguage: 'en'}, 'google_translate_element');

@@ -1,52 +1,87 @@
-<?php 	
-
+<?php
 require_once 'core.php';
 
-$valid['success'] = array('success' => false, 'messages' => array());
+$valid = array('success' => false, 'messages' => array()
 
-if($_POST) {	
+);
 
-  $productName 		= $_POST['productName'];
-  //echo $productName ;exit;
-  $productImage 	= $_POST['productImage'];
-  $quantity 		= $_POST['quantity'];
-  $rate 			= $_POST['rate'];
-  $brandName 		= $_POST['brandName'];
-  $categoryName 	= $_POST['categoryName'];
-  $mrp 	= $_POST['mrp'];
-  $bno 	= $_POST['bno'];
-  $expdate 	= $_POST['expdate'];
-  $productStatus 	= $_POST['productStatus'];
-	//$type = explode('.', $_FILES['productImage']['name']);
-	$image = $_FILES['Medicine']['name'];
-$target = "../assets/myimages/".basename($image);
-$upload = move_uploaded_file($_FILES['Medicine']['tmp_name'], $target);
-if ($upload) {
- // @unlink("uploadImage/Profile/".$_POST['old_image']);
-	//echo $_FILES['image']['tmp_name'];
-	//cho $target;exit;
-      $msg = "Image uploaded successfully";
-      echo $msg;
-    }else{
-      $msg = "Failed to upload image";
-      echo $msg;exit;
+if ($_POST) {
+
+    // ===========================
+    // Collect & Sanitize Inputs
+    // ===========================
+
+    $productName   = trim($_POST['productName']);
+    $content       = trim($_POST['content']);
+    $brandName     = $_POST['brandName'];
+    $categoryName  = $_POST['categoryName'];
+    $productType   = $_POST['product_type'];
+    $unitType      = $_POST['unit_type'];
+    $packSize      = trim($_POST['pack_size']);
+    $hsnCode       = trim($_POST['hsn_code']);
+    $gstRate       = $_POST['gst_rate'];
+    $reorderLevel  = $_POST['reorder_level'];
+    $productStatus = $_POST['productStatus'];
+
+    $createdDate = date('Y-m-d H:i:s');
+
+    // ===========================
+    // Duplicate Check
+    // ===========================
+
+    $checkSql = "SELECT product_id FROM product 
+                 WHERE product_name = ? AND brand_id = ?";
+    $checkStmt = $connect->prepare($checkSql);
+    $checkStmt->bind_param("si", $productName, $brandName);
+    $checkStmt->execute();
+    $checkStmt->store_result();
+
+    if ($checkStmt->num_rows > 0) {
+        $valid['messages'] = "Medicine already exists for this manufacturer.";
+        echo json_encode($valid);
+        exit;
     }
-	$orderDate=date('Y-m-d');
-				$sql = "INSERT INTO product (product_name, product_image, brand_id, categories_id, quantity, rate,mrp,bno,expdate,added_date,active, status) 
-				VALUES ('$productName', '$image', '$brandName', '$categoryName', '$quantity', '$rate', '$mrp', '$bno', '$expdate', '$orderDate', '$productStatus', 1)";
-//echo $sql;exit;
-				if($connect->query($sql) === TRUE) { //echo "sdafsf";exit;
-					$valid['success'] = true;
-					$valid['messages'] = "Successfully Added";
-					header('location:../product.php');	
-				} 
-				
-			// /else	
-		// if
-	// if in_array 		
 
-	$connect->close();
+    // ===========================
+    // Insert Product
+    // ===========================
 
-	echo json_encode($valid);
- 
-} // /if $_POST
+    $insertSql = "INSERT INTO product 
+        (product_name, content, brand_id, categories_id, 
+         product_type, unit_type, pack_size, 
+         hsn_code, gst_rate, reorder_level, 
+         status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    $stmt = $connect->prepare($insertSql);
+
+    $stmt->bind_param(
+        "ssiisssdiiss",
+        $productName,
+        $content,
+        $brandName,
+        $categoryName,
+        $productType,
+        $unitType,
+        $packSize,
+        $hsnCode,
+        $gstRate,
+        $reorderLevel,
+        $productStatus,
+        $createdDate
+    );
+
+    if ($stmt->execute()) {
+        $valid['success'] = true;
+        $valid['messages'] = "Medicine Added Successfully.";
+    } else {
+        $valid['messages'] = "Error while adding medicine.";
+    }
+
+    $stmt->close();
+    $checkStmt->close();
+    $connect->close();
+
+    echo json_encode($valid);
+}
+?>

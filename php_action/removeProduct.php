@@ -14,7 +14,7 @@ if($productId) {
  if($connect->query($sql) === TRUE) {
  	$valid['success'] = true;
 	$valid['messages'] = "Successfully Removed";
-	header('location:../product.php');		
+	header('location:../manage_medicine.php');		
  } else {
  	$valid['success'] = false;
  	$valid['messages'] = "Error while remove the brand";

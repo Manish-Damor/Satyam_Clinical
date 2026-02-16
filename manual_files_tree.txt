@@ -1,0 +1,229 @@
+Satyam_Clinical/ (manual files only)
+
+.root
+  .htaccess
+  .gitignore
+  index.php
+  login.php
+  dashboard.php
+  get_project_structure.php
+  email_config.php
+  googlechart.php
+  invoiceprint.php
+  invoiceprintOLD.php
+  TEST_CONNECTION.php
+  clean_structure.txt
+  manage_website.php
+  manage_medicine.php
+  importbrand.php
+  expreport.php
+  getproductreport.php
+  productreport.php
+  report.php
+  salesreport.php
+  sales_report.php
+  DIAGNOSE.php
+  Order.php
+  Suppliers.php
+  users.php
+  view_po.php
+  viewStock.php
+  create_po.php
+  create_poOld.php
+  create_po copy.php
+  add_medicine.php
+  addProductStock.php
+  add-product copy.php
+  add-order.php
+  add-category.php
+  add-brand.php
+  editproduct.php
+  editproduct copy.php
+  editproduct copy 2.php
+  editorder.php
+  editcategory.php
+  editbrand.php
+  edit-purchase-order.php
+  edituser.php
+  print_po.php
+  cancel_po.php
+  po_list.php
+  po_diagnostic.php
+  po_cancelled.php
+  importbrand.php
+  googlechart.php
+
+php_action/
+  db_connect.php
+  core.php
+  createUser.php
+  createStock.php
+  createProduct.php
+  createCategories.php
+  createBrand.php
+  createBrandImport.php
+  createPurchaseOrder.php
+  createPurchaseOrderOld.php
+  createPurchaseOrder copy.php
+  editProduct.php
+  editProductImage.php
+  editCategories.php
+  editBrand.php
+  editOrder.php
+  editPurchaseOrder.php
+  editUser.php
+  editPayment.php
+  removeProduct.php
+  removeUser.php
+  removePurchaseOrder.php
+  removeOrder.php
+  removeCategories.php
+  removeBrand.php
+  deleteSupplier.php
+  saveSupplier.php
+  fetchProducts.php
+  fetchProduct.php
+  fetchProductData.php
+  fetchProductImageUrl.php
+  fetchSelectedProduct.php
+  fetchCategories.php
+  fetchSelectedCategories.php
+  fetchBrand.php
+  fetchSelectedBrand.php
+  fetchUser.php
+  fetchSelectedUser.php
+  fetchOrder.php
+  fetchOrderData.php
+  getOrderReport.php
+  getSupplier.php
+  getsalereport.php
+  getexpproduct.php
+  getCancellationDetails.php
+  searchProducts.php
+  searchMedicines.php
+  printOrder.php
+  cancelPO.php
+  debug_test.php
+  order.php
+  changePassword.php
+  changeUsername.php
+
+constant/
+  connect.php
+  connect1.php
+  check.php
+  check1.php
+  forgot_password.php
+  logout.php
+  layout/
+    head.php
+    header.php
+    sidebar.php
+    footer.php
+
+app/
+  changepassword.php
+
+custom/
+  css/
+    custom.css
+  js/
+    product.js
+    purchase_order.js
+    order.js
+    user.js
+    brand.js
+    categories.js
+    import.js
+    report.js
+    setting.js
+
+assets/
+  pages/
+    save_user.php
+  uploadImage/
+    Logo/
+      logo.png
+      logo.jpeg
+      Login.jpeg
+      favicon.png
+      dashboard.jpeg
+      bill.png
+      banner3.jpg
+      transalation.png
+    Profile/
+      young-woman-avatar-facial-features-stylish-userpic-flat-cartoon-design-elegant-lady-blue-jacket-close-up-portrait-80474088.jpg
+  myimages/
+    inhaler.jfif
+    tab.jpg
+    tab1.jpg
+    tab3.jpg
+    tab4.jpg
+    medicine-3d-icon-png.png
+    logo.jpg
+  import/
+    brand.xlsx
+  js/
+    custom.min.js
+    scripts.js
+    sidebarmenu.js
+    jquery.slimscroll.js
+  css/
+    custom.css
+    helper.css
+    style.css
+    "style - Copy.css"
+    spinners.css
+    popup_style.css
+    bootstrap-theme.min.css
+    animate.css
+
+dbFile/
+  satyam_clinical.sql
+  pharmacy_po_schema_Used_currently.sql
+  sample_medicines.sql
+  stock.sql
+
+MDFiles/
+  COMPLETE_FIX_DOCUMENTATION.md
+  COMPLETE_PROJECT_WALKTHROUGH.md
+  COMPLETE_SOLUTION_CHECKLIST.md
+  COMPLETION_SUMMARY.txt
+  DEBUG_FIXES.md
+  DOCUMENTATION_INDEX.md
+  FINAL_STATUS_REPORT.md
+  FULL_STACK_LEARNING.md
+  GO_LIVE_CHECKLIST.md
+  IMPLEMENTATION_CHECKLIST.md
+  IMPLEMENTATION_COMPLETE.md
+  JSON_RESPONSE_FIX.md
+  MODIFICATIONS_SUMMARY.md
+  NEXT_STEPS.md
+  PHARMACY_PO_COMPLETE_IMPLEMENTATION.md
+  PHARMACY_PO_SETUP_GUIDE.md
+  PO_FIX_COMPLETE.md
+  PO_IMPLEMENTATION_CHECKLIST.md
+  PO_INVOICE_SYSTEM_DOCUMENTATION.md
+  PO_SYSTEM_SUMMARY.md
+  PRODUCT_TABLE_FIX.md
+  ... (many additional docs)
+
+"Debug and requirements"/
+  START_HERE.txt
+  Requirement_Analysis.txt
+  PO_DEBUG_GUIDE.txt
+  PO_IMPLEMENTATION_GUIDE.txt
+  PO_SYSTEM_STATUS.txt
+  TYPESTRING_FIX_REPORT.txt
+  VALIDATION_COMPLETE.txt
+  REVISION_COMPLETE.txt
+  Real Values.txt
+  Debugging The create_po (folder)
+
+clean_structure.txt
+
+Notes:
+- Excluded vendor/third-party directories: libraries/, assets/js/lib/, assets/css/lib/, assets/icons/ (icon fonts and flag SVGs), and assets/css/less/ (theme "less" source files).
+- I preserved top-level `assets/js/*.js` and `assets/css/*.css` files that look project-specific.
+
+If you want this exported as JSON instead, tell me and I will create `manual_files_tree.json`. You can also adjust exclusions if you prefer stricter vendor filtering.

@@ -2366,7 +2366,7 @@ background: #85CE36 !important;
 .modal-dialog {
   margin: 30px auto;
   position: relative;
-  top: 50%;
+  top: 64%;
   transform: translateY(-50%) !important;
   width: 70%;
 }

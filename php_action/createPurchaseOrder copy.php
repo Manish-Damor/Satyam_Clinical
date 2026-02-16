@@ -72,3 +72,4 @@ if($_POST) {
 
   echo json_encode($valid);
   $connect->close();
+}

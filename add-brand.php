@@ -48,11 +48,11 @@
                                             <div class="row">
                                                 <label class="col-sm-3 control-label">Status</label>
                                                 <div class="col-sm-9">
-                                                     <select class="form-control" id="brandStatus" name="brandStatus">
-                        <option value="">~~SELECT~~</option>
-                        <option value="1">Available</option>
-                        <option value="2">Not Available</option>
-                      </select>
+                                                    <select class="form-control" id="brandStatus" name="brandStatus">
+                                                    <option value="">~~SELECT~~</option>
+                                                    <option value="1">Available</option>
+                                                    <option value="2">Not Available</option>
+                                                </select>
                                                 </div>
                                             </div>
                                         </div>

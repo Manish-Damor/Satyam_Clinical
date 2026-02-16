@@ -285,7 +285,7 @@ $prod = $prodRes->fetch_assoc();
         <h4>Bank Details</h4>
         A/C No: 88252565985645<br>
         IFSC: MAHB7867<br>
-        Bank: Bank Of Maharashtra
+        Bank: Bank Of Baroda
     </div>
 
     <!-- TOTALS (RIGHT SIDE) -->
