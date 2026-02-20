@@ -150,6 +150,10 @@ CREATE TABLE IF NOT EXISTS `purchase_order` (
   FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`supplier_id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE purchase_order
+MODIFY supplier_id INT UNSIGNED NOT NULL;
+
+
 -- =========================================
 -- 4. PURCHASE ORDER ITEMS
 -- =========================================

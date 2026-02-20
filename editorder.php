@@ -112,7 +112,8 @@ if($_GET['o'] == 'add') {
                     <thead>
                       <tr>              
                         <th style="width:40%;">Medicine</th>
-                        <th style="width:20%;">Rate</th>
+                        <th style="width:12%;">Rate</th>
+                        <th style="width:12%;" class="no-print">PTR</th>
                         <th style="width:15%;">Available Quantity</th>              
                         <th style="width:15%;">Quantity</th>              
                         <th style="width:15%;">Total</th>             
@@ -123,7 +124,7 @@ if($_GET['o'] == 'add') {
                       <?php
 
                       // $orderItemSql = "SELECT order_item.id, order_item.productName, order_item.quantity, order_item.rate, order_item.total FROM order_item WHERE order_item.lastid = {$orderId}";
-                      $orderItemSql = "SELECT order_item.id, order_item.productName, order_item.quantity, order_item.rate, order_item.total, product.product_name
+                      $orderItemSql = "SELECT order_item.id, order_item.productName, order_item.quantity, order_item.rate, order_item.purchase_rate, order_item.total, product.product_name
                       FROM order_item 
                       INNER JOIN product ON order_item.productName = product.product_id 
                       WHERE order_item.lastid = {$orderId}";
@@ -173,6 +174,10 @@ if($_GET['o'] == 'add') {
                         <td>                 
                             <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" value="<?php echo $orderItemData['rate']; ?>" />                  
                             <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" value="<?php echo $orderItemData['rate']; ?>" />                  
+                        </td>
+                        <td class="no-print">
+                            <input type="text" name="ptr[]" id="ptr<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" value="<?php echo $orderItemData['purchase_rate'] ?? ''; ?>" />
+                            <input type="hidden" name="ptrValue[]" id="ptrValue<?php echo $x; ?>" autocomplete="off" class="form-control" value="<?php echo $orderItemData['purchase_rate'] ?? 0; ?>" />
                         </td>
                         <td>
                           <div class="form-group">
@@ -853,6 +858,10 @@ function addRow() {
           '<input type="text" name="rate[]" id="rate'+count+'" autocomplete="off" disabled="true" class="form-control" />'+
           '<input type="hidden" name="rateValue[]" id="rateValue'+count+'" autocomplete="off" class="form-control" />'+
         '</td>'+
+        '<td class="no-print">'+
+          '<input type="text" name="ptr[]" id="ptr'+count+'" autocomplete="off" disabled="true" class="form-control" />'+
+          '<input type="hidden" name="ptrValue[]" id="ptrValue'+count+'" autocomplete="off" class="form-control" />'+
+        '</td>'+
         '<td>'+
           '<div class="form-group">'+
           '<p id="available_quantity'+count+'"></p>'+
@@ -932,6 +941,10 @@ function getProductData(row = null) {
           
           $("#rate"+row).val(response.rate);
           $("#rateValue"+row).val(response.rate);
+
+          // PTR (purchase rate) - only visible to invoice creator
+          $("#ptr"+row).val(response.purchase_rate ?? '');
+          $("#ptrValue"+row).val(response.purchase_rate ?? 0);
 
           $("#quantity"+row).val(1);
           $("#available_quantity"+row).text(response.quantity);

@@ -7,33 +7,82 @@ include('./constant/connect.php');
 
 $userId = isset($_SESSION['userId']) ? $_SESSION['userId'] : 0;
 
-// Generate PO Number
-$year = date('y');
-$month = date('m');
-$poSql = "SELECT MAX(CAST(SUBSTRING(po_number, -4) AS UNSIGNED)) as maxPO FROM purchase_order WHERE YEAR(po_date) = '$year'";
-$poResult = $connect->query($poSql);
-$poRow = $poResult->fetch_assoc();
-$nextPONum = (isset($poRow['maxPO']) && $poRow['maxPO']) ? $poRow['maxPO'] + 1 : 1;
-$poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
+// Check edit mode
+$editing = false;
+$existingPo = null;
+$poItems = [];
+if (isset($_GET['id']) && intval($_GET['id']) > 0) {
+    $poId = intval($_GET['id']);
+    $editRes = $connect->query("SELECT * FROM purchase_orders WHERE po_id = $poId");
+    if ($editRes && $editRes->num_rows > 0) {
+        $editing = true;
+        $existingPo = $editRes->fetch_assoc();
+        $itemRes = $connect->query("SELECT poi.*, p.product_name, p.hsn_code, p.pack_size
+                                      FROM po_items poi
+                                      LEFT JOIN product p ON poi.product_id = p.product_id
+                                      WHERE poi.po_id = $poId");
+        while ($it = $itemRes->fetch_assoc()) {
+            $poItems[] = $it;
+        }
+    }
+}
+
+// Determine form action
+$formAction = $editing ? 'php_action/updatePurchaseOrder.php' : 'php_action/createPurchaseOrder.php';
+
+// Generate PO Number or use existing
+if (!$editing) {
+    $year = date('y');
+    $month = date('m');
+    $poSql = "SELECT MAX(CAST(SUBSTRING(po_number, -4) AS UNSIGNED)) as maxPO FROM purchase_orders WHERE YEAR(po_date) = '$year'";
+    $poResult = $connect->query($poSql);
+    $poRow = $poResult->fetch_assoc();
+    $nextPONum = (isset($poRow['maxPO']) && $poRow['maxPO']) ? $poRow['maxPO'] + 1 : 1;
+    $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
+} else {
+    $poNumber = $existingPo['po_number'];
+}
+
+// default values for form fields
+$poDateVal = $editing ? $existingPo['po_date'] : date('Y-m-d');
+$poTypeVal = $editing ? $existingPo['po_type'] : 'Regular';
+$referenceNumberVal = $editing ? $existingPo['reference_number'] : '';
+$expectedDeliveryVal = $editing ? $existingPo['expected_delivery_date'] : '';
+$deliveryLocationVal = $editing ? $existingPo['delivery_location'] : '';
+$supplierIdVal = $editing ? $existingPo['supplier_id'] : 0;
+$subtotalVal = $editing ? $existingPo['subtotal'] : '0.00';
+$discountPercentVal = $editing ? $existingPo['discount_percentage'] : '0';
+$discountAmtVal = $editing ? $existingPo['discount_amount'] : '0';
+$gstPercentVal = $editing ? $existingPo['gst_percentage'] : '0';
+$gstAmtVal = $editing ? $existingPo['gst_amount'] : '0';
+$otherChargesVal = $editing ? $existingPo['other_charges'] : '0';
+$grandTotalVal = $editing ? $existingPo['grand_total'] : '0';
+$poStatusVal = $editing ? $existingPo['po_status'] : 'Draft';
+$paymentStatusVal = $editing ? $existingPo['payment_status'] : 'NotDue';
+$notesVal = $editing ? $existingPo['notes'] : '';
+
 ?>
 
 <div class="page-wrapper">
     <div class="row page-titles">
         <div class="col-md-8 align-self-center">
-            <h3 class="text-primary">Create Purchase Order</h3>
+            <h3 class="text-primary"><?= $editing ? 'Edit Purchase Order' : 'Create Purchase Order' ?></h3>
         </div>
         <div class="col-md-4 align-self-center">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="dashboard.php">Home</a></li>
                 <li class="breadcrumb-item"><a href="po_list.php">Purchase Orders</a></li>
-                <li class="breadcrumb-item active">Create PO</li>
+                <li class="breadcrumb-item active"><?= $editing ? 'Edit PO' : 'Create PO' ?></li>
             </ol>
         </div>
     </div>
 
     <div class="container-fluid">
         <div id="createPoMessages"></div>
-        <form id="poForm" method="POST" action="php_action/createPurchaseOrder.php">
+        <form id="poForm" method="POST" action="<?=htmlspecialchars($formAction)?>">
+            <?php if($editing): ?>
+                <input type="hidden" name="po_id" value="<?=intval($poId)?>">
+            <?php endif; ?>
             <!-- Header Section -->
             <div class="card">
                 <div class="card-header bg-primary">
@@ -51,23 +100,29 @@ $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>PO Date *</label>
-                                <input type="date" class="form-control" id="poDate" name="po_date" value="<?php echo date('Y-m-d'); ?>" required>
+                                <input type="date" class="form-control" id="poDate" name="po_date" value="<?=htmlspecialchars($poDateVal)?>" required>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>PO Type</label>
                                 <select class="form-control" name="po_type">
-                                    <option value="Regular">Regular</option>
-                                    <option value="Express">Express</option>
-                                    <option value="Urgent">Urgent</option>
+                                    <option value="Regular" <?= $poTypeVal=='Regular'?'selected':'' ?>>Regular</option>
+                                    <option value="Express" <?= $poTypeVal=='Express'?'selected':'' ?>>Express</option>
+                                    <option value="Urgent" <?= $poTypeVal=='Urgent'?'selected':'' ?>>Urgent</option>
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <div class="form-group">
                                 <label>Expected Delivery Date</label>
-                                <input type="date" class="form-control" name="expected_delivery_date">
+                                <input type="date" class="form-control" name="expected_delivery_date" value="<?=htmlspecialchars($expectedDeliveryVal)?>">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>Delivery Location</label>
+                                <input type="text" class="form-control" name="delivery_location" value="<?=htmlspecialchars($deliveryLocationVal)?>" placeholder="e.g. Main Warehouse">
                             </div>
                         </div>
                     </div>
@@ -87,7 +142,7 @@ $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
                                 <select class="form-control" id="supplierId" name="supplier_id" required onchange="loadSupplierDetails()">
                                     <option value="">-- Choose Supplier --</option>
                                     <?php
-                                    $supSql = "SELECT supplier_id, supplier_name, supplier_code FROM suppliers WHERE is_active = 1 ORDER BY supplier_name";
+                                    $supSql = "SELECT supplier_id, supplier_name, supplier_code FROM suppliers WHERE supplier_status = 'Active' ORDER BY supplier_name";
                                     $supResult = $connect->query($supSql);
                                     while($supRow = $supResult->fetch_assoc()) {
                                         echo "<option value='" . intval($supRow['supplier_id']) . "'>" . htmlspecialchars($supRow['supplier_name']) . " (" . htmlspecialchars($supRow['supplier_code']) . ")</option>";
@@ -99,7 +154,7 @@ $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Reference Number (Invoice/Bill)</label>
-                                <input type="text" class="form-control" name="reference_number" placeholder="Supplier's invoice number">
+                                <input type="text" class="form-control" name="reference_number" placeholder="Supplier's invoice number" value="<?=htmlspecialchars($referenceNumberVal)?>">
                             </div>
                         </div>
                     </div>
@@ -108,31 +163,31 @@ $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Supplier Contact</label>
-                                <input type="tel" class="form-control" id="supplierContact" name="supplier_contact" readonly>
+                                <input type="tel" class="form-control" id="supplierContact" name="supplier_contact" readonly value="<?=htmlspecialchars($existingPo['supplier_contact'] ?? '')?>">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Supplier Email</label>
-                                <input type="email" class="form-control" id="supplierEmail" name="supplier_email" readonly>
+                                <input type="email" class="form-control" id="supplierEmail" name="supplier_email" readonly value="<?=htmlspecialchars($existingPo['supplier_email'] ?? '')?>">
                             </div>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label>Supplier Address</label>
-                        <textarea class="form-control" id="supplierAddress" name="supplier_address" rows="2" readonly></textarea>
+                        <textarea class="form-control" id="supplierAddress" name="supplier_address" rows="2" readonly><?=htmlspecialchars($existingPo['supplier_address'] ?? '')?></textarea>
                     </div>
 
                     <div class="row">
                         <div class="col-md-4">
-                            <input type="text" class="form-control" id="supplierCity" name="supplier_city" placeholder="City" readonly>
+                            <input type="text" class="form-control" id="supplierCity" name="supplier_city" placeholder="City" readonly value="<?=htmlspecialchars($existingPo['supplier_city'] ?? '')?>">
                         </div>
                         <div class="col-md-4">
-                            <input type="text" class="form-control" id="supplierState" name="supplier_state" placeholder="State" readonly>
+                            <input type="text" class="form-control" id="supplierState" name="supplier_state" placeholder="State" readonly value="<?=htmlspecialchars($existingPo['supplier_state'] ?? '')?>">
                         </div>
                         <div class="col-md-4">
-                            <input type="text" class="form-control" id="supplierPincode" name="supplier_pincode" placeholder="Pincode" readonly>
+                            <input type="text" class="form-control" id="supplierPincode" name="supplier_pincode" placeholder="Pincode" readonly value="<?=htmlspecialchars($existingPo['supplier_pincode'] ?? '')?>">
                         </div>
                     </div>
 
@@ -230,28 +285,66 @@ $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
                                 </tr>
                             </thead>
                             <tbody id="itemsBody">
-                                <tr class="item-row">
-                                    <td>
-                                        <div style="position: relative;">
-                                            <input type="text" class="form-control form-control-sm medicine-search"  name="medicine_name[]" placeholder="Search..." autocomplete="off">
-                                            <input type="hidden" class="medicine-id" name="medicine_id[]" value="">
-                                            <div class="medicine-dropdown" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 250px; overflow-y: auto; display: none; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"></div>
-                                        </div>
-                                    </td>
-                                    <td><input type="text" class="form-control form-control-sm hsn-code" name="hsn_code[]" readonly></td>
-                                    <td><input type="text" class="form-control form-control-sm pack-size" name="pack_size[]" readonly></td>
-                                    <td><input type="text" class="form-control form-control-sm batch-number" name="batch_number[]"  readonly></td>
-                                    <td style=""><input type="date" class="form-control form-control-sm  expiry-date" style="" name="expiry_date[]"  readonly></td>
-                                    <td><input type="text" class="form-control form-control-sm mrp-value" name="mrp[]"  step="0.01" readonly value="0.00"></td>
-                                    <td><input type="text" class="form-control form-control-sm ptr-value" name="ptr[]"  step="0.01" readonly value="0.00" style="background-color: #fff3cd;"></td>
-                                    <td><input type="text" class="form-control form-control-sm unit-price" name="unit_price[]" step="0.01" min="0" value="0.00"></td>
-                                    <td><input type="number" class="form-control form-control-sm quantity" name="quantity[]" min="1" value="1"></td>
-                                    <td><input type="text" class="form-control form-control-sm discount-percent" name="discount_percent[]" step="0.01" min="0" value="0.00"></td>
-                                    <td><input type="text" class="form-control form-control-sm line-amount" readonly value="0.00" style="background-color: #f0f0f0;"></td>
-                                    <td><input type="text" class="form-control form-control-sm tax-percent" name="tax_percent[]" step="0.01" value="18"></td>
-                                    <td><input type="text" class="form-control form-control-sm item-total"   readonly value="0.00" style="background-color: #f0f0f0;"></td>
-                                    <td><button type="button" class="btn btn-danger btn-sm remove-row" onclick="removeRow(event)"><i class="fa fa-trash"></i></button></td>
-                                </tr>
+                                <?php if($editing && count($poItems) > 0):
+                                    foreach($poItems as $item):
+                                        // optionally fetch product details if missing
+                                        $prodName = $item['product_name'] ?? '';
+                                        $hsn = $item['hsn_code'] ?? '';
+                                        $pack = $item['pack_size'] ?? '';
+                                        $batch = $item['batch_number'] ?? '';
+                                        $expiry = $item['expiry_date'] ?? '';
+                                        $unit = isset($item['unit_price']) ? number_format($item['unit_price'],2) : '0.00';
+                                        $qty = isset($item['quantity_ordered']) ? intval($item['quantity_ordered']) : 1;
+                                        $totalPrice = isset($item['total_price']) ? number_format($item['total_price'],2) : '0.00';
+                                        $discPct = isset($item['discount_percent']) ? $item['discount_percent'] : '0.00';
+                                        $taxPct = isset($item['tax_percent']) ? $item['tax_percent'] : '18';
+                                ?>
+                                    <tr class="item-row">
+                                        <td>
+                                            <div style="position: relative;">
+                                                <input type="text" class="form-control form-control-sm medicine-search"  name="medicine_name[]" placeholder="Search..." autocomplete="off" value="<?=htmlspecialchars($prodName)?>">
+                                                <input type="hidden" class="medicine-id" name="medicine_id[]" value="<?=intval($item['product_id'])?>">
+                                                <div class="medicine-dropdown" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 250px; overflow-y: auto; display: none; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"></div>
+                                            </div>
+                                        </td>
+                                        <td><input type="text" class="form-control form-control-sm hsn-code" name="hsn_code[]" readonly value="<?=htmlspecialchars($hsn)?>"></td>
+                                        <td><input type="text" class="form-control form-control-sm pack-size" name="pack_size[]" readonly value="<?=htmlspecialchars($pack)?>"></td>
+                                        <td><input type="text" class="form-control form-control-sm batch-number" name="batch_number[]"  readonly value="<?=htmlspecialchars($batch)?>"></td>
+                                        <td style=""><input type="date" class="form-control form-control-sm  expiry-date" style="" name="expiry_date[]"  readonly value="<?=htmlspecialchars($expiry)?>"></td>
+                                        <td><input type="text" class="form-control form-control-sm mrp-value" name="mrp[]"  step="0.01" readonly value="<?=htmlspecialchars($unit)?>"></td>
+                                        <td><input type="text" class="form-control form-control-sm ptr-value" name="ptr[]"  step="0.01" readonly value="<?=htmlspecialchars($unit)?>" style="background-color: #fff3cd;"></td>
+                                        <td><input type="text" class="form-control form-control-sm unit-price" name="unit_price[]" step="0.01" min="0" value="<?=htmlspecialchars($unit)?>"></td>
+                                        <td><input type="number" class="form-control form-control-sm quantity" name="quantity[]" min="1" value="<?=htmlspecialchars($qty)?>"></td>
+                                        <td><input type="text" class="form-control form-control-sm discount-percent" name="discount_percent[]" step="0.01" min="0" value="<?=htmlspecialchars($discPct)?>"></td>
+                                        <td><input type="text" class="form-control form-control-sm line-amount" readonly value="<?=htmlspecialchars($totalPrice)?>" style="background-color: #f0f0f0;"></td>
+                                        <td><input type="text" class="form-control form-control-sm tax-percent" name="tax_percent[]" step="0.01" value="<?=htmlspecialchars($taxPct)?>"></td>
+                                        <td><input type="text" class="form-control form-control-sm item-total"   readonly value="<?=htmlspecialchars($totalPrice)?>" style="background-color: #f0f0f0;"></td>
+                                        <td><button type="button" class="btn btn-danger btn-sm remove-row" onclick="removeRow(event)"><i class="fa fa-trash"></i></button></td>
+                                    </tr>
+                                <?php endforeach; else: ?>
+                                    <tr class="item-row">
+                                        <td>
+                                            <div style="position: relative;">
+                                                <input type="text" class="form-control form-control-sm medicine-search"  name="medicine_name[]" placeholder="Search..." autocomplete="off">
+                                                <input type="hidden" class="medicine-id" name="medicine_id[]" value="">
+                                                <div class="medicine-dropdown" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 250px; overflow-y: auto; display: none; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"></div>
+                                            </div>
+                                        </td>
+                                        <td><input type="text" class="form-control form-control-sm hsn-code" name="hsn_code[]" readonly></td>
+                                        <td><input type="text" class="form-control form-control-sm pack-size" name="pack_size[]" readonly></td>
+                                        <td><input type="text" class="form-control form-control-sm batch-number" name="batch_number[]"  readonly></td>
+                                        <td style=""><input type="date" class="form-control form-control-sm  expiry-date" style="" name="expiry_date[]"  readonly></td>
+                                        <td><input type="text" class="form-control form-control-sm mrp-value" name="mrp[]"  step="0.01" readonly value="0.00"></td>
+                                        <td><input type="text" class="form-control form-control-sm ptr-value" name="ptr[]"  step="0.01" readonly value="0.00" style="background-color: #fff3cd;"></td>
+                                        <td><input type="text" class="form-control form-control-sm unit-price" name="unit_price[]" step="0.01" min="0" value="0.00"></td>
+                                        <td><input type="number" class="form-control form-control-sm quantity" name="quantity[]" min="1" value="1"></td>
+                                        <td><input type="text" class="form-control form-control-sm discount-percent" name="discount_percent[]" step="0.01" min="0" value="0.00"></td>
+                                        <td><input type="text" class="form-control form-control-sm line-amount" readonly value="0.00" style="background-color: #f0f0f0;"></td>
+                                        <td><input type="text" class="form-control form-control-sm tax-percent" name="tax_percent[]" step="0.01" value="18"></td>
+                                        <td><input type="text" class="form-control form-control-sm item-total"   readonly value="0.00" style="background-color: #f0f0f0;"></td>
+                                        <td><button type="button" class="btn btn-danger btn-sm remove-row" onclick="removeRow(event)"><i class="fa fa-trash"></i></button></td>
+                                    </tr>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -268,7 +361,7 @@ $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>Sub Total</label>
-                                <input type="number" class="form-control" id="subTotal" name="sub_total" readonly style="font-size: 16px; font-weight: bold;">
+                                <input type="number" class="form-control" id="subTotal" name="sub_total" readonly style="font-size: 16px; font-weight: bold;" value="<?=htmlspecialchars($subtotalVal)?>">
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -357,10 +450,12 @@ $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
                             <div class="form-group">
                                 <label>PO Status</label>
                                 <select class="form-control" name="po_status">
-                                    <option value="Draft">Draft</option>
-                                    <option value="Sent">Sent to Supplier</option>
-                                    <option value="Pending">Pending Confirmation</option>
-                                    <option value="Confirmed">Confirmed</option>
+                                    <option value="Draft" <?= $poStatusVal=='Draft'?'selected':'' ?>>Draft</option>
+                                    <option value="Submitted" <?= $poStatusVal=='Submitted'?'selected':'' ?>>Submitted</option>
+                                    <option value="Approved" <?= $poStatusVal=='Approved'?'selected':'' ?>>Approved</option>
+                                    <option value="PartialReceived" <?= $poStatusVal=='PartialReceived'?'selected':'' ?>>Partially Received</option>
+                                    <option value="Received" <?= $poStatusVal=='Received'?'selected':'' ?>>Received</option>
+                                    <option value="Cancelled" <?= $poStatusVal=='Cancelled'?'selected':'' ?>>Cancelled</option>
                                 </select>
                             </div>
                         </div>
@@ -368,7 +463,7 @@ $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
 
                     <div class="form-group">
                         <label>Notes & Special Instructions</label>
-                        <textarea class="form-control" name="notes" rows="3" placeholder="Add any special instructions, payment terms, or notes..."></textarea>
+                        <textarea class="form-control" name="notes" rows="3" placeholder="Add any special instructions, payment terms, or notes..."><?=htmlspecialchars($notesVal)?></textarea>
                     </div>
 
                     <div class="form-group">
@@ -382,13 +477,13 @@ $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
             </div>
 
              <!-- HIDDEN FIELD FOR ITEM COUNT -->
-            <input type="hidden" id="itemCount" name="item_count" value="1">
+            <input type="hidden" id="itemCount" name="item_count" value="<?= $editing ? count($poItems) : 1 ?>">
 
             <!-- Action Buttons -->
             <div class="mt-4 text-right">
                 <button type="button" class="btn btn-secondary mr-2" onclick="saveDraft()">Save as Draft</button>
                 <button type="button" class="btn btn-info mr-2" onclick="previewPO()">Preview</button>
-                <button type="submit" class="btn btn-success mr-2">Create PO</button>
+                <button type="submit" class="btn btn-success mr-2"><?= $editing ? 'Save Changes' : 'Create PO' ?></button>
                 <a href="po_list.php" class="btn btn-light">Cancel</a>
             </div>
         </form>
@@ -437,11 +532,16 @@ $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
 
 <script>
 let poNumber = '<?php echo $poNumber; ?>';
-let itemCount = 1;
+let itemCount = <?= $editing ? count($poItems) : 1 ?>;
 
 document.addEventListener('DOMContentLoaded', function() {
     attachEventListeners();
     initializeMedicineSearch();
+    <?php if($editing): ?>
+        loadSupplierDetails();
+    <?php endif; ?>
+    // recalc totals for prefilled rows (edit mode)
+    calculateTotals();
 });
 
 // Add Row Button

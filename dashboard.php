@@ -6,30 +6,33 @@
   
 <?php 
 
+// echo "reached here";
+// exit;
 
-$lowStockSql = "SELECT COUNT(*) as total FROM product WHERE status = 1";
+// $lowStockSql = "SELECT COUNT(*) as total FROM product WHERE status = 1";
 // $lowStockSql = "SELECT * FROM product WHERE status = 1";
-$lowStockQuery = $connect->query($lowStockSql);
-$countLowStock = $lowStockQuery->num_rows;
+// $lowStockQuery = $connect->query($lowStockSql);
+// $countLowStock = $lowStockQuery->num_rows;
 
-$lowStockSql1 = "SELECT * FROM brands WHERE brand_status = 1";
-$lowStockQuery1 = $connect->query($lowStockSql1);
-$countLowStock1 = $lowStockQuery1->num_rows;
+// $lowStockSql1 = "SELECT * FROM brands WHERE brand_status = 1";
+// $lowStockQuery1 = $connect->query($lowStockSql1);
+// $countLowStock1 = $lowStockQuery1->num_rows;
 
 $date=date('Y-m-d');
-    $lowStockSql3 = "SELECT COUNT(*) as total
-                    FROM product_batches
-                    WHERE expiry_date < CURDATE()
-                    AND status = 'Active'
-                    ";
+
+    // $lowStockSql3 = "SELECT COUNT(*) as total
+    //                 FROM product_batches
+    //                 WHERE expiry_date < CURDATE()
+    //                 AND status = 'Active'
+    //                 ";
     // $lowStockSql3 = "SELECT * FROM product WHERE  expdate<'".$date."' AND status = 1";
     //echo "SELECT * FROM product WHERE  expdate<='".$date."' AND status = 1" ;exit;
-$lowStockQuery3 = $connect->query($lowStockSql3);
-$countLowStock3 = $lowStockQuery3->num_rows;
+// $lowStockQuery3 = $connect->query($lowStockSql3);
+// $countLowStock3 = $lowStockQuery3->num_rows;
 
-$lowStockSql2 = "SELECT * FROM orders WHERE delete_status =0";
-$lowStockQuery2= $connect->query($lowStockSql2);
-$countLowStock2 = $lowStockQuery2->num_rows;
+// $lowStockSql2 = "SELECT * FROM orders WHERE delete_status =0";
+// $lowStockQuery2= $connect->query($lowStockSql2);
+// $countLowStock2 = $lowStockQuery2->num_rows;
 
 //$connect->close();
 
@@ -64,7 +67,7 @@ $countLowStock2 = $lowStockQuery2->num_rows;
                                <div class="media-body media-text-right">
                                 
                            
-                                   <h2 class="color-white"><?php echo $countLowStock; ?></h2>
+                                   <h2 class="color-white"><?php //echo $countLowStock; ?></h2>
                                    <a href="manage_medicine.php"><p class="m-b-0">Total Medicine</p></a>
                                </div>
                            </div>
@@ -82,7 +85,7 @@ $countLowStock2 = $lowStockQuery2->num_rows;
                     
                     
                             
-                                    <h2 class="color-white"><?php echo $countLowStock1; ?></h2>
+                                    <h2 class="color-white"><?php// echo $countLowStock1; ?></h2>
                                      <a href="manage_medicine.php"><p class="m-b-0">Total Manufacturer</p></a>
                                 </div>
                             </div>
@@ -98,7 +101,7 @@ $countLowStock2 = $lowStockQuery2->num_rows;
                               </div>
                               <div class="media-body media-text-right">
                                   
-                          <h2 class="color-white"><?php echo $countLowStock2; ?></h2>
+                          <h2 class="color-white"><?php// echo $countLowStock2; ?></h2>
                                   <a href="Order.php"><p class="m-b-0">Total Invoices</p></a>
                               </div>
                           </div>
@@ -115,7 +118,7 @@ $countLowStock2 = $lowStockQuery2->num_rows;
                               </div>
                               <div class="media-body media-text-right">
                                   
-                          <h2 class="color-white"><?php echo $countLowStock3; ?></h2>
+                          <h2 class="color-white"><?php// echo $countLowStock3; ?></h2>
                                   <a href="Order.php"><p class="m-b-0">Total Expired Medicine</p></a>
                               </div>
                           </div>
@@ -145,42 +148,42 @@ $countLowStock2 = $lowStockQuery2->num_rows;
                                        </thead>
                                        <tbody>
                                         <?php
-                                        //include('./constant/connect');
+                                        include('./constant/connect');
 
- $sql = "SELECT  uno, orderDate, clientName, clientContact,paymentStatus,id FROM orders WHERE delete_status = 0";
+ //$sql = "SELECT  uno, orderDate, clientName, clientContact,paymentStatus,id FROM orders WHERE delete_status = 0";
  //echo $sql;exit;
-$result=$connect->query($sql);
+ //$result=$connect->query($sql);
 //print_r($result);exit;
-foreach ($result as $row) {
+    //foreach ($result as $row) {
      
-$no+=1;
-    ?>
+       // $no+=1;
+?>
                                         <tr>
-                                            <td><?=$no; ?></td>
-                                            <td><?php echo $row['orderDate'] ?></td>
-                                             <td><?php echo $row['clientName'] ?></td>
-                                              <td><?php echo $row['clientContact'] ?></td>
+                                            <td><?//=$no; ?></td>
+                                            <td><?php //echo $row['orderDate'] ?></td>
+                                             <td><?php //echo $row['clientName'] ?></td>
+                                              <td><?php //echo $row['clientContact'] ?></td>
                                              
                                                
-                                            <td><?php  if($row['paymentStatus']==1)
-                                            {
+                                            <td><?php // if($row['paymentStatus']==1)
+                                            // {
                                                  
-                                                 $paymentStatus = "<label class='label label-success' ><h4>Full Payment</h4></label>";
-                                                 echo $paymentStatus;
-                                            }
-                                            else if($row['paymentStatus']==2){
-                                                $paymentStatus = "<label class='label label-danger'><h4>Advance Payment</h4></label>";
-                                                echo $paymentStatus;
-                                            }else {
-                                                $paymentStatus = "<label class='label label-warning'><h4>No Payment</h4></label>";
-                                                 echo $paymentStatus;
-                                                } // /els
+                                            //      $paymentStatus = "<label class='label label-success' ><h4>Full Payment</h4></label>";
+                                            //      echo $paymentStatus;
+                                            // }
+                                            // else if($row['paymentStatus']==2){
+                                            //     $paymentStatus = "<label class='label label-danger'><h4>Advance Payment</h4></label>";
+                                            //     echo $paymentStatus;
+                                            // }else {
+                                            //     $paymentStatus = "<label class='label label-warning'><h4>No Payment</h4></label>";
+                                            //      echo $paymentStatus;
+                                            //     } // /els
                                             ?></td>
                                             
                                         </tr>
                                      
                                         <?php    
-}
+// }
 
 ?>
 </tbody>
@@ -205,33 +208,33 @@ $no+=1;
 
 <?php
 //error_reporting(0);
-//require_once('../constant/connect.php');
- $qqq = "SELECT * FROM product WHERE  status ='1' ";
-$result=$connect->query($qqq);
+// require_once('../constant/connect.php');
+//  $qqq = "SELECT * FROM product WHERE  status ='1' ";
+// $result=$connect->query($qqq);
 //print_r($result);exit;
-foreach ($result as $row) {
+//foreach ($result as $row) {
 
   //print_r($row);
-    $a.=$row["product_name"].',';
+   // $a.=$row["product_name"].',';
     // $b.=$row["quantity"].',';
    
 
- }
-    $am= explode(",",$a,-1);
+ //}
+   // $am= explode(",",$a,-1);
     //  $amm= explode(",",$b,-1);
      //print_r($a);
      //print_r($b);
 
-  $cnt=count($am);
+  //$cnt=count($am);
 
-  $datavalue1='';
+ // $datavalue1='';
 
-    for($i=0;$i<$cnt;$i++){ 
+    //for($i=0;$i<$cnt;$i++){ 
         // $datavalue1.="['".$am[$i]."',".$amm[$i]."],";
-    }
+ //   }
           //echo 
 
- $datavalue1; //used this $data variable in js
+ //$datavalue1; //used this $data variable in js
 ?>
 
 
@@ -252,7 +255,7 @@ google.charts.load('current', {'packages':['corechart']});
 google.charts.setOnLoadCallback(drawChart);
 
 function drawChart() {
-var data = google.visualization.arrayToDataTable([ ['Medicine', 'stock'],<?php echo $datavalue1;?>]);
+var data = google.visualization.arrayToDataTable([ ['Medicine', 'stock'],<?php // echo $datavalue1;?>]);
 
 var options = {
   title:'All Medicines',

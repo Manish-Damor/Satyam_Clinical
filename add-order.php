@@ -55,12 +55,12 @@ if($_GET['o'] == 'add') {
             
     <div class="row page-titles">
       <div class="col-md-5 align-self-center">
-        <h3 class="text-primary">Invoice Management</h3>
+        <h3 class="text-primary">Sales Invoice Management</h3>
       </div>
       <div class="col-md-7 align-self-center">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="javascript:void(0)">Home</a></li>
-            <li class="breadcrumb-item active">Invoice Management</li>
+            <li class="breadcrumb-item active">Sales Invoice Management</li>
         </ol>
       </div>
     </div>   
@@ -133,7 +133,8 @@ if($_GET['o'] == 'add') {
                     <thead>
                       <tr>              
                         <th style="width:40%;">Medicine</th>
-                        <th style="width:20%;">Rate</th>
+                        <th style="width:12%;">Rate</th>
+                        <th style="width:12%;" class="no-print">PTR</th>
                         <th style="width:10%;">Avail.</th>
                         <th style="width:15%;">Quantity</th>              
                         <th style="width:25%;">Total</th>             
@@ -157,6 +158,10 @@ if($_GET['o'] == 'add') {
                             <td>                 
                               <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />                  
                               <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
+                            </td>
+                            <td class="no-print">
+                              <input type="text" name="ptr[]" id="ptr<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />
+                              <input type="hidden" name="ptrValue[]" id="ptrValue<?php echo $x; ?>" autocomplete="off" class="form-control" />
                             </td>
                             <td>
                               <div class="form-group">
@@ -809,6 +814,12 @@ function addRow() {
             '<input type="hidden" name="rateValue[]" id="rateValue'+count+'" autocomplete="off" class="form-control" />'+
           '</div>'+
         '</td>'+
+        '<td class="no-print">'+
+          '<div class="form-group">'+
+            '<input type="text" name="ptr[]" id="ptr'+count+'" autocomplete="off" disabled="true" class="form-control" />'+
+            '<input type="hidden" name="ptrValue[]" id="ptrValue'+count+'" autocomplete="off" class="form-control" />'+
+          '</div>'+
+        '</td>'+
         '<td>'+
           '<div class="form-group">'+
           '<p id="available_quantity'+count+'"></p>'+
@@ -883,6 +894,10 @@ function getProductData(row = null) {
           
           $("#rate"+row).val(response.rate);
           $("#rateValue"+row).val(response.rate);
+
+          // PTR (purchase rate) - only visible to invoice creator
+          $("#ptr"+row).val(response.purchase_rate ?? '');
+          $("#ptrValue"+row).val(response.purchase_rate ?? 0);
 
           $("#quantity"+row).val(1);
           $("#available_quantity"+row).text(response.quantity);

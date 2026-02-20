@@ -1,307 +1,145 @@
 <?php
-
+// Create Purchase Order - Direct Database Handler
 require_once 'core.php';
-
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// if ($_SERVER["REQUEST_METHOD"] == "POST") {
-//     echo "<pre>"; // Makes the output human-readable in a browser
-//     print_r($_POST);
-//     echo "</pre>";
-
-//     exit;
-// }
-
 
 /* ============================================
    HANDLE FORM SUBMISSION (POST REQUEST)
    ============================================ */
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $_SESSION['error'] = 'Invalid request method';
+    header('Location: ../create_po.php');
+    exit;
+}
 
-    /* SESSION VALIDATION */
+try {
+    // Validate session
     if (!isset($_SESSION['userId']) || $_SESSION['userId'] <= 0) {
-        $_SESSION['po_error'] = 'Session expired. Please login again.';
-        header('Location: ../create_po.php');
-        exit;
+        throw new Exception('Session expired. Please login again.');
     }
 
     $userId = intval($_SESSION['userId']);
+    global $connect;
 
-    /* GET BASIC PO DATA FROM FORM */
-    $poNumber       = isset($_POST['po_number']) ? trim($_POST['po_number']) : '';
-    $poDate         = isset($_POST['po_date']) ? trim($_POST['po_date']) : date('Y-m-d');
-    $poType         = isset($_POST['po_type']) ? trim($_POST['po_type']) : 'Regular';
-    $expectedDelivery = (isset($_POST['expected_delivery_date']) && !empty($_POST['expected_delivery_date'])) 
-                        ? trim($_POST['expected_delivery_date']) 
-                        : null;
-
-    $supplierId     = isset($_POST['supplier_id']) ? intval($_POST['supplier_id']) : 0;
-    $paymentMethod  = isset($_POST['payment_method']) ? trim($_POST['payment_method']) : 'Online Transfer';
-    $poStatus       = isset($_POST['po_status']) ? trim($_POST['po_status']) : 'Draft';
-
-    /* TOTALS */
-    $subTotal       = isset($_POST['sub_total']) ? floatval($_POST['sub_total']) : 0;
-    $totalDiscount  = isset($_POST['total_discount']) ? floatval($_POST['total_discount']) : 0;
+    // ========================================
+    // COLLECT PO HEADER DATA
+    // ========================================
+    $poNumber = isset($_POST['po_number']) ? trim($_POST['po_number']) : '';
+    $poDate = isset($_POST['po_date']) ? trim($_POST['po_date']) : date('Y-m-d');
+    $poType = isset($_POST['po_type']) ? trim($_POST['po_type']) : 'Regular';
+    $referenceNumber = isset($_POST['reference_number']) ? trim($_POST['reference_number']) : '';
+    $supplierId = isset($_POST['supplier_id']) ? intval($_POST['supplier_id']) : 0;
+    $expectedDeliveryDate = isset($_POST['expected_delivery_date']) ? trim($_POST['expected_delivery_date']) : null;
+    $deliveryLocation = isset($_POST['delivery_location']) ? trim($_POST['delivery_location']) : 'Main Warehouse';
+    
+    // Financial data
+    $subtotal = isset($_POST['sub_total']) ? floatval($_POST['sub_total']) : 0;
     $discountPercent = isset($_POST['discount_percent']) ? floatval($_POST['discount_percent']) : 0;
-    $taxableAmount  = isset($_POST['taxable_amount']) ? floatval($_POST['taxable_amount']) : 0;
-    $cgstAmount     = isset($_POST['cgst_amount']) ? floatval($_POST['cgst_amount']) : 0;
-    $sgstAmount     = isset($_POST['sgst_amount']) ? floatval($_POST['sgst_amount']) : 0;
-    $igstAmount     = isset($_POST['igst_amount']) ? floatval($_POST['igst_amount']) : 0;
-    $roundOff       = isset($_POST['round_off']) ? floatval($_POST['round_off']) : 0;
-    $grandTotal     = isset($_POST['grand_total']) ? floatval($_POST['grand_total']) : 0;
-    $paymentStatus = "pending";
-
-    /* VALIDATION */
-    if (!$poNumber) {
-        $_SESSION['po_error'] = 'PO Number is missing';
-        header('Location: ../create_po.php');
-        exit;
-    }
-
-    if ($supplierId <= 0) {
-        $_SESSION['po_error'] = 'Please select a supplier';
-        header('Location: ../create_po.php');
-        exit;
-    }
-
-    /* FETCH SUPPLIER INFO */
-    $supStmt = $connect->prepare("
-        SELECT supplier_name, primary_contact, email,
-               gst_number, billing_address,
-               billing_city, billing_state, billing_pincode,
-               payment_terms
-        FROM suppliers WHERE supplier_id = ?
-    ");
-    $supStmt->bind_param("i", $supplierId);
-    $supStmt->execute();
-    $supplier = $supStmt->get_result()->fetch_assoc();  
-
+    $discountAmount = isset($_POST['total_discount']) ? floatval($_POST['total_discount']) : 0;
+    $gstPercent = isset($_POST['gst_percent']) ? floatval($_POST['gst_percent']) : 0;
+    $gstAmount = isset($_POST['gst_amount']) ? floatval($_POST['gst_amount']) : 0;
+    $otherCharges = isset($_POST['other_charges']) ? floatval($_POST['other_charges']) : 0;
+    $grandTotal = isset($_POST['grand_total']) ? floatval($_POST['grand_total']) : 0;
     
-    $supplier_name = $supplier['supplier_name'];
-    $supplier_contact = $supplier['primary_contact'];
-    $supplier_email = $supplier['email'];
-    $supplier_gst = $supplier['gst_number'];
-    $supplier_address = $supplier['billing_address'];
-    $supplier_city = $supplier['billing_city'];
-    $supplier_state = $supplier['billing_state'];
-    $supplier_pincode = $supplier['billing_pincode'];
-    $payment_terms = $supplier['payment_terms'];
-    
-    $supStmt->close();
+    // Validation
+    if (empty($poNumber)) throw new Exception('PO Number is required');
+    if ($supplierId <= 0) throw new Exception('Please select a supplier');
 
-    if (!$supplier) {
-        $_SESSION['po_error'] = 'Supplier not found';
-        header('Location: ../create_po.php');
-        exit;
+    // Check supplier exists
+    $supRes = $connect->query("SELECT supplier_id FROM suppliers WHERE supplier_id = $supplierId");
+    if (!$supRes || $supRes->num_rows === 0) {
+        throw new Exception('Selected supplier not found');
     }
 
-    /* GET ITEMS FROM FORM */
+    // ========================================
+    // INSERT INTO PURCHASE_ORDERS
+    // ========================================
+    $sql = "INSERT INTO purchase_orders (
+                po_number, po_date, po_type, reference_number, supplier_id, expected_delivery_date, delivery_location,
+                subtotal, discount_percentage, discount_amount, gst_percentage, gst_amount,
+                other_charges, grand_total, po_status, payment_status, notes, created_by, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+    
+    $stmt = $connect->prepare($sql);
+    if (!$stmt) {
+        throw new Exception('Database prepare error: ' . $connect->error);
+    }
+
+    $poStatus = 'Draft';
+    $paymentStatus = 'NotDue';
+    $notes = 'Created from form';
+
+    $stmt->bind_param(
+        'ssssisssdddddddsssi',
+        $poNumber, $poDate, $poType, $referenceNumber, $supplierId, $expectedDeliveryDate, $deliveryLocation,
+        $subtotal, $discountPercent, $discountAmount, $gstPercent, $gstAmount,
+        $otherCharges, $grandTotal, $poStatus, $paymentStatus, $notes, $userId
+    );
+
+    if (!$stmt->execute()) {
+        throw new Exception('Failed to create PO: ' . $stmt->error);
+    }
+
+    $poId = $connect->insert_id;
+    $stmt->close();
+
+    // ========================================
+    // INSERT PO ITEMS
+    // ========================================
     $itemCount = isset($_POST['item_count']) ? intval($_POST['item_count']) : 0;
-    
-    if ($itemCount <= 0) {
-        $_SESSION['po_error'] = 'Please add at least one medicine item';
-        header('Location: ../create_po.php');
-        exit;
-    }
+    $itemsAdded = 0;
 
-    /* START TRANSACTION */
-    $connect->begin_transaction();
+    for ($i = 0; $i < $itemCount; $i++) {
+        $productId = isset($_POST['medicine_id'][$i]) ? intval($_POST['medicine_id'][$i]) : 0;
+        $quantity = isset($_POST['quantity'][$i]) ? intval($_POST['quantity'][$i]) : 0;
+        $unitPrice = isset($_POST['unit_price'][$i]) ? floatval($_POST['unit_price'][$i]) : 0;
 
-    try {
-
-        /* INSERT PO MASTER */
-
-        //26 items
-        $sqlPo = "
-            INSERT INTO purchase_order (
-                po_number,
-                po_date, 
-                po_type,
-                supplier_id,
-                supplier_name,
-                supplier_contact, 
-                supplier_email,
-                supplier_gst,
-                supplier_address, 
-                supplier_city, 
-                supplier_state,
-                supplier_pincode,
-                expected_delivery_date,
-                sub_total, 
-                total_discount,
-                discount_percent,
-                taxable_amount,
-                cgst_amount,
-                sgst_amount,
-                igst_amount,
-                round_off,
-                grand_total,
-                payment_terms,
-                payment_method,
-                po_status,
-                created_by  
-            ) VALUES (
-                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                ?,?,
-                ?,?,
-                ?,?,
-                ?
-            )
-        ";
-
-        $stmtPo = $connect->prepare($sqlPo);
-        if (!$stmtPo) {
-            throw new Exception("Prepare failed: " . $connect->error);
+        // Skip empty rows
+        if ($productId <= 0 || $quantity <= 0) {
+            continue;
         }
 
-        $stmtPo->bind_param(
-            'sssisssssssssdddddddddsssi',
-            $poNumber,
-            $poDate,
-            $poType,
-            $supplierId,
-            $supplier_name,
-            $supplier_contact,
-            $supplier_email,
-            $supplier_gst,
-            $supplier_address,
-            $supplier_city,
-            $supplier_state,
-            $supplier_pincode,
-            $expectedDelivery,
-            $subTotal,
-            $totalDiscount,
-            $discountPercent,
-            $taxableAmount,
-            $cgstAmount,
-            $sgstAmount,
-            $igstAmount,
-            $roundOff,
-            $grandTotal,
-            $payment_terms,
-            $paymentMethod,
-            $poStatus,            
-            $userId
+        $totalPrice = $quantity * $unitPrice;
+        $itemStatus = 'Pending';
+
+        $itemSql = "INSERT INTO po_items (
+                        po_id, product_id, quantity_ordered, quantity_received,
+                        unit_price, total_price, item_status, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+
+        $itemStmt = $connect->prepare($itemSql);
+        if (!$itemStmt) {
+            throw new Exception('Failed to prepare item statement');
+        }
+
+        $qty_received = 0;
+        $itemStmt->bind_param(
+            'iiiidds',
+            $poId, $productId, $quantity, $qty_received,
+            $unitPrice, $totalPrice, $itemStatus
         );
 
-        if (!$stmtPo->execute()) {
-            throw new Exception("Execute failed: " . $stmtPo->error);
+        if ($itemStmt->execute()) {
+            $itemsAdded++;
         }
-
-        $poId = $stmtPo->insert_id;
-        $stmtPo->close();
-
-        /* INSERT ITEMS */
-        $sqlItem = "
-            INSERT INTO purchase_order_items (
-                po_id, po_number,
-                medicine_id, medicine_name,
-                pack_size, hsn_code,
-                batch_number, expiry_date,
-                quantity_ordered,
-                mrp, ptr, unit_price,
-                line_amount,
-                item_discount_percent,
-                taxable_amount,
-                tax_percent, tax_amount,
-                item_total
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        ";
-
-        $stmtItem = $connect->prepare($sqlItem);
-        if (!$stmtItem) {
-            throw new Exception("Item prepare failed: " . $connect->error);
-        }
-
-        $itemsSaved = 0;
-
-        for ($i = 0; $i < $itemCount; $i++) {
-            
-            $medicineId = isset($_POST['medicine_id'][$i]) ? intval($_POST['medicine_id'][$i]) : 0;
-            $qty = isset($_POST['quantity'][$i]) ? intval($_POST['quantity'][$i]) : 0;
-
-            /* Skip empty rows */
-            if ($medicineId <= 0 || $qty <= 0) {
-                continue;
-            }
-
-            /* GET ITEM VALUES */
-            $medicineName = $_POST['medicine_name'][$i] ?? '';
-            $packSize = $_POST['pack_size'][$i] ?? '';
-            $hsnCode = $_POST['hsn_code'][$i] ?? '';
-            $batchNumber = $_POST['batch_number'][$i] ?? '';
-            $expiryDate = (isset($_POST['expiry_date'][$i]) && !empty($_POST['expiry_date'][$i])) 
-                         ? $_POST['expiry_date'][$i] 
-                         : null;
-            $mrp = isset($_POST['mrp'][$i]) ? floatval($_POST['mrp'][$i]) : 0;
-            $ptr = isset($_POST['ptr'][$i]) ? floatval($_POST['ptr'][$i]) : 0;
-            $unitPrice = isset($_POST['unit_price'][$i]) ? floatval($_POST['unit_price'][$i]) : 0;
-            $discountPercent = isset($_POST['discount_percent'][$i]) ? floatval($_POST['discount_percent'][$i]) : 0;
-            $taxPercent = isset($_POST['tax_percent'][$i]) ? floatval($_POST['tax_percent'][$i]) : 18;
-
-            /* CALCULATE ITEM TOTAL */
-            $lineAmount = $qty * $unitPrice;
-            $lineDiscountAmt = ($lineAmount * $discountPercent) / 100;
-            $itemTaxable = $lineAmount - $lineDiscountAmt;
-            $taxAmt = ($itemTaxable * $taxPercent) / 100;
-            $itemTotal = $itemTaxable + $taxAmt;
-
-            /* BIND AND INSERT */
-            $stmtItem->bind_param(
-                'isisssssiddddddddd',
-                $poId,
-                $poNumber,
-                $medicineId,
-                $medicineName,
-                $packSize,
-                $hsnCode,
-                $batchNumber,
-                $expiryDate,
-                $qty,
-                $mrp,
-                $ptr,
-                $unitPrice,
-                $lineAmount,
-                $discountPercent,
-                $itemTaxable,
-                $taxPercent,
-                $taxAmt,
-                $itemTotal
-            );
-
-            if (!$stmtItem->execute()) {
-                throw new Exception("Item execute failed: " . $stmtItem->error);
-            }
-
-            $itemsSaved++;
-        }
-
-        $stmtItem->close();
-
-        if ($itemsSaved === 0) {
-            throw new Exception("No valid items were added to the purchase order");
-        }
-
-        $connect->commit();
-
-        $_SESSION['po_success'] = 'Purchase Order created successfully!';
-        header('Location: ../po_list.php');
-        exit;
-
-    } catch (Exception $e) {
-
-        $connect->rollback();
-        $_SESSION['po_error'] = 'Error: ' . $e->getMessage();
-        header('Location: ../create_po.php');
-        exit;
+        $itemStmt->close();
     }
 
-} else {
-    /* NOT A POST REQUEST */
-    $_SESSION['po_error'] = 'Invalid request method';
+    if ($itemsAdded === 0) {
+        // Delete the PO if no items were added
+        $connect->query("DELETE FROM purchase_orders WHERE po_id = $poId");
+        throw new Exception('No valid items provided. PO creation cancelled.');
+    }
+
+    // ========================================
+    // SUCCESS - REDIRECT TO PO LIST
+    // ========================================
+    $_SESSION['success'] = "Purchase Order $poNumber created successfully with $itemsAdded items!";
+    header('Location: ../po_list.php');
+    exit;
+
+} catch (Exception $e) {
+    $_SESSION['error'] = 'Error: ' . $e->getMessage();
     header('Location: ../create_po.php');
     exit;
 }

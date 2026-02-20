@@ -1,143 +1,358 @@
+<?php include('./constant/layout/head.php'); ?>
+<?php include('./constant/layout/header.php'); ?>
+<?php include('./constant/layout/sidebar.php'); ?>
+
 <?php
-include('./constant/layout/head.php');
-include('./constant/layout/header.php');
-include('./constant/layout/sidebar.php');
-
-include('./constant/connect.php');
-
-
-$sql = "SELECT po.po_id, po.po_number, po.po_date, po.supplier_name, po.supplier_contact, 
-        po.grand_total, po.po_status, po.payment_status, po.cancelled_status,
-        (SELECT COUNT(*) FROM purchase_order_items WHERE po_id = po.po_id) as item_count
-        FROM purchase_order po 
-        WHERE po.cancelled_status = 0
-        ORDER BY po.po_date DESC";
-
-    // echo "<pre>"; // Makes the output human-readable in a browser
-    // echo($sql);
-    // echo "</pre>";
-
-    // exit;
-
-
-$result = $connect->query($sql);
-
-if(!$result) {
-    die("Query Error: " . $connect->error);
+// Database connection
+if (!isset($connect) || !$connect) {
+    die("Database connection error");
 }
+
+// Get filter parameters
+$filterSupplier = isset($_GET['supplier']) ? intval($_GET['supplier']) : 0;
+$filterStatus = isset($_GET['status']) ? $_GET['status'] : '';
+$filterFromDate = isset($_GET['from_date']) ? $_GET['from_date'] : '';
+$filterToDate = isset($_GET['to_date']) ? $_GET['to_date'] : '';
+$searchPO = isset($_GET['search']) ? $_GET['search'] : '';
+
+// Build query for PURCHASE ORDERS
+$where = ['1=1'];
+$params = [];
+
+if ($filterSupplier > 0) {
+    $where[] = "po.supplier_id = ?";
+    $params[] = $filterSupplier;
+}
+
+if ($filterStatus) {
+    $where[] = "po.po_status = ?";
+    $params[] = $filterStatus;
+}
+
+if ($filterFromDate) {
+    $where[] = "po.po_date >= ?";
+    $params[] = $filterFromDate;
+}
+
+if ($filterToDate) {
+    $where[] = "po.po_date <= ?";
+    $params[] = $filterToDate;
+}
+
+if ($searchPO) {
+    $where[] = "(po.po_number LIKE ? OR s.supplier_name LIKE ?)";
+    $params[] = "%$searchPO%";
+    $params[] = "%$searchPO%";
+}
+
+$whereClause = implode(' AND ', $where);
+
+// Fetch Purchase Orders from purchase_orders table
+$query = "
+    SELECT 
+        po.po_id, po.supplier_id, po.po_number, po.po_date, 
+        po.expected_delivery_date, po.grand_total, po.po_status,
+        po.payment_status, s.supplier_name,
+        COUNT(poi.po_item_id) as item_count
+    FROM purchase_orders po
+    LEFT JOIN suppliers s ON po.supplier_id = s.supplier_id
+    LEFT JOIN po_items poi ON po.po_id = poi.po_id
+    WHERE $whereClause
+    GROUP BY po.po_id
+    ORDER BY po.po_date DESC, po.po_id DESC
+    LIMIT 500
+";
+
+$stmt = $connect->prepare($query);
+if ($stmt) {
+    if (!empty($params)) {
+        $types = str_repeat('s', count($params));
+        $stmt->bind_param($types, ...$params);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $purchaseOrders = [];
+    while ($row = $result->fetch_assoc()) {
+        $purchaseOrders[] = $row;
+    }
+    $stmt->close();
+} else {
+    $purchaseOrders = [];
+}
+
+// Fetch suppliers for filter dropdown
+$suppliers = [];
+$res = $connect->query("SELECT supplier_id, supplier_name FROM suppliers WHERE supplier_status='Active' ORDER BY supplier_name");
+if ($res) while ($r = $res->fetch_assoc()) $suppliers[] = $r;
 ?>
 
 <div class="page-wrapper">
-    <div class="row page-titles">
-        <div class="col-md-5 align-self-center">
-            <h3 class="text-primary">Purchase Orders</h3>
-        </div>
-        <div class="col-md-7 align-self-center">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="dashboard.php">Home</a></li>
-                <li class="breadcrumb-item active">Purchase Orders</li>
-            </ol>
-        </div>
-    </div>
-
     <div class="container-fluid">
-        <div class="card">
+        <!-- Header -->
+        <div class="row page-titles mb-3">
+            <div class="col-md-8 align-self-center">
+                <h3 class="text-primary"><i class="fa fa-shopping-cart"></i> Purchase Orders</h3>
+            </div>
+            <div class="col-md-4 align-self-center text-end">
+                <a href="create_po.php" class="btn btn-primary btn-sm">
+                    <i class="fa fa-plus"></i> Create New PO
+                </a>
+            </div>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">Advanced Filters</div>
             <div class="card-body">
-                <a href="create_po.php"><button class="btn btn-primary"><i class="fa fa-plus"></i> Create New PO</button></a>
-                <a href="supplier.php"><button class="btn btn-info"><i class="fa fa-building"></i> Manage Suppliers</button></a>
-                <a href="po_cancelled.php"><button class="btn btn-warning"><i class="fa fa-ban"></i> Cancelled POs</button></a>
-                 
-                <div class="table-responsive m-t-40">
-                    <table class="table table-bordered table-striped" id="poTable">
-                        <thead>
-                            <tr>
-                                <th class="text-center" style="width:5%;">#</th>
-                                <th style="width:12%;">PO Number</th>
-                                <th style="width:10%;">PO Date</th>
-                                <th style="width:20%;">Supplier</th>
-                                <th style="width:10%;">Contact</th>
-                                <th style="width:10%;">Items</th>
-                                <th style="width:12%;">Grand Total</th>
-                                <th style="width:10%;">PO Status</th>
-                                <th style="width:10%;">Payment Status</th>
-                                <th style="width:15%;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php 
-                            if($result->num_rows > 0) {
-                                $count = 0;
-                                while($row = $result->fetch_assoc()) {
-                                    $count++;
-                                    $poStatus = $row['po_status'];
-                                    $paymentStatus = $row['payment_status'];
-                            ?>
-                            <tr>
-                                <td class="text-center"><?php echo $count; ?></td>
-                                <td><strong><?php echo htmlspecialchars($row['po_number']); ?></strong></td>
-                                <td><?php echo date('d-m-Y', strtotime($row['po_date'])); ?></td>
-                                <td><?php echo htmlspecialchars($row['supplier_name']); ?></td>
-                                <td><?php echo htmlspecialchars($row['supplier_contact']); ?></td>
-                                <td class="text-center">
-                                    <span class="badge badge-info"><?php echo intval($row['item_count']); ?></span>
-                                </td>
-                                <td class="text-right"><strong>₹<?php echo number_format($row['grand_total'], 2); ?></strong></td>
-                                <td>
-                                    <span class="label <?php 
-                                        if($poStatus == 'Cancelled') echo 'label-danger';
-                                        elseif($poStatus == 'Confirmed' || $poStatus == 'Received') echo 'label-success';
-                                        elseif($poStatus == 'Draft') echo 'label-default';
-                                        elseif($poStatus == 'Pending') echo 'label-warning';
-                                        else echo 'label-info';
-                                    ?>">
-                                        <?php echo htmlspecialchars($poStatus); ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="label <?php echo ($paymentStatus == 'Paid') ? 'label-success' : 'label-warning'; ?>">
-                                        <?php echo htmlspecialchars($paymentStatus); ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <a href="view_po.php?id=<?php echo intval($row['po_id']); ?>" class="btn btn-info btn-sm" title="View">
-                                        <i class="fa fa-eye"></i>
-                                    </a>
-                                    <a href="edit_po.php?id=<?php echo intval($row['po_id']); ?>" class="btn btn-primary btn-sm" title="Edit">
-                                        <i class="fa fa-edit"></i>
-                                    </a>
-                                    <a href="print_po.php?id=<?php echo intval($row['po_id']); ?>" class="btn btn-warning btn-sm" title="Print">
-                                        <i class="fa fa-print"></i>
-                                    </a>
-                                    <?php if($poStatus !== 'Received' && $poStatus !== 'Cancelled'): ?>
-                                    <a href="cancel_po.php?id=<?php echo intval($row['po_id']); ?>" class="btn btn-danger btn-sm" title="Cancel">
-                                        <i class="fa fa-times"></i>
-                                    </a>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                            <?php 
-                                }
-                            } else {
-                                echo "<tr><td colspan='10' class='text-center'>No Purchase Orders Found</td></tr>";
-                            }
-                            ?>
-                        </tbody>
-                    </table>
+                <form method="GET" class="row g-2">
+                    <div class="col-md-2">
+                        <select name="supplier" class="form-control form-control-sm">
+                            <option value="">-- All Suppliers --</option>
+                            <?php foreach ($suppliers as $supp): ?>
+                                <option value="<?=$supp['supplier_id']?>" <?=$filterSupplier==$supp['supplier_id']?'selected':''?>>
+                                    <?=htmlspecialchars($supp['supplier_name'])?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="status" class="form-control form-control-sm">
+                            <option value="">-- All Status --</option>
+                            <option value="Draft" <?=$filterStatus=='Draft'?'selected':''?>>Draft</option>
+                            <option value="Submitted" <?=$filterStatus=='Submitted'?'selected':''?>>Submitted</option>
+                            <option value="Approved" <?=$filterStatus=='Approved'?'selected':''?>>Approved</option>
+                            <option value="PartialReceived" <?=$filterStatus=='PartialReceived'?'selected':''?>>Partial Received</option>
+                            <option value="Received" <?=$filterStatus=='Received'?'selected':''?>>Received</option>
+                            <option value="Cancelled" <?=$filterStatus=='Cancelled'?'selected':''?>>Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="from_date" class="form-control form-control-sm" value="<?=$filterFromDate?>" placeholder="From Date">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="to_date" class="form-control form-control-sm" value="<?=$filterToDate?>" placeholder="To Date">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="search" class="form-control form-control-sm" id="searchBox" placeholder="Search PO # or Supplier" value="<?=$searchPO?>">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-info btn-sm w-100">
+                            <i class="fa fa-filter"></i> Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h5 class="text-muted">Total POs</h5>
+                        <h3 class="text-primary"><?=count($purchaseOrders)?></h3>
+                    </div>
                 </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h5 class="text-muted">Total Amount</h5>
+                        <h3 class="text-success">
+                            ₹ <?=number_format(array_sum(array_column($purchaseOrders, 'grand_total')), 2)?>
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h5 class="text-muted">Pending Approval</h5>
+                        <h3 class="text-warning">
+                            <?=count(array_filter($purchaseOrders, fn($p) => $p['po_status'] == 'Draft' || $p['po_status'] == 'Submitted'))?>
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h5 class="text-muted">Received</h5>
+                        <h3 class="text-info">
+                            <?=count(array_filter($purchaseOrders, fn($p) => $p['po_status'] == 'Received'))?>
+                        </h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Purchase Orders Table -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fa fa-list"></i> Purchase Order List</h5>
+            </div>
+            <div class="card-body">
+                <?php if (count($purchaseOrders) === 0): ?>
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle"></i> No purchase orders found. 
+                        <a href="create_po.php">Create a new PO</a>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:10%">PO Number</th>
+                                    <th style="width:15%">Supplier</th>
+                                    <th style="width:10%">PO Date</th>
+                                    <th style="width:8%">Items</th>
+                                    <th style="width:12%">Grand Total</th>
+                                    <th style="width:12%">PO Status</th>
+                                    <th style="width:12%">Payment Status</th>
+                                    <th style="width:15%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($purchaseOrders as $po): ?>
+                                    <tr>
+                                        <td><strong><a href="po_view.php?id=<?=$po['po_id']?>" class="text-primary"><?=htmlspecialchars($po['po_number'])?></a></strong></td>
+                                        <td><?=htmlspecialchars($po['supplier_name'] ?? '-')?></td>
+                                        <td><?=date('d M Y', strtotime($po['po_date']))?></td>
+                                        <td class="text-center"><span class="badge bg-secondary"><?=$po['item_count']?></span></td>
+                                        <td class="text-end fw-bold">₹ <?=number_format($po['grand_total'], 2)?></td>
+                                        <td>
+                                            <?php 
+                                                $statusClass = match($po['po_status']) {
+                                                    'Draft' => 'secondary',
+                                                    'Submitted' => 'warning',
+                                                    'Approved' => 'info',
+                                                    'PartialReceived' => 'primary',
+                                                    'Received' => 'success',
+                                                    'Cancelled' => 'danger',
+                                                    default => 'secondary'
+                                                };
+                                            ?>
+                                            <span class="badge bg-<?=$statusClass?>"><?=$po['po_status']?></span>
+                                        </td>
+                                        <td>
+                                            <?php 
+                                                $payStatus = match($po['payment_status']) {
+                                                    'NotDue' => 'info',
+                                                    'Due' => 'warning',
+                                                    'PartialPaid' => 'primary',
+                                                    'Paid' => 'success',
+                                                    'Overdue' => 'danger',
+                                                    default => 'secondary'
+                                                };
+                                            ?>
+                                            <span class="badge bg-<?=$payStatus?>"><?=$po['payment_status']?></span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="po_view.php?id=<?=$po['po_id']?>" class="btn btn-info" title="View">
+                                                    <i class="fa fa-eye"></i>
+                                                </a>
+                                                <a href="editorder.php?po_id=<?=$po['po_id']?>" class="btn btn-warning" title="Edit">
+                                                    <i class="fa fa-edit"></i>
+                                                </a>
+                                                <button class="btn btn-success btn-approve-po" data-id="<?=$po['po_id']?>" data-status="<?=$po['po_status']?>" title="Approve">
+                                                    <i class="fa fa-check"></i>
+                                                </button>
+                                                <button class="btn btn-danger btn-delete-po" data-id="<?=$po['po_id']?>" title="Cancel">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
 
-<?php include('./constant/layout/footer.php');?>
+<?php include('./constant/layout/footer.php'); ?>
 
+<script src="assets/js/jquery.min.js"></script>
+<script src="assets/js/bootstrap.bundle.min.js"></script>
 <script>
-$(document).ready(function() {
-    $('#poTable').DataTable({
-        "order": [[2, "desc"]]
+    // Real-time search in table
+    $('#searchBox').on('keyup', function(){
+        const val = $(this).val().toLowerCase();
+        $('table tbody tr').each(function(){
+            const text = $(this).text().toLowerCase();
+            $(this).toggle(text.includes(val));
+        });
     });
-});
+
+    // Approve PO
+    $(document).on('click', '.btn-approve-po', function(){
+        const poId = $(this).data('id');
+        const currentStatus = $(this).data('status');
+        
+        if (currentStatus === 'Approved' || currentStatus === 'Received') {
+            alert('This PO is already approved/received');
+            return;
+        }
+
+        if (!confirm('Mark this PO as Approved?')) return;
+
+        $.ajax({
+            url: 'php_action/po_actions.php',
+            method: 'POST',
+            data: {
+                action: 'approve_po',
+                po_id: poId
+            },
+            dataType: 'json',
+            success: function(resp){
+                if (resp.success) {
+                    alert('✓ PO approved successfully');
+                    location.reload();
+                } else {
+                    alert('✗ Error: ' + resp.error);
+                }
+            },
+            error: function(){
+                alert('Server error occurred');
+            }
+        });
+    });
+
+    // Cancel/Delete PO
+    $(document).on('click', '.btn-delete-po', function(){
+        const poId = $(this).data('id');
+        
+        if (!confirm('Are you sure you want to cancel this PO?')) return;
+
+        $.ajax({
+            url: 'php_action/po_actions.php',
+            method: 'POST',
+            data: {
+                action: 'cancel_po',
+                po_id: poId
+            },
+            dataType: 'json',
+            success: function(resp){
+                if (resp.success) {
+                    alert('✓ PO cancelled successfully');
+                    location.reload();
+                } else {
+                    alert('✗ Error: ' + resp.error);
+                }
+            },
+            error: function(){
+                alert('Server error occurred');
+            }
+        });
+    });
 </script>
+
+</body>
+</html>
 
 
 

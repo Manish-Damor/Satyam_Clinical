@@ -1,95 +1,67 @@
 <?php
 require_once 'core.php';
+require_once '../config/bootstrap.php';
 
-$valid = array('success' => false, 'messages' => array());
+use Controllers\SalesOrderController;
+
+header('Content-Type: application/json');
+
+$valid = ['success' => false, 'messages' => '', 'order_id' => null, 'warnings' => [], 'credit_analysis' => []];
 
 if ($_POST) {
 
-    // 🔹 START TRANSACTION (important!)
-    $connect->begin_transaction();
-
     try {
 
-        /* =======================
-           1. READ & VALIDATE INPUT
-           ======================= */
+        // ========================================
+        // 1. READ & VALIDATE INPUT
+        // ========================================
 
-        $uno = trim($_POST['uno']);
-        $orderDate = $_POST['orderDate'];
-        $clientName = trim($_POST['clientName']);
-        $clientContact = trim($_POST['clientContact']);
-        $subTotal = $_POST['subTotalValue'];
-        $totalAmount = $_POST['totalAmountValue'];
-        $discount = $_POST['discount'];
-        $grandTotalValue = $_POST['grandTotalValue'];
-        $gstn = $_POST['gstn'];
-        $paid = $_POST['paid'];
-        $dueValue = $_POST['dueValue'];
-        $paymentType = $_POST['paymentType'];
-        $paymentStatus = $_POST['paymentStatus'];
-        $paymentPlace = $_POST['paymentPlace'];
-        $gstPercentage = $_POST['gstPercentage'];
+        $uno = trim($_POST['uno'] ?? '');
+        $orderDate = $_POST['orderDate'] ?? date('Y-m-d');
+        $clientName = trim($_POST['clientName'] ?? '');
+        $clientContact = trim($_POST['clientContact'] ?? '');
+        $subTotal = (float)($_POST['subTotalValue'] ?? 0);
+        $totalAmount = (float)($_POST['totalAmountValue'] ?? 0);
+        $discount = (float)($_POST['discount'] ?? 0);
+        $grandTotalValue = (float)($_POST['grandTotalValue'] ?? 0);
+        $gstn = $_POST['gstn'] ?? '';
+        $paid = (float)($_POST['paid'] ?? 0);
+        $dueValue = (float)($_POST['dueValue'] ?? 0);
+        $paymentType = $_POST['paymentType'] ?? 'cash';
+        $paymentStatus = $_POST['paymentStatus'] ?? 'pending';
+        $paymentPlace = $_POST['paymentPlace'] ?? 'counter';
+        $gstPercentage = (float)($_POST['gstPercentage'] ?? 0);
 
-        // Basic validation (backend must protect)
+        // Basic validation
         if (strlen($clientName) < 2) {
             throw new Exception("Client name is too short");
         }
 
         if (!preg_match('/^[0-9]{10}$/', $clientContact)) {
-            throw new Exception("Invalid contact number");
+            throw new Exception("Invalid contact number (must be 10 digits)");
         }
 
-        
-
-
-        /* =======================
-           2. INSERT INTO ORDERS (PREPARED STATEMENT)
-           ======================= */
-
-        $stmt = $connect->prepare("
-            INSERT INTO orders 
-            (uno, orderDate, clientName, gstPercents, gstn, clientContact, subTotal, totalAmount, discount, grandTotalValue, paid, dueValue, paymentType, paymentStatus, paymentPlace) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-
-        $stmt->bind_param(
-            "ssssssddddddiii",
-            $uno,
-            $orderDate,
-            $clientName,
-            $gstPercentage,
-            $gstn,
-            $clientContact,
-            $subTotal,
-            $totalAmount,
-            $discount,
-            $grandTotalValue,
-            $paid,
-            $dueValue,
-            $paymentType,
-            $paymentStatus,
-            $paymentPlace
-        );
-
-        if (!$stmt->execute()) {
-            throw new Exception("Failed to create order");
+        if ($grandTotalValue <= 0) {
+            throw new Exception("Order total must be greater than zero");
         }
 
-        // Get newly created order id
-        $lastid = $connect->insert_id;
+        // ========================================
+        // 2. COLLECT ORDER ITEMS
+        // ========================================
 
+        $items = [];
+        $itemCount = count($_POST['productId'] ?? []);
 
-        /* =======================
-           3. INSERT ORDER ITEMS + LOCK STOCK + REDUCE STOCK
-           ======================= */
+        if ($itemCount === 0) {
+            throw new Exception("Order must contain at least one item");
+        }
 
-        for ($i = 0; $i < count($_POST['productId']); $i++) {
+        for ($i = 0; $i < $itemCount; $i++) {
 
-            $productId = $_POST['productId'][$i];
-            $quantity  = $_POST['quantity'][$i];
-            $rate      = $_POST['rateValue'][$i];
-            $total     = $_POST['totalValue'][$i];
-            $added_date = date('Y-m-d');
+            $productId = $_POST['productId'][$i] ?? 0;
+            $quantity = $_POST['quantity'][$i] ?? 0;
+            $rate = $_POST['rateValue'][$i] ?? 0;
+            $purchaseRate = $_POST['ptrValue'][$i] ?? 0;  // Purchase rate (PTR)
 
             // Skip empty rows
             if (empty($productId) || empty($quantity)) {
@@ -100,137 +72,73 @@ if ($_POST) {
                 throw new Exception("Invalid product or quantity");
             }
 
-            /* 🔹 LOCK PRODUCT ROW (multi-user safety) */
-            $lockSql = "SELECT quantity FROM product WHERE product_id = ? FOR UPDATE";
-            $stmtLock = $connect->prepare($lockSql);
-            $stmtLock->bind_param("i", $productId);
-            $stmtLock->execute();
-            $result = $stmtLock->get_result();
-            $stockRow = $result->fetch_assoc();
-
-            if (!$stockRow) {
-                throw new Exception("Product not found");
-            }
-
-            if ($stockRow['quantity'] < $quantity) {
-                throw new Exception("Not enough stock for product ID $productId");
-            }
-
-            /* 🔹 REDUCE STOCK */
-            $updateStockSql = "UPDATE product SET quantity = quantity - ? WHERE product_id = ?";
-            $stmtUpdate = $connect->prepare($updateStockSql);
-            $stmtUpdate->bind_param("ii", $quantity, $productId);
-            $stmtUpdate->execute();
-
-            /* 🔹 INSERT ORDER ITEM */
-            $insertSql = "
-                INSERT INTO order_item 
-                (productName, quantity, rate, total, lastid, added_date) 
-                VALUES (?, ?, ?, ?, ?, ?)
-            ";
-            $stmtInsert = $connect->prepare($insertSql);
-            $stmtInsert->bind_param("iiiddi", $productId, $quantity, $rate, $total, $lastid, $added_date);
-            $stmtInsert->execute();
+            $items[] = [
+                'product_id' => (int)$productId,
+                'productName' => $_POST['productName'][$i] ?? '',
+                'quantity' => (int)$quantity,
+                'rate' => (float)$rate,
+                'purchase_rate' => (float)$purchaseRate  // Include PTR in item
+            ];
         }
 
+        if (empty($items)) {
+            throw new Exception("No valid items in order");
+        }
 
-        /* =======================
-           4. COMMIT TRANSACTION
-           ======================= */
+        // ========================================
+        // 3. PREPARE ORDER DATA
+        // ========================================
 
-        $connect->commit();
+        $orderData = [
+            'uno' => $uno,
+            'orderDate' => $orderDate,
+            'clientName' => $clientName,
+            'clientContact' => $clientContact,
+            'subTotalValue' => $subTotal,
+            'totalAmountValue' => $totalAmount,
+            'discount' => $discount,
+            'grandTotalValue' => $grandTotalValue,
+            'gstn' => $gstn,
+            'paid' => $paid,
+            'dueValue' => $dueValue,
+            'paymentType' => $paymentType,
+            'paymentStatus' => $paymentStatus,
+            'paymentPlace' => $paymentPlace,
+            'gstPercentage' => $gstPercentage
+        ];
 
-        $valid['success'] = true;
-        $valid['messages'] = "Order Successfully Added";
-		header('location:../Order.php');
+        // ========================================
+        // 4. CREATE SALES ORDER USING CONTROLLER
+        // ========================================
 
+        $userId = $_SESSION['userId'] ?? 0;
+        $userRole = $_SESSION['user_role'] ?? 'user';
+
+        $controller = new SalesOrderController($connect, $userId, $userRole);
+        $result = $controller->createSalesOrder($orderData, $items);
+
+        if ($result['success']) {
+            $valid['success'] = true;
+            $valid['messages'] = $result['message'];
+            $valid['order_id'] = $result['order_id'];
+            $valid['warnings'] = $result['warnings'];
+            $valid['credit_analysis'] = $result['credit_analysis'];
+        } else {
+            $valid['success'] = false;
+            $valid['messages'] = $result['message'];
+            $valid['errors'] = $result['errors'];
+        }
 
     } catch (Exception $e) {
-
-        // 🔹 ROLLBACK EVERYTHING ON ANY ERROR
-        $connect->rollback();
 
         $valid['success'] = false;
         $valid['messages'] = "Order Failed: " . $e->getMessage();
     }
 
     echo json_encode($valid);
+} else {
+    $valid['messages'] = 'No POST data received';
+    echo json_encode($valid);
 }
-?>
-
-
-
-<?php 	
-
-// require_once 'core.php';
-
-// $valid['success'] = array('success' => false, 'messages' => array());
-
-// if($_POST) {	
-
-//   $uno= $_POST['uno'];
-//   //echo $productName ;exit;
-//   $orderDate 	= $_POST['orderDate'];
-//   $clientName 		= $_POST['clientName'];
-//   //$projectName 		= $_POST['projectName'];
-//   $clientContact 			= $_POST['clientContact'];
-//   //$address 			= $_POST['address'];
-//   $subTotal 		= $_POST['subTotalValue'];
-//   $totalAmount 	= $_POST['totalAmountValue'];
-//   //$productStatus 	= $_POST['productStatus'];
-//   $discount 	= $_POST['discount'];
-//   $grandTotalValue 	= $_POST['grandTotalValue'];
-//   $gstn 	= $_POST['gstn'];
-//   $paid 	= $_POST['paid'];
-//   $dueValue 	= $_POST['dueValue'];
-
-//   $paymentType 	= $_POST['paymentType'];
-//   $paymentStatus 	= $_POST['paymentStatus'];
-//   $paymentPlace 	= $_POST['paymentPlace'];
-//   $gstPercentage    = $_POST['gstPercentage'];
-// 	//$type = explode('.', $_FILES['productImage']['name']);
-	
-	
-// 	$sql = "INSERT INTO orders (uno, orderDate, clientName, gstPercents, gstn, clientContact, subTotal, totalAmount, discount, grandTotalValue, paid, dueValue, paymentType, paymentStatus, paymentPlace) 
-// 			VALUES ('$uno', '$orderDate', '$clientName', '$gstPercentage', '$gstn', '$clientContact', '$subTotal', '$totalAmount', '$discount', '$grandTotalValue', '$paid', '$dueValue', '$paymentType', '$paymentStatus', '$paymentPlace')";
-// 	//echo $sql;exit;
-// 	if($connect->query($sql) === TRUE) 
-// 	{
-// 		//echo "gfghh";exit;
-// 		$lastid = mysqli_insert_id($connect);
-// 		$checkbox1 =count($_POST['productId']);
-// 		// print_r ($checkbox1);exit;
-// 		for($i=0; $i<($checkbox1);$i++)
-// 			{
-// 				extract($_POST);
-// 				$added_date=date('Y-m-d');
-// 				$sql1 = "INSERT INTO order_item (productName, quantity,rate,total,lastid,added_date) 
-// 				VALUES ('$productId[$i]', '$quantity[$i]', '$rateValue[$i]', '$totalValue[$i]','$lastid','$added_date')";
-// 				// echo $sql1;exit;
-// 				if($connect->query($sql1) === TRUE)
-// 					{
-// 					// echo $lastid;exit;
-
-// 						$valid['success'] = true;
-// 						$valid['messages'] = "Successfully Added";
-// 						header('location:../Order.php');	
-// 					} 
-// 			}
-// 	}
-// 	else {
-// 		$valid['success'] = false;
-// 		$valid['messages'] = "Error while adding the members";
-// 		header('location:../add-order.php');
-// 	}
-
-// 	// /else	
-// 	// if
-// 	// if in_array 		
-
-// 	$connect->close();
-
-// 	echo json_encode($valid);
-
-// 	} // /if $_POST
 
 ?>
