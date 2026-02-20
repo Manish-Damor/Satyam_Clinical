@@ -62,6 +62,8 @@ if ($_POST) {
             $quantity = $_POST['quantity'][$i] ?? 0;
             $rate = $_POST['rateValue'][$i] ?? 0;
             $purchaseRate = $_POST['ptrValue'][$i] ?? 0;  // Purchase rate (PTR)
+            $gstRate = (float)($_POST['gstRate'][$i] ?? 5);  // Per-item GST rate
+            $batchId = $_POST['batchId'][$i] ?? 0;  // Batch ID (required for sales)
 
             // Skip empty rows
             if (empty($productId) || empty($quantity)) {
@@ -72,12 +74,19 @@ if ($_POST) {
                 throw new Exception("Invalid product or quantity");
             }
 
+            // Batch ID is required for sales orders
+            if (empty($batchId)) {
+                throw new Exception("Batch must be selected for product ID $productId");
+            }
+
             $items[] = [
                 'product_id' => (int)$productId,
+                'batch_id' => (int)$batchId,  // Add batch_id to items
                 'productName' => $_POST['productName'][$i] ?? '',
                 'quantity' => (int)$quantity,
                 'rate' => (float)$rate,
-                'purchase_rate' => (float)$purchaseRate  // Include PTR in item
+                'purchase_rate' => (float)$purchaseRate,  // Include PTR in item
+                'gst_rate' => $gstRate  // Include per-item GST rate
             ];
         }
 

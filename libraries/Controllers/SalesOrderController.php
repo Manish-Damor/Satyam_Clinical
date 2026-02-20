@@ -105,27 +105,33 @@ class SalesOrderController {
             // ========================================
             $itemCount = 0;
             foreach ($items as $item) {
-                if (empty($item['product_id']) || empty($item['quantity'])) {
+                if (empty($item['product_id']) || empty($item['quantity']) || empty($item['batch_id'])) {
                     continue;
                 }
                 
-                // Check stock availability
-                $stockCheck = $this->stockService->getStockStatus($item['product_id']);
+                $batchId = (int)$item['batch_id'];
+                $quantity = (int)$item['quantity'];
+                $productId = (int)$item['product_id'];
                 
-                if ($stockCheck['available'] < $item['quantity']) {
-                    throw new \Exception("Insufficient stock for product {$item['product_id']}. Available: {$stockCheck['available']}, Requested: {$item['quantity']}");
+                // Check total product stock availability
+                $stockCheck = $this->stockService->getStockStatus($productId);
+                
+                if ($stockCheck['available'] < $quantity) {
+                    throw new \Exception("Insufficient stock for product {$productId}. Available: {$stockCheck['available']}, Requested: {$quantity}");
                 }
                 
-                // Insert order item
+                // Insert order item (with batch_id)
                 $this->insertOrderItem($orderId, $orderNumber, $item);
                 
-                // Deduct stock through StockService
+                // Deduct stock from SPECIFIC BATCH - StockService validates expiry
+                // and prevents selling from expired batches
                 $deductResult = $this->stockService->decreaseStock(
-                    $item['product_id'],
-                    $item['quantity'],
-                    'sales_order',
+                    $productId,
+                    $batchId,
+                    $quantity,
+                    'SALES_ORDER',  // Reference type used for expiry validation
                     $orderId,
-                    $this->userId
+                    []  // options array
                 );
                 
                 if (!$deductResult) {
@@ -347,21 +353,23 @@ class SalesOrderController {
         
         $sql = "
             INSERT INTO order_item (
-                order_id, order_number, product_id,
+                order_id, order_number, product_id, batch_id,
                 productName, quantity, rate, purchase_rate, total,
                 added_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ";
         
         $quantity = (int)$item['quantity'];
         $rate = (float)$item['rate'];
         $purchaseRate = (float)($item['purchase_rate'] ?? 0);
+        $batchId = (int)($item['batch_id'] ?? 0);
         $total = $quantity * $rate;
         
         $params = [
             $orderId,
             $orderNumber,
             (int)$item['product_id'],
+            $batchId,  // Include batch_id
             $item['productName'] ?? '',
             $quantity,
             $rate,

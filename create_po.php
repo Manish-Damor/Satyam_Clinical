@@ -271,8 +271,6 @@ $notesVal = $editing ? $existingPo['notes'] : '';
                                     <th style="width:18%;">Medicine Name</th>
                                     <th style="width:8%;">HSN Code</th>
                                     <th style="width:12%;">Pack Size</th>
-                                    <th style="width:8%;">Batch No.</th>
-                                    <th style="width:8%;">Expiry</th>
                                     <th style="width:auto%;">MRP</th>
                                     <th style="width:auto%;">PTR</th>
                                     <th style="width:auto%;">Rate</th>
@@ -309,8 +307,7 @@ $notesVal = $editing ? $existingPo['notes'] : '';
                                         </td>
                                         <td><input type="text" class="form-control form-control-sm hsn-code" name="hsn_code[]" readonly value="<?=htmlspecialchars($hsn)?>"></td>
                                         <td><input type="text" class="form-control form-control-sm pack-size" name="pack_size[]" readonly value="<?=htmlspecialchars($pack)?>"></td>
-                                        <td><input type="text" class="form-control form-control-sm batch-number" name="batch_number[]"  readonly value="<?=htmlspecialchars($batch)?>"></td>
-                                        <td style=""><input type="date" class="form-control form-control-sm  expiry-date" style="" name="expiry_date[]"  readonly value="<?=htmlspecialchars($expiry)?>"></td>
+
                                         <td><input type="text" class="form-control form-control-sm mrp-value" name="mrp[]"  step="0.01" readonly value="<?=htmlspecialchars($unit)?>"></td>
                                         <td><input type="text" class="form-control form-control-sm ptr-value" name="ptr[]"  step="0.01" readonly value="<?=htmlspecialchars($unit)?>" style="background-color: #fff3cd;"></td>
                                         <td><input type="text" class="form-control form-control-sm unit-price" name="unit_price[]" step="0.01" min="0" value="<?=htmlspecialchars($unit)?>"></td>
@@ -332,8 +329,6 @@ $notesVal = $editing ? $existingPo['notes'] : '';
                                         </td>
                                         <td><input type="text" class="form-control form-control-sm hsn-code" name="hsn_code[]" readonly></td>
                                         <td><input type="text" class="form-control form-control-sm pack-size" name="pack_size[]" readonly></td>
-                                        <td><input type="text" class="form-control form-control-sm batch-number" name="batch_number[]"  readonly></td>
-                                        <td style=""><input type="date" class="form-control form-control-sm  expiry-date" style="" name="expiry_date[]"  readonly></td>
                                         <td><input type="text" class="form-control form-control-sm mrp-value" name="mrp[]"  step="0.01" readonly value="0.00"></td>
                                         <td><input type="text" class="form-control form-control-sm ptr-value" name="ptr[]"  step="0.01" readonly value="0.00" style="background-color: #fff3cd;"></td>
                                         <td><input type="text" class="form-control form-control-sm unit-price" name="unit_price[]" step="0.01" min="0" value="0.00"></td>
@@ -387,41 +382,7 @@ $notesVal = $editing ? $existingPo['notes'] : '';
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>CGST (9%)</label>
-                                <input type="number" class="form-control" id="cgstAmount" name="cgst_amount" readonly style="font-size: 14px; background-color: #e8f5e9;">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>SGST (9%)</label>
-                                <input type="number" class="form-control" id="sgstAmount" name="sgst_amount" readonly style="font-size: 14px; background-color: #e8f5e9;">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>IGST (18%)</label>
-                                <input type="number" class="form-control" id="igstAmount" name="igst_amount" readonly style="font-size: 14px; background-color: #e8f5e9;">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Round Off</label>
-                                <input type="number" class="form-control" id="roundOff" name="round_off" step="0.01" value="0">
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="form-group">
-                                <label style="font-size: 16px; font-weight: bold;">GRAND TOTAL</label>
-                                <input type="number" class="form-control" id="grandTotal" name="grand_total" readonly style="font-size: 18px; font-weight: bold; background-color: #fff59d; border: 2px solid #ff9800;">
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -730,19 +691,9 @@ function calculateTotals() {
     
     const taxableAmount = subTotal - totalDiscount;
     
-    const cgstAmount = (taxableAmount * 9) / 100;
-    const sgstAmount = (taxableAmount * 9) / 100;
-    const igstAmount = 0; // Set based on CGST + SGST or IGST alone
-    const roundOff = parseFloat(document.getElementById('roundOff').value) || 0;
-    const grandTotal = taxableAmount + cgstAmount + sgstAmount + roundOff;
-    
     document.getElementById('subTotal').value = subTotal.toFixed(2);
     document.getElementById('totalDiscount').value = totalDiscount.toFixed(2);
     document.getElementById('taxableAmount').value = taxableAmount.toFixed(2);
-    document.getElementById('cgstAmount').value = cgstAmount.toFixed(2);
-    document.getElementById('sgstAmount').value = sgstAmount.toFixed(2);
-    document.getElementById('igstAmount').value = igstAmount.toFixed(2);
-    document.getElementById('grandTotal').value = grandTotal.toFixed(2);
 }
 
 document.getElementById('poForm').addEventListener('submit', function(e) {

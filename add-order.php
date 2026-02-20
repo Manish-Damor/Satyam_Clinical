@@ -135,6 +135,7 @@ if($_GET['o'] == 'add') {
                         <th style="width:40%;">Medicine</th>
                         <th style="width:12%;">Rate</th>
                         <th style="width:12%;" class="no-print">PTR</th>
+                        <th style="width:10%;">Batch</th>
                         <th style="width:10%;">Avail.</th>
                         <th style="width:15%;">Quantity</th>              
                         <th style="width:25%;">Total</th>             
@@ -158,10 +159,20 @@ if($_GET['o'] == 'add') {
                             <td>                 
                               <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />                  
                               <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
+                              <input type="hidden" name="gstRate[]" id="gstRate<?php echo $x; ?>" autocomplete="off" class="form-control" />
                             </td>
                             <td class="no-print">
                               <input type="text" name="ptr[]" id="ptr<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />
                               <input type="hidden" name="ptrValue[]" id="ptrValue<?php echo $x; ?>" autocomplete="off" class="form-control" />
+                            </td>
+                            <td>
+                              <div class="form-group">
+                                <select name="batchId[]" id="batchId<?php echo $x; ?>" class="form-control form-control-sm" onchange="updateBatchInfo(<?php echo $x ?>)">
+                                  <option value="">Select Batch</option>
+                                </select>
+                                <input type="hidden" name="batchNumber[]" id="batchNumber<?php echo $x; ?>" />
+                                <input type="hidden" name="expiryDate[]" id="expiryDate<?php echo $x; ?>" />
+                              </div>
                             </td>
                             <td>
                               <div class="form-group">
@@ -230,29 +241,10 @@ if($_GET['o'] == 'add') {
                   </div>
                   <div class="form-group">
                     <div class="row">
-                      <label for="gstPercentage" class="col-sm-2 control-label">GST %</label>
-                      <div class="col-sm-4">
-                        <select class="form-control" id="gstPercentage" name="gstPercentage" onchange="updateGSTLabel(); subAmount();">
-                          <option value="0">0%</option>
-                          <option value="5" selected>5%</option>
-                          <option value="12">12%</option>
-                          <option value="18">18%</option>
-                          <option value="24">24%</option>
-                          <!-- <option value="manual">Manual</option> -->
-                        </select>
-                      </div>
-
                       <label for="paid" class="col-sm-2 control-label">Paid Amount</label>
                       <div class="col-sm-4">
                       <input type="text" class="form-control numeric-only" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" />
                       </div>
-                      <label for="vat" class="col-sm-2 control-label gst" id="gstLabel">GST 5%</label>
-                      <div class="col-sm-4">
-                        <input type="text" class="form-control" id="vat" name="gstn" readonly="true" />
-                        <input type="hidden" class="form-control" id="vatValue" name="vatValue" />
-                      </div>
-
-
                     </div>
                   </div>
 
@@ -860,6 +852,33 @@ function addRow() {
 
 } // /add row
 
+function updateBatchInfo(row = null) {
+  if(row) {
+    var batchSelect = document.getElementById('batchId' + row);
+    var selectedOption = batchSelect.options[batchSelect.selectedIndex];
+    
+    if(selectedOption.value) {
+      // Extract batch info from data attributes
+      var batchNum = selectedOption.getAttribute('data-batch-num');
+      var expiryDate = selectedOption.getAttribute('data-expiry');
+      var available = selectedOption.getAttribute('data-available');
+      
+      // Store in hidden fields
+      $("#batchNumber"+row).val(batchNum);
+      $("#expiryDate"+row).val(expiryDate);
+      
+      // Update available quantity for this specific batch
+      $("#available_quantity"+row).text(available);
+      
+      // Reset quantity to 1
+      $("#quantity"+row).val(1);
+      
+      // Recalculate totals
+      subAmount();
+    }
+  }
+}
+
 function removeProductRow(row = null) {
   if(row) {
     $("#row"+row).remove();
@@ -879,7 +898,7 @@ function getProductData(row = null) {
     
     if(productId == "") {
       $("#rate"+row).val("");
-
+      $("#batchId"+row).html('<option value="">Select Batch</option>');
       $("#quantity"+row).val("");           
       $("#total"+row).val("");
 
@@ -895,9 +914,26 @@ function getProductData(row = null) {
           $("#rate"+row).val(response.rate);
           $("#rateValue"+row).val(response.rate);
 
+          // Store GST rate in hidden field (per-product)
+          $("#gstRate"+row).val(response.gst_rate ?? 5);
+
           // PTR (purchase rate) - only visible to invoice creator
           $("#ptr"+row).val(response.purchase_rate ?? '');
           $("#ptrValue"+row).val(response.purchase_rate ?? 0);
+
+          // Populate batch dropdown
+          var batchList = response.batches || [];
+          var batchOptions = '<option value="">Select Batch</option>';
+          
+          if(batchList.length > 0) {
+            $.each(batchList, function(i, batch) {
+              var expiryText = new Date(batch.expiry_date).toLocaleDateString();
+              batchOptions += '<option value="' + batch.batch_id + '" data-batch-num="' + batch.batch_number + '" data-expiry="' + batch.expiry_date + '" data-available="' + batch.available_quantity + '">' + 
+                              batch.batch_number + ' (Exp: ' + expiryText + ', Qty: ' + batch.available_quantity + ')' + 
+                              '</option>';
+            });
+          }
+          $("#batchId"+row).html(batchOptions);
 
           $("#quantity"+row).val(1);
           $("#available_quantity"+row).text(response.quantity);
@@ -965,28 +1001,31 @@ function getTotal(row = null) {
 function subAmount() {
   var tableProductLength = $("#productTable tbody tr").length;
   var totalSubAmount = 0;
+  var totalGST = 0;
+  
+  // Calculate line items total and per-item GST
   for(x = 0; x < tableProductLength; x++) {
     var tr = $("#productTable tbody tr")[x];
     var count = $(tr).attr('id');
     count = count.substring(3);
 
-    totalSubAmount = Number(totalSubAmount) + Number($("#total"+count).val());
+    var lineAmount = Number($("#total"+count).val()) || 0;
+    var gstRate = Number($("#gstRate"+count).val()) || 5;
+    var lineGST = (lineAmount / 100) * gstRate;
+    
+    totalSubAmount = Number(totalSubAmount) + lineAmount;
+    totalGST = Number(totalGST) + lineGST;
   } // /for
 
   totalSubAmount = totalSubAmount.toFixed(2);
+  totalGST = totalGST.toFixed(2);
 
   // sub total
   $("#subTotal").val(totalSubAmount);
   $("#subTotalValue").val(totalSubAmount);
 
-  var gstPercentage = $("#gstPercentage").val();
-  var gstRate = 5; // default
-  if(gstPercentage != 'manual') {
-    gstRate = Number(gstPercentage);
-  }
-
-  // vat
-  var vat = (Number($("#subTotal").val())/100) * gstPercentage;
+  // vat - calculated per-item GST rates
+  var vat = totalGST;
   vat = vat.toFixed(2);
   $("#vat").val(vat);
   $("#vatValue").val(vat);
