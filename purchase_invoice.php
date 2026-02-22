@@ -58,6 +58,16 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
                             <input type="text" name="invoice_no" id="invoice_no" class="form-control form-control-md" placeholder="e.g., INV-2026-001" required>
                         </div>
 
+                        <!-- Row 1.5: Supplier Invoice Details -->
+                        <div class="col-md-6">
+                            <label class="form-label"><strong>Supplier Invoice No. <span class="text-danger">*</span></strong></label>
+                            <input type="text" name="supplier_invoice_no" id="supplier_invoice_no" class="form-control form-control-md" placeholder="e.g., SUP-INV-2026-001" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label"><strong>Supplier Invoice Date <span class="text-danger">*</span></strong></label>
+                            <input type="date" name="supplier_invoice_date" id="supplier_invoice_date" class="form-control form-control-md" required>
+                        </div>
+
                         <!-- Row 2: Dates -->
                         <div class="col-md-3">
                             <label class="form-label"><strong>Invoice Date <span class="text-danger">*</span></strong></label>
@@ -72,15 +82,11 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
                             <input type="text" name="po_reference" id="po_reference" class="form-control form-control-md" placeholder="PO-001">
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label"><strong>GRN Reference</strong></label>
-                            <input type="text" name="grn_reference" id="grn_reference" class="form-control form-control-md" placeholder="GRN-001">
+                            <label class="form-label"><strong>Place of Supply</strong></label>
+                            <input type="text" name="place_of_supply" id="place_of_supply" class="form-control form-control-md" value="Gujarat" readonly>
                         </div>
 
                         <!-- Row 3: Additional Fields -->
-                        <div class="col-md-3">
-                            <label class="form-label"><strong>Currency</strong></label>
-                            <input type="text" name="currency" id="currency" class="form-control form-control-md" value="INR" readonly>
-                        </div>
                         <div class="col-md-3">
                             <label class="form-label"><strong>GST Type <span class="text-danger">*</span></strong></label>
                             <select name="gst_type" id="gst_type" class="form-control form-control-md" required>
@@ -97,9 +103,8 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
                             <label class="form-label"><strong>Invoice Status</strong></label>
                             <select name="status" id="status" class="form-control form-control-md">
                                 <option value="Draft">Draft</option>
-                                <option value="Received">Received</option>
-                                <option value="Matched">Matched</option>
                                 <option value="Approved">Approved</option>
+                                <option value="Cancelled">Cancelled</option>
                             </select>
                         </div>
                     </div>
@@ -139,25 +144,25 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
                         </button>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover table-bordered" id="itemsTable">
-                            <thead class="table-light">
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-hover table-sm mb-0" id="itemsTable" style="font-size: 0.9rem;">
+                            <thead class="table-light sticky-top">
                                 <tr>
-                                    <th style="width:14%">Product Name</th>
-                                    <th style="width:5%">HSN</th>
-                                    <th style="width:6%">Batch</th>
-                                    <th style="width:6%">MFG</th>
-                                    <th style="width:6%">Expiry</th>
-                                    <th style="width:5%">Qty</th>
-                                    <th style="width:5%">Free</th>
-                                    <th style="width:7%">Cost</th>
-                                    <th style="width:7%">MRP</th>
-                                    <th style="width:6%">Margin %</th>
-                                    <th style="width:5%">Disc%</th>
-                                    <th style="width:5%">GST%</th>
-                                    <th style="width:8%">Total</th>
-                                    <th style="width:3%">×</th>
+                                    <th style="width:15%; min-width:200px;">Product</th>
+                                    <th style="width:6%; min-width:110px;">HSN</th>
+                                    <th style="width:8%; min-width:110px;">Batch</th>
+                                    <th style="width:7%; min-width:75px;">MFG Date</th>
+                                    <th style="width:7%; min-width:75px;">Expiry</th>
+                                    <th style="width:6%; min-width:80px;">Qty</th>
+                                    <th style="width:6%; min-width:70px;">Free</th>
+                                    <th style="width:7%; min-width:75px;">Cost/Unit</th>
+                                    <th style="width:7%; min-width:75px;">MRP</th>
+                                    <th style="width:6%; min-width:75px;">Margin%</th>
+                                    <th style="width:6%; min-width:70px;">Disc%</th>
+                                    <th style="width:6%; min-width:70px;">GST%</th>
+                                    <th style="width:8%; min-width:90px;" class="text-end">Line Total</th>
+                                    <th style="width:4%; min-width:45px;" class="text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -167,92 +172,89 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
                 </div>
             </div>
 
-            <!-- Summary Section -->
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0"><i class="fa fa-sticky-note"></i> Notes</h5>
+            <!-- Summary Section - Horizontal Layout -->
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fa fa-calculator"></i> Invoice Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2 mb-3" style="font-size: 0.95rem;">
+                        <!-- Subtotal -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 border-end pe-3">
+                            <div class="text-muted small">Subtotal</div>
+                            <div class="h5 text-dark mb-0" id="subtotal">₹ 0.00</div>
                         </div>
-                        <div class="card-body">
-                            <textarea name="notes" id="notes" class="form-control" rows="4" placeholder="Invoice notes, terms & conditions, etc."></textarea>
+                        <!-- Discount -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 border-end pe-3">
+                            <div class="text-muted small">Discount</div>
+                            <div class="h5 text-danger mb-0" id="total_discount">₹ 0.00</div>
+                        </div>
+                        <!-- Taxable -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 border-end pe-3">
+                            <div class="text-muted small">Taxable</div>
+                            <div class="h5 text-dark mb-0" id="taxable_value">₹ 0.00</div>
+                        </div>
+                        <!-- GST/CGST/SGST/IGST -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 border-end pe-3">
+                            <div class="text-muted small">Tax</div>
+                            <div id="gst_details" style="display:none;">
+                                <div class="small">CGST: <span id="total_cgst">0.00</span></div>
+                                <div class="small">SGST: <span id="total_sgst">0.00</span></div>
+                            </div>
+                            <div id="igst_details" style="display:none;">
+                                <div class="small">IGST: <span id="total_igst">0.00</span></div>
+                            </div>
+                        </div>
+                        <!-- Grand Total -->
+                        <div class="col-lg-2 col-md-3 col-sm-4">
+                            <div class="text-muted small">Grand Total</div>
+                            <div class="h5 text-success font-weight-bold mb-0" id="grand_total">₹ 0.00</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Charges and Payment Section -->
+                    <hr class="my-3">
+                    <div class="row g-3">
+                        <div class="col-lg-2 col-md-3">
+                            <label class="form-label small mb-1"><strong>Freight</strong></label>
+                            <input type="number" step="0.01" id="freight" name="freight" class="form-control form-control-sm" placeholder="0.00" value="0">
+                        </div>
+                        <div class="col-lg-2 col-md-3">
+                            <label class="form-label small mb-1"><strong>Round Off</strong></label>
+                            <input type="number" step="0.01" id="round_off" name="round_off" class="form-control form-control-sm" placeholder="0.00" value="0">
+                        </div>
+                        <div class="col-lg-2 col-md-3">
+                            <label class="form-label small mb-1"><strong>Payment Mode</strong></label>
+                            <select id="payment_mode" name="payment_mode" class="form-control form-control-sm">
+                                <option value="Credit">Credit</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Bank">Bank</option>
+                                <option value="Cheque">Cheque</option>
+                       \
+                    
+                    
+                    
+                    </select>
+                        </div>
+                        <div class="col-lg-2 col-md-3">
+                            <label class="form-label small mb-1"><strong>Amount Paid</strong></label>
+                            <input type="number" step="0.01" id="paid_amount" name="paid_amount" class="form-control form-control-sm" placeholder="0.00" value="0">
+                        </div>
+                        <div class="col-lg-2 col-md-3">
+                            <label class="form-label small mb-1"><strong>Outstanding</strong></label>
+                            <div class="h5 text-warning font-weight-bold" id="outstanding_amount">₹ 0.00</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card bg-light">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="mb-0"><i class="fa fa-calculator"></i> Invoice Summary</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between mb-2">
-                                <strong>Subtotal:</strong>
-                                <span id="subtotal" class="h6">₹ 0.00</span>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <strong>Total Discount:</strong>
-                                <span id="total_discount" class="h6">₹ 0.00</span>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <strong>Taxable Value:</strong>
-                                <span id="taxable_value" class="h6">₹ 0.00</span>
-                            </div>
-                            <div id="gst_details" style="display:none;">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <strong>CGST:</strong>
-                                    <span id="total_cgst" class="h6">₹ 0.00</span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <strong>SGST:</strong>
-                                    <span id="total_sgst" class="h6">₹ 0.00</span>
-                                </div>
-                            </div>
-                            <div id="igst_details" style="display:none;">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <strong>IGST:</strong>
-                                    <span id="total_igst" class="h6">₹ 0.00</span>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <strong>Freight Charges:</strong>
-                                <div>
-                                    <input type="number" step="0.01" id="freight" name="freight" class="form-control form-control-sm d-inline-block" style="width: 120px;" value="0">
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <strong>Round Off:</strong>
-                                <div>
-                                    <input type="number" step="0.01" id="round_off" name="round_off" class="form-control form-control-sm d-inline-block" style="width: 120px;" value="0">
-                                </div>
-                            </div>
-                            <hr>
-                            <div class="d-flex justify-content-between mb-2">
-                                <h5>Grand Total:</h5>
-                                <h3 class="text-success" id="grand_total">₹ 0.00</h3>
-                            </div>
-                            <hr>
-                            <h6 class="text-info mb-3"><i class="fa fa-credit-card"></i> Payment Information</h6>
-                            <div class="d-flex justify-content-between mb-2">
-                                <strong>Payment Mode:</strong>
-                                <select id="payment_mode" name="payment_mode" class="form-control form-control-sm d-inline-block" style="width: 150px;">
-                                    <option value="Credit">Credit</option>
-                                    <option value="Cash">Cash</option>
-                                    <option value="Bank">Bank</option>
-                                    <option value="Cheque">Cheque</option>
-                                </select>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <strong>Amount Paid:</strong>
-                                <div>
-                                    <input type="number" step="0.01" id="paid_amount" name="paid_amount" class="form-control form-control-sm d-inline-block" style="width: 120px;" value="0">
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <h5 class="text-warning">Outstanding:</h5>
-                                <h5 class="text-warning" id="outstanding_amount">₹ 0.00</h5>
-                            </div>
-                        </div>
-                    </div>
+            </div>
+
+            <!-- Notes Section -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fa fa-sticky-note"></i> Notes & Terms</h5>
+                </div>
+                <div class="card-body">
+                    <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Invoice notes, terms & conditions, etc."></textarea>
                 </div>
             </div>
 
@@ -265,7 +267,7 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
                     <button type="button" id="approveBtn" class="btn btn-primary btn-lg me-2">
                         <i class="fa fa-check"></i> Save & Approve
                     </button>
-                    <a href="dashboard.php" class="btn btn-secondary btn-lg">
+                    <a href="invoice_list.php" class="btn btn-secondary btn-lg">
                         <i class="fa fa-times"></i> Cancel
                     </a>
                 </div>
@@ -276,8 +278,9 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
 
 <?php include('./constant/layout/footer.php'); ?>
 
-<script src="assets/js/jquery.min.js"></script>
-<script src="assets/js/bootstrap.bundle.min.js"></script>
+<!-- jQuery and Bootstrap CDN -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const products = <?php echo json_encode($products); ?>;
     const COMPANY_STATE = 'Gujarat'; // Auto-detect from DB in production
@@ -312,6 +315,9 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
                         } else if (supplierState) {
                             $('#gst_type').val('interstate').trigger('change');
                         }
+                        
+                        // Set place of supply
+                        $('#place_of_supply').val(supplierState || 'Gujarat');
                         
                         // Auto-fill payment terms based on supplier
                         if (s.payment_terms) $('#payment_terms').val(s.payment_terms);
@@ -350,9 +356,9 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
             <td><input type="number" step="0.001" class="form-control form-control-sm free_qty" value="0"></td>
             <td><input type="number" step="0.01" class="form-control form-control-sm unit_cost" value="0" required></td>
             <td><input type="number" step="0.01" class="form-control form-control-sm mrp" value="0" required title="Supplier quoted MRP"></td>
-            <td><input type="number" step="0.01" class="form-control form-control-sm margin_percent" value="0" readonly title="Calculated margin %"></td>
+            <td><input type="number" step="0.01" class="form-control form-control-sm margin_percent" value="0" readonly title="Calculated margin %" style="background-color: #fff3cd;"></td>
             <td><input type="number" step="0.01" class="form-control form-control-sm disc" value="0" title="Discount %"></td>
-            <td><input type="number" step="0.01" class="form-control form-control-sm gst_percent" value="0" required title="Tax rate from product master"></td>
+            <td><input type="number" step="0.01" class="form-control form-control-sm gst_percent" value="0" readonly title="Tax rate from product master (auto-populated)"></td>
             <td class="line_total text-end fw-bold">₹ 0.00</td>
             <td><button type="button" class="btn btn-sm btn-danger remove" title="Remove item"><i class="fa fa-trash"></i></button></td>
         </tr>
@@ -456,16 +462,23 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
             recalcTotals();
         });
 
-        // Recalculate on any input change
-        $('#itemsTable').on('input', 'input', recalcTotals);
-        $('#freight, #round_off, #paid_amount, #gst_type').on('input change', recalcTotals);
+        // Debounced recalc to improve performance when typing
+        let recalcTimer;
+        function scheduleRecalc() {
+            clearTimeout(recalcTimer);
+            recalcTimer = setTimeout(recalcTotals, 100);
+        }
         
-        // GST type change should also recalculate
-        $('#gst_type').on('change', recalcTotals);
+        // Recalculate on any input change (debounced)
+        $('#itemsTable').on('input', 'input', scheduleRecalc);
+        $('#freight, #round_off, #paid_amount, #gst_type').on('input change', scheduleRecalc);
+        
+        // GST type change should also recalculate (debounced)
+        $('#gst_type').on('change', scheduleRecalc);
 
-        // Product autocomplete
+        // Product autocomplete with fallback AJAX search
         $('#itemsTable').on('input', '.product_name', function(){
-            const val = $(this).val().toLowerCase();
+            const val = $(this).val().trim().toLowerCase();
             const row = $(this).closest('tr');
             const suggest = row.find('.product_suggest');
             
@@ -474,10 +487,36 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
                 return;
             }
             
-            let matches = products.filter(p => 
-                p.product_name.toLowerCase().includes(val) || 
-                p.product_id.toString().includes(val)
-            ).slice(0, 10);
+            // Try local search first
+            let matches = products.filter(p => {
+                const pname = (p.product_name || '').toLowerCase();
+                const pid = (p.product_id || '').toString();
+                return pname.includes(val) || pid.includes(val);
+            }).slice(0, 10);
+            
+            if (matches.length === 0 && val.length > 2) {
+                // Fallback: Search via AJAX if no local match and query is long enough
+                $.ajax({
+                    url: 'php_action/searchMedicines.php',
+                    method: 'GET',
+                    data: { q: val },
+                    dataType: 'json',
+                    success: function(results) {
+                        if (results && results.length > 0) {
+                            let html = results.slice(0, 10).map(p => 
+                                `<div class="product-option" data-product-id="${p.product_id}" data-product-name="${p.product_name}" data-hsn-code="${p.hsn_code || ''}" data-gst-rate="${p.gst_rate || 0}" style="padding:8px 10px; cursor:pointer; border-bottom:1px solid #eee;">${p.product_name} <span style="color:#999; font-size:0.85em;">(${p.product_id}) GST:${p.gst_rate || 0}%</span></div>`
+                            ).join('');
+                            suggest.html(html).show();
+                        } else {
+                            suggest.html('<div style="padding:5px; color:#999;">No products found</div>').show();
+                        }
+                    },
+                    error: function() {
+                        suggest.html('<div style="padding:5px; color:#999;">Search error</div>').show();
+                    }
+                });
+                return;
+            }
             
             if (matches.length === 0) {
                 suggest.html('<div style="padding:5px; color:#999;">No products found</div>').show();
@@ -640,15 +679,26 @@ if ($res) while ($r = $res->fetch_assoc()) $products[] = $r;
             return;
         }
 
+        // Validate new fields
+        if (!$('#supplier_invoice_no').val()) {
+            alert('Please enter supplier invoice number');
+            return;
+        }
+        if (!$('#supplier_invoice_date').val()) {
+            alert('Please enter supplier invoice date');
+            return;
+        }
+        
         const payload = {
             supplier_id: $('#supplier_id').val(),
             invoice_no: $('#invoice_no').val(),
+            supplier_invoice_no: $('#supplier_invoice_no').val(),
+            supplier_invoice_date: $('#supplier_invoice_date').val(),
             invoice_date: $('#invoice_date').val(),
             due_date: $('#due_date').val() || null,
             po_reference: $('#po_reference').val(),
-            grn_reference: $('#grn_reference').val(),
+            place_of_supply: $('#place_of_supply').val(),
             gst_type: gstType,
-            currency: $('#currency').val(),
             subtotal: parseFloat($('#subtotal').text().replace('₹ ', '')) || 0,
             total_discount: parseFloat($('#total_discount').text().replace('₹ ', '')) || 0,
             taxable_value: parseFloat($('#taxable_value').text().replace('₹ ', '')) || 0,

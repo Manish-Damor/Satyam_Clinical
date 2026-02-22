@@ -17,7 +17,7 @@
                         </li> 
                  
                          <?php if(isset($_SESSION['userId'])) { ?>
-                        <li> <a class="has-arrow" href="#" aria-expanded="false"><i class="fa fa-industry"></i><span class="hide-menu">Manufacturer</span></a>
+                        <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-industry"></i><span class="hide-menu">Manufacturer</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
                                 <li><a href="add-brand.php">Add Manufacturer</a></li>
@@ -28,7 +28,7 @@
                         </li>
                     <?php }?>
                         <?php if(isset($_SESSION['userId'])) { ?>
-                        <li> <a class="has-arrow" href="#" aria-expanded="false"><i class="fa fa-list"></i><span class="hide-menu">Categories</span></a>
+                        <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-list"></i><span class="hide-menu">Categories</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
                                 <li><a href="add-category.php">Add Category</a></li>
@@ -38,7 +38,7 @@
                         </li>
                     <?php }?>
                     <?php if(isset($_SESSION['userId'])) { ?>
-                        <li> <a class="has-arrow" href="#" aria-expanded="false"><i class="fa fa-medkit"></i><span class="hide-menu">Medicine</span></a>
+                        <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-medkit"></i><span class="hide-menu">Medicine</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
                                 <li><a href="addProductStock.php">Add Medicine Stock</a></li>
@@ -49,7 +49,7 @@
                             </ul>
                         </li>
                     <?php }?>
-                        <li> <a class="has-arrow" href="#" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Sales Invoice</span></a>
+                        <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Sales Invoice</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
                                 <li><a href="add-order.php">Add Sales Invoice</a></li>
@@ -59,7 +59,7 @@
                         </li>
 
                         <?php if(isset($_SESSION['userId'])) { ?>
-                        <li> <a class="has-arrow" href="#" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Purchase Invoice</span></a>
+                        <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Purchase Invoice</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
                                 <li><a href="purchase_invoice.php">Create Invoice</a></li>
@@ -70,7 +70,7 @@
 
                     <?php }?>
                         <?php if(isset($_SESSION['userId'])) { ?>
-                        <li> <a class="has-arrow" href="#" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Purchase Order</span></a>
+                        <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Purchase Order</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
                                 <li><a href="create_po.php">Create PO</a></li>
@@ -103,7 +103,7 @@
 
                   
 
-<li> <a class="has-arrow" href="#" aria-expanded="false"><i class="fa fa-flag"></i><span class="hide-menu">Reports</span></a>
+<li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-flag"></i><span class="hide-menu">Reports</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
                                 <!-- <li><a href="report.php">Order Report</a></li> -->
@@ -121,4 +121,19 @@
             </div>
             
         </div>
-        
+<script>
+// sidebar anchor click prevention to avoid '#' on URL
+document.addEventListener('DOMContentLoaded', function() {
+    var anchors = document.querySelectorAll('#sidebarnav a.has-arrow');
+    anchors.forEach(function(a) {
+        a.addEventListener('click', function(e) {
+            e.preventDefault();
+            var parent = a.parentElement;
+            var sub = parent.querySelector('ul.collapse');
+            if (sub) {
+                sub.classList.toggle('show');
+            }
+        });
+    });
+});
+</script>        

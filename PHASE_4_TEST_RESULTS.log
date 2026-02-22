@@ -1,0 +1,22 @@
+PHASE 4 TEST RESULTS - 2026-02-20 09:47:01
+Total: 18 | Passed: 18 | Failed: 0
+Pass Rate: 100%
+
+[PASS ✅] Test 1.1: PO - Batch column NOT in form header
+[PASS ✅] Test 1.2: PO - No hardcoded GST section
+[PASS ✅] Test 1.3: PO - Tax calculation logic removed from JS
+[PASS ✅] Test 2.1: Sales - Global GST dropdown removed
+[PASS ✅] Test 2.2: Sales - Per-item gst_rate fields added
+[PASS ✅] Test 2.3: Sales - Per-item GST calculation logic
+[PASS ✅] Test 3.1: Sales - Batch selector dropdown added
+[PASS ✅] Test 3.2: Sales - updateBatchInfo() function added
+[PASS ✅] Test 3.3: Order handler - Collects batch_id from form
+[PASS ✅] Test 4.1: Controller - insertOrderItem() stores batch_id
+[PASS ✅] Test 4.2: Controller - decreaseStock() called with batch_id
+[PASS ✅] Test 4.3: Controller - Validates batch_id required
+[PASS ✅] Test 5.1: Controller - Uses 'SALES_ORDER' flag for expiry validation
+[PASS ✅] Test 5.2: StockService - Expiry validation for SALES_ORDER
+[PASS ✅] Test 5.3: StockService - Error message for expired batch
+[PASS ✅] Test 6.1: API - fetchSelectedProduct includes gst_rate
+[PASS ✅] Test 6.2: API - fetchSelectedProduct includes batches array
+[PASS ✅] Test 6.3: Order handler - Collects per-item gst_rate from form

@@ -244,7 +244,7 @@ if (!$invoice) {
                 <?php endif; ?>
                 
                 <?php if ($invoice['status'] === 'Draft'): ?>
-                    <a href="po_edit.php?id=<?=$invoiceId?>" class="btn btn-warning">
+                    <a href="invoice_edit.php?id=<?=$invoiceId?>" class="btn btn-warning">
                         <i class="fa fa-edit"></i> Edit Invoice
                     </a>
                 <?php endif; ?>
@@ -259,7 +259,7 @@ if (!$invoice) {
                     </button>
                 <?php endif; ?>
                 
-                <a href="po_list.php" class="btn btn-secondary">
+                <a href="invoice_list.php" class="btn btn-secondary">
                     <i class="fa fa-chevron-left"></i> Back to List
                 </a>
             </div>

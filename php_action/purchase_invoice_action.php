@@ -37,9 +37,20 @@ class PurchaseInvoiceAction {
         // 3. Check invoice number uniqueness
         $supplier_id = intval($data['supplier_id']);
         $invoice_no = $data['invoice_no'];
+        $supplier_invoice_no = $data['supplier_invoice_no'] ?? '';
+        
         $uniqueCheck = $connect->query("SELECT id FROM purchase_invoices WHERE supplier_id = $supplier_id AND invoice_no = '$invoice_no'");
         if ($uniqueCheck && $uniqueCheck->num_rows > 0) {
             return ['success' => false, 'error' => "Invoice number '$invoice_no' already exists for this supplier"];
+        }
+
+        // 3b. Check supplier invoice number uniqueness (prevent duplicates from same supplier)
+        if (!empty($supplier_invoice_no)) {
+            $supplier_invoice_no_escaped = $connect->real_escape_string($supplier_invoice_no);
+            $uniqueCheck = $connect->query("SELECT id FROM purchase_invoices WHERE supplier_id = $supplier_id AND supplier_invoice_no = '$supplier_invoice_no_escaped'");
+            if ($uniqueCheck && $uniqueCheck->num_rows > 0) {
+                return ['success' => false, 'error' => "Supplier invoice number '$supplier_invoice_no' already exists for this supplier. Cannot process duplicate invoice."];
+            }
         }
 
         // 4. Supplier existence check
@@ -66,17 +77,17 @@ class PurchaseInvoiceAction {
         
         $connect->begin_transaction();
         try {
-            // Insert invoice header with GST type and location info
+            // Insert invoice header with all required fields
             $sql = "INSERT INTO purchase_invoices (
-                supplier_id, invoice_no, invoice_date, po_reference, grn_reference,
-                payment_terms, due_date, currency, 
+                supplier_id, invoice_no, supplier_invoice_no, supplier_invoice_date,
+                invoice_date, po_reference, grn_reference, payment_terms, due_date, currency,
                 subtotal, total_discount, total_tax,
                 total_cgst, total_sgst, total_igst,
-                freight, round_off, grand_total, 
-                paid_amount, payment_mode, outstanding_amount,
-                company_location_state, supplier_location_state, gst_determination_type, supplier_gstin,
-                status, attachment_path, notes, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                freight, round_off, grand_total,
+                status, attachment_path, notes, created_by,
+                company_location_state, supplier_location_state, place_of_supply, gst_determination_type, is_gst_registered, supplier_gstin,
+                paid_amount, payment_mode, outstanding_amount
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             $stmt = $connect->prepare($sql);
             if (!$stmt) throw new Exception('Prepare header failed: ' . $connect->error);
@@ -86,12 +97,14 @@ class PurchaseInvoiceAction {
             // Extract header fields into local variables so bind_param receives references
             $v_supplier_id = $supplier_id;
             $v_invoice_no = $invoice_no;
+            $v_supplier_invoice_no = $data['supplier_invoice_no'] ?? '';
+            $v_supplier_invoice_date = $data['supplier_invoice_date'] ?? null;
             $v_invoice_date = $data['invoice_date'] ?? null;
             $v_po_reference = $data['po_reference'] ?? null;
-            $v_grn_reference = $data['grn_reference'] ?? null;
+            $v_grn_reference = null; // Deprecated, set null
             $v_payment_terms = $data['payment_terms'] ?? null;
             $v_due_date = $data['due_date'] ?? null;
-            $v_currency = $data['currency'] ?? null;
+            $v_currency = 'INR'; // Default currency
             $v_subtotal = $calculations['subtotal'];
             $v_total_discount = $calculations['total_discount'];
             $v_total_tax = $calculations['total_tax'];
@@ -101,22 +114,26 @@ class PurchaseInvoiceAction {
             $v_freight = $calculations['freight'];
             $v_round_off = $calculations['round_off'];
             $v_grand_total = $calculations['grand_total'];
-            $v_paid_amount = $calculations['paid_amount'];
-            $v_payment_mode = $data['payment_mode'] ?? null;
-            $v_outstanding_amount = $calculations['outstanding_amount'];
-            $v_company_state = $companyState;
-            $v_supplier_state = $supplierState;
-            $v_gst_type = $gst_type;
-            $v_supplier_gstin = $supplierGstin;
-            $v_status = $data['status'] ?? null;
+            $v_status = $data['status'] ?? 'Draft';
             $v_attachment_path = $data['attachment_path'] ?? null;
             $v_notes = $data['notes'] ?? null;
             $v_created_by = $_SESSION['userId'] ?? null;
+            $v_company_state = $companyState;
+            $v_supplier_state = $supplierState;
+            $v_place_of_supply = $data['place_of_supply'] ?? 'Gujarat';
+            $v_gst_type = $gst_type;
+            $v_is_gst_registered = 1; // Assume registered by default
+            $v_supplier_gstin = $supplierGstin;
+            $v_paid_amount = $calculations['paid_amount'];
+            $v_payment_mode = $data['payment_mode'] ?? null;
+            $v_outstanding_amount = $calculations['outstanding_amount'];
 
             $stmt->bind_param(
-                'isssssssddddddddddsdsssssssi',
+                'isssssssssdddddddddsssiissssidsd',
                 $v_supplier_id,
                 $v_invoice_no,
+                $v_supplier_invoice_no,
+                $v_supplier_invoice_date,
                 $v_invoice_date,
                 $v_po_reference,
                 $v_grn_reference,
@@ -132,17 +149,19 @@ class PurchaseInvoiceAction {
                 $v_freight,
                 $v_round_off,
                 $v_grand_total,
-                $v_paid_amount,
-                $v_payment_mode,
-                $v_outstanding_amount,
-                $v_company_state,
-                $v_supplier_state,
-                $v_gst_type,
-                $v_supplier_gstin,
                 $v_status,
                 $v_attachment_path,
                 $v_notes,
-                $v_created_by
+                $v_created_by,
+                $v_company_state,
+                $v_supplier_state,
+                $v_place_of_supply,
+                $v_gst_type,
+                $v_is_gst_registered,
+                $v_supplier_gstin,
+                $v_paid_amount,
+                $v_payment_mode,
+                $v_outstanding_amount
             );
 
             if (!$stmt->execute()) throw new Exception('Execute header failed: ' . $stmt->error);
@@ -222,9 +241,11 @@ class PurchaseInvoiceAction {
             }
             $itemStmt->close();
 
-            // Handle batch updates in stock_batches table
-            foreach ($calculations['items'] as $item) {
-                self::updateOrCreateStockBatch($invoice_id, $item, $supplier_id);
+            // Handle batch updates in stock_batches table ONLY IF STATUS IS APPROVED
+            if ($data['status'] === 'Approved') {
+                foreach ($calculations['items'] as $item) {
+                    self::updateOrCreateStockBatch($invoice_id, $item, $supplier_id);
+                }
             }
 
             $connect->commit();
@@ -246,6 +267,12 @@ class PurchaseInvoiceAction {
         if (empty($data['invoice_no'])) {
             return ['valid' => false, 'error' => 'Invoice number is required'];
         }
+        if (empty($data['supplier_invoice_no'])) {
+            return ['valid' => false, 'error' => 'Supplier invoice number is required'];
+        }
+        if (empty($data['supplier_invoice_date'])) {
+            return ['valid' => false, 'error' => 'Supplier invoice date is required'];
+        }
         if (empty($data['invoice_date'])) {
             return ['valid' => false, 'error' => 'Invoice date is required'];
         }
@@ -254,6 +281,12 @@ class PurchaseInvoiceAction {
         }
         if (!in_array($data['gst_type'], ['intrastate', 'interstate'])) {
             return ['valid' => false, 'error' => 'Invalid GST type'];
+        }
+        // Validate supplier_invoice_date <= invoice_date
+        $suppInvDate = new DateTime($data['supplier_invoice_date']);
+        $invDate = new DateTime($data['invoice_date']);
+        if ($suppInvDate > $invDate) {
+            return ['valid' => false, 'error' => 'Supplier invoice date cannot be after our invoice date'];
         }
         return ['valid' => true];
     }
@@ -326,6 +359,10 @@ class PurchaseInvoiceAction {
             $mrp = floatval($item['mrp'] ?? 0);
             $free_qty = floatval($item['free_qty'] ?? 0);
 
+            // Calculate effective rate (cost per unit when free items are included)
+            $total_qty = $qty + $free_qty;
+            $effective_rate = ($total_qty > 0) ? ($qty * $unit_cost) / $total_qty : $unit_cost;
+
             // Line calculations
             $lineAmount = $qty * $unit_cost;
             $discount_amount = ($lineAmount * $discount_percent) / 100;
@@ -368,6 +405,7 @@ class PurchaseInvoiceAction {
                 'qty' => $qty,
                 'free_qty' => $free_qty,
                 'unit_cost' => $unit_cost,
+                'effective_rate' => $effective_rate,
                 'mrp' => $mrp,
                 'discount_percent' => $discount_percent,
                 'discount_amount' => $discount_amount,
@@ -418,6 +456,8 @@ class PurchaseInvoiceAction {
         $manufacture_date = $item['manufacture_date'];
         $expiry_date = $item['expiry_date'];
         $qty = floatval($item['qty']);
+        $free_qty = floatval($item['free_qty'] ?? 0);
+        $total_qty = $qty + $free_qty; // TOTAL stock quantity includes free items
         $mrp = floatval($item['mrp']);
         $cost_price = floatval($item['unit_cost']);
         $tax_rate = floatval($item['tax_rate'] ?? 0);
@@ -431,21 +471,21 @@ class PurchaseInvoiceAction {
         $checkStmt->close();
 
             if ($result->num_rows > 0) {
-                // Update existing batch - add to quantity
+                // Update existing batch - add to quantity (using total qty)
                 $row = $result->fetch_assoc();
                 $batch_id = $row['id'];
                 $updateSql = "UPDATE stock_batches SET qty = qty + ? WHERE id = ?";
                 $updateStmt = $connect->prepare($updateSql);
-                $updateStmt->bind_param('di', $qty, $batch_id);
+                $updateStmt->bind_param('di', $total_qty, $batch_id);
                 $updateStmt->execute();
                 $updateStmt->close();
             } else {
-            // Insert new batch with supplier and invoice tracking
+            // Insert new batch with supplier and invoice tracking (using total qty)
             $insertSql = "INSERT INTO stock_batches (product_id, batch_no, manufacture_date, expiry_date, qty, mrp, cost_price, supplier_id, invoice_id, gst_rate_applied, created_by) 
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $insertStmt = $connect->prepare($insertSql);
             $userId = $_SESSION['userId'] ?? null;
-            $insertStmt->bind_param('isssddiiidi', $product_id, $batch_no, $manufacture_date, $expiry_date, $qty, $mrp, $cost_price, $supplier_id, $invoice_id, $tax_rate, $userId);
+            $insertStmt->bind_param('isssddiiidi', $product_id, $batch_no, $manufacture_date, $expiry_date, $total_qty, $mrp, $cost_price, $supplier_id, $invoice_id, $tax_rate, $userId);
             $insertStmt->execute();
             $insertStmt->close();
         }

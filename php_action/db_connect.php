@@ -3,7 +3,7 @@
 $localhost = "localhost";
 $username = "root";
 $password = "";
-$dbname = "satyam_clinical";
+$dbname = "satyam_clinical_new";
 $store_url = "http://localhost/Satyam_Clinical/";
 // db connection
 $connect = new mysqli($localhost, $username, $password, $dbname);

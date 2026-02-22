@@ -220,51 +220,6 @@ $notesVal = $editing ? $existingPo['notes'] : '';
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <!-- <table class="table table-bordered table-sm" id="itemsTable">
-                            <thead class="bg-light">
-                                <tr>
-                                    <th style="width:18%;">Medicine Name</th>
-                                    <th style="width:8%;">HSN Code</th>
-                                    <th style="width:10%;">Pack Size</th>
-                                    <th style="width:8%;">Batch No.</th>
-                                    <th style="width:8%;">Expiry Date</th>
-                                    <th style="width:7%;">MRP</th>
-                                    <th style="width:7%;">PTR</th>
-                                    <th style="width:8%;">Rate</th>
-                                    <th style="width:7%;">Qty</th>
-                                    <th style="width:8%;">Discount %</th>
-                                    <th style="width:8%;">Amount</th>
-                                    <th style="width:8%;">Tax %</th>
-                                    <th style="width:8%;">Total</th>
-                                    <th style="width:5%;">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="itemsBody">
-                                <tr class="item-row">
-                                    <td>
-                                        <div style="position: relative;">
-                                            <input type="text" class="form-control form-control-sm medicine-search" placeholder="Search..." autocomplete="off">
-                                            <input type="hidden" class="medicine-id" name="medicine_id[]">
-                                            <div class="medicine-dropdown" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 250px; overflow-y: auto; display: none; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"></div>
-                                        </div>
-                                    </td>
-                                    <td><input type="text" class="form-control form-control-sm hsn-code" readonly></td>
-                                    <td><input type="text" class="form-control form-control-sm pack-size" readonly></td>
-                                    <td><input type="text" class="form-control form-control-sm batch-number" readonly></td>
-                                    <td><input type="date" class="form-control form-control-sm expiry-date" readonly></td>
-                                    <td><input type="number" class="form-control form-control-sm mrp-value" step="0.01" readonly></td>
-                                    <td><input type="number" class="form-control form-control-sm ptr-value" step="0.01" readonly style="background-color: #fff3cd;"></td>
-                                    <td><input type="number" class="form-control form-control-sm unit-price" name="unit_price[]" step="0.01" min="0"></td>
-                                    <td><input type="number" class="form-control form-control-sm quantity" name="quantity[]" min="1" value="0"></td>
-                                    <td><input type="number" class="form-control form-control-sm discount-percent" name="discount_percent[]" step="0.01" min="0" value="0"></td>
-                                    <td><input type="number" class="form-control form-control-sm line-amount" readonly style="background-color: #f0f0f0;"></td>
-                                    <td><input type="number" class="form-control form-control-sm tax-percent" name="tax_percent[]" step="0.01" value="18"></td>
-                                    <td><input type="number" class="form-control form-control-sm item-total" readonly style="background-color: #f0f0f0;"></td>
-                                    <td><button type="button" class="btn btn-danger btn-sm remove-row">Remove</button></td>
-                                </tr>
-                            </tbody>
-                        </table> -->
-                        <div class="table-responsive">
                         <table class="table table-bordered table-sm">
                             <thead class="bg-light">
                                 <tr>
