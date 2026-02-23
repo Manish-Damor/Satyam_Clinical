@@ -41,9 +41,9 @@ $supplier = $suppRes ? $suppRes->fetch_assoc() : null;
                 <a href="po_list.php" class="btn btn-secondary btn-sm">
                     <i class="fa fa-chevron-left"></i> Back to List
                 </a>
-                <button class="btn btn-primary btn-sm" onclick="window.print()">
-                    <i class="fa fa-print"></i> Print
-                </button>
+                <a href="print_po.php?id=<?=$poId?>" class="btn btn-primary btn-sm" target="_blank">
+                    <i class="fa fa-print"></i> Print PO
+                </a>
             </div>
         </div>
 
@@ -151,10 +151,10 @@ $supplier = $suppRes ? $suppRes->fetch_assoc() : null;
                                 <tr>
                                     <td><?=htmlspecialchars($item['product_name'] ?? $item['item_description'])?></td>
                                     <td><?=htmlspecialchars($item['unit_type'] ?? '-')?></td>
-                                    <td class="text-end"><?=number_format($item['quantity'], 2)?></td>
-                                    <td class="text-end">₹ <?=number_format($item['unit_price'], 2)?></td>
-                                    <td class="text-end"><?=number_format($item['discount_percentage'] ?? 0, 2)?>%</td>
-                                    <td class="text-end fw-bold">₹ <?=number_format($item['line_total'], 2)?></td>
+                                    <td class="text-end"><?=number_format($item['quantity_ordered'] ?? 0, 2)?></td>
+                                    <td class="text-end">₹ <?=number_format($item['unit_price'] ?? 0, 2)?></td>
+                                    <td class="text-end"><?=number_format($item['discount_percent'] ?? 0, 2)?>%</td>
+                                    <td class="text-end fw-bold">₹ <?=number_format($item['total_price'] ?? 0, 2)?></td>
                                     <td class="text-center"><?=!empty($item['quantity_received']) ? number_format($item['quantity_received'], 2) : '-'?></td>
                                 </tr>
                             <?php endforeach; ?>
@@ -185,11 +185,11 @@ $supplier = $suppRes ? $suppRes->fetch_assoc() : null;
                                 <td class="text-end">₹ <?=number_format($po['subtotal'], 2)?></td>
                             </tr>
                             <tr>
-                                <td><strong>Discount {{$po['discount_percentage']}}%:</strong></td>
-                                <td class="text-end">-₹ <?=number_format($po['discount_amount'], 2)?></td>
+                                <td><strong>Discount <?=number_format($po['discount_percentage'] ?? 0, 2)?>%:</strong></td>
+                                <td class="text-end">-₹ <?=number_format($po['discount_amount'] ?? 0, 2)?></td>
                             </tr>
                             <tr>
-                                <td><strong>GST {{$po['gst_percentage']}}%:</strong></td>
+                                <td><strong>GST <?=number_format($po['gst_percentage'] ?? 0, 2)?>%:</strong></td>
                                 <td class="text-end">₹ <?=number_format($po['gst_amount'], 2)?></td>
                             </tr>
                             <tr>
@@ -200,22 +200,7 @@ $supplier = $suppRes ? $suppRes->fetch_assoc() : null;
                                 <td>Grand Total:</td>
                                 <td class="text-end text-success">₹ <?=number_format($po['grand_total'], 2)?></td>
                             </tr>
-                            <tr>
-                                <td><strong>Payment Status:</strong></td>
-                                <td class="text-end">
-                                    <?php 
-                                        $payClass = match($po['payment_status']) {
-                                            'Paid' => 'success',
-                                            'PartialPaid' => 'warning',
-                                            'Due' => 'info',
-                                            'Overdue' => 'danger',
-                                            'NotDue' => 'secondary',
-                                            default => 'secondary'
-                                        };
-                                    ?>
-                                    <span class="badge bg-<?=$payClass?>"><?=$po['payment_status']?></span>
-                                </td>
-                            </tr>
+                            <!-- Payment status removed from PO module (handled elsewhere) -->
                         </table>
                     </div>
                 </div>
@@ -225,28 +210,29 @@ $supplier = $suppRes ? $suppRes->fetch_assoc() : null;
         <!-- Action Buttons -->
         <div class="row">
             <div class="col-md-12">
-                <?php if ($po['po_status'] !== 'Approved' && $po['po_status'] !== 'Received'): ?>
-                    <button class="btn btn-success btn-approve-po" data-id="<?=$poId?>">
-                        <i class="fa fa-check"></i> Approve PO
-                    </button>
-                <?php endif; ?>
-                
                 <?php if ($po['po_status'] === 'Draft'): ?>
-                    <a href="editorder.php?po_id=<?=$poId?>" class="btn btn-warning">
+                    <a href="create_po.php?id=<?=$poId?>" class="btn btn-warning">
                         <i class="fa fa-edit"></i> Edit PO
                     </a>
+                    <button class="btn btn-primary btn-submit-po" data-id="<?=$poId?>"><i class="fa fa-upload"></i> Submit</button>
+                    <button class="btn btn-danger btn-cancel-po" data-id="<?=$poId?>"><i class="fa fa-trash"></i> Cancel</button>
+                <?php elseif ($po['po_status'] === 'Submitted'): ?>
+                    <button class="btn btn-success btn-approve-po" data-id="<?=$poId?>"><i class="fa fa-check"></i> Approve</button>
+                    <button class="btn btn-secondary btn-reject-po" data-id="<?=$poId?>"><i class="fa fa-undo"></i> Reject</button>
+                    <button class="btn btn-danger btn-cancel-po" data-id="<?=$poId?>"><i class="fa fa-trash"></i> Cancel</button>
+                <?php elseif ($po['po_status'] === 'Approved'): ?>
+                    <button class="btn btn-primary btn-mark-partial" data-id="<?=$poId?>"><i class="fa fa-box"></i> Partial Receive</button>
+                    <button class="btn btn-success btn-mark-received" data-id="<?=$poId?>"><i class="fa fa-check-circle"></i> Receive All</button>
+                <?php elseif ($po['po_status'] === 'PartialReceived'): ?>
+                    <button class="btn btn-primary btn-update-received" data-id="<?=$poId?>"><i class="fa fa-edit"></i> Update Received Qty</button>
+                <?php elseif ($po['po_status'] === 'Received'): ?>
+                    <button class="btn btn-dark btn-close-po" data-id="<?=$poId?>"><i class="fa fa-lock"></i> Close PO</button>
                 <?php endif; ?>
-                
-                <button class="btn btn-info" onclick="window.print()">
+
+                <a href="print_po.php?id=<?=$poId?>" target="_blank" class="btn btn-info">
                     <i class="fa fa-print"></i> Print PO
-                </button>
-                
-                <?php if ($po['po_status'] !== 'Received' && $po['po_status'] !== 'Cancelled'): ?>
-                    <button class="btn btn-danger btn-delete-po" data-id="<?=$poId?>">
-                        <i class="fa fa-times"></i> Cancel PO
-                    </button>
-                <?php endif; ?>
-                
+                </a>
+
                 <a href="po_list.php" class="btn btn-secondary">
                     <i class="fa fa-chevron-left"></i> Back to List
                 </a>
@@ -259,62 +245,90 @@ $supplier = $suppRes ? $suppRes->fetch_assoc() : null;
 
 <script src="assets/js/jquery.min.js"></script>
 <script src="assets/js/bootstrap.bundle.min.js"></script>
+<!-- Update Received Modal -->
+<div class="modal fade" id="updateReceivedModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Received Quantities - PO #<?=htmlspecialchars($po['po_number'])?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="updateReceivedForm">
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="update_received">
+                    <input type="hidden" name="po_id" value="<?=$poId?>">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th class="text-end">Ordered</th>
+                                    <th class="text-end">Already Received</th>
+                                    <th class="text-end">Update Received</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($items as $it): ?>
+                                    <tr>
+                                        <td><?=htmlspecialchars($it['product_name'] ?? $it['item_description'])?></td>
+                                        <td class="text-end"><?=number_format($it['quantity_ordered'] ?? 0, 2)?></td>
+                                        <td class="text-end"><?=number_format($it['quantity_received'] ?? 0, 2)?></td>
+                                        <td class="text-end">
+                                            <input type="hidden" name="item_id[]" value="<?=$it['po_item_id']?>">
+                                            <input name="quantity_received[]" type="number" step="0.01" min="0" class="form-control form-control-sm text-end" value="<?=number_format($it['quantity_received'] ?? 0, 2, '.', '')?>">
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Received Quantities</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <script>
-    // Approve PO button
-    $(document).on('click', '.btn-approve-po', function(){
-        const poId = $(this).data('id');
-        
-        if (!confirm('Mark this PO as Approved?')) return;
-
-        $.ajax({
-            url: 'php_action/po_actions.php',
-            method: 'POST',
-            data: {
-                action: 'approve_po',
-                po_id: poId
-            },
-            dataType: 'json',
-            success: function(resp){
-                if (resp.success) {
-                    alert('✓ PO approved successfully');
-                    location.reload();
-                } else {
-                    alert('✗ Error: ' + resp.error);
-                }
-            },
-            error: function(){
-                alert('Server error occurred');
-            }
-        });
+    // Reuse handlers from list page
+    $(document).on('click', '.btn-submit-po', function(){
+        const poId = $(this).data('id'); if (!confirm('Submit this PO for approval?')) return;
+        $.post('php_action/po_actions.php', { action: 'submit_po', po_id: poId }, function(resp){ if (resp.success) { alert(resp.message); location.reload(); } else alert('Error: '+resp.error); }, 'json').fail(()=>alert('Server error'));
     });
 
-    // Cancel/Delete PO button
-    $(document).on('click', '.btn-delete-po', function(){
-        const poId = $(this).data('id');
-        
-        if (!confirm('Are you sure you want to cancel this PO?')) return;
+    $(document).on('click', '.btn-approve-po', function(){ const poId = $(this).data('id'); if (!confirm('Approve this PO?')) return; $.post('php_action/po_actions.php', { action: 'approve_po', po_id: poId }, function(resp){ if (resp.success) { alert(resp.message); location.reload(); } else alert('Error: '+resp.error); }, 'json').fail(()=>alert('Server error')); });
 
-        $.ajax({
-            url: 'php_action/po_actions.php',
-            method: 'POST',
-            data: {
-                action: 'cancel_po',
-                po_id: poId
-            },
-            dataType: 'json',
-            success: function(resp){
-                if (resp.success) {
-                    alert('✓ PO cancelled successfully');
-                    window.location.href = 'po_list.php';
-                } else {
-                    alert('✗ Error: ' + resp.error);
-                }
-            },
-            error: function(){
-                alert('Server error occurred');
-            }
-        });
+    $(document).on('click', '.btn-reject-po', function(){ const poId = $(this).data('id'); if (!confirm('Reject to Draft?')) return; $.post('php_action/po_actions.php', { action: 'reject_po', po_id: poId }, function(resp){ if (resp.success) { alert(resp.message); location.reload(); } else alert('Error: '+resp.error); }, 'json').fail(()=>alert('Server error')); });
+
+    $(document).on('click', '.btn-cancel-po', function(){ const poId = $(this).data('id'); if (!confirm('Cancel this PO? This cannot be undone.')) return; $.post('php_action/po_actions.php', { action: 'cancel_po', po_id: poId }, function(resp){ if (resp.success) { alert(resp.message); window.location.href='po_list.php'; } else alert('Error: '+resp.error); }, 'json').fail(()=>alert('Server error')); });
+
+    $(document).on('click', '.btn-mark-received', function(){ const poId = $(this).data('id'); if (!confirm('Mark all items as received?')) return; $.post('php_action/po_actions.php', { action: 'mark_received', po_id: poId }, function(resp){ if (resp.success) { alert(resp.message); location.reload(); } else alert('Error: '+resp.error); }, 'json').fail(()=>alert('Server error')); });
+
+    $(document).on('click', '.btn-mark-partial, .btn-update-received', function(){
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const m = new bootstrap.Modal(document.getElementById('updateReceivedModal'));
+            m.show();
+        } else if ($.fn && $.fn.modal) {
+            $('#updateReceivedModal').modal('show');
+        } else {
+            alert('Modal not available');
+        }
     });
+
+    // Submit updated received quantities
+    $('#updateReceivedForm').on('submit', function(e){
+        e.preventDefault();
+        const form = $(this);
+        const data = form.serialize();
+        $.post('php_action/po_actions.php', data, function(resp){
+            if (resp.success) { alert(resp.message); location.reload(); }
+            else alert('Error: '+(resp.error||'Unknown'));
+        }, 'json').fail(()=>alert('Server error'));
+    });
+
+    $(document).on('click', '.btn-close-po', function(){ const poId = $(this).data('id'); if (!confirm('Close this PO (read-only)?')) return; $.post('php_action/po_actions.php', { action: 'close_po', po_id: poId }, function(resp){ if (resp.success) { alert(resp.message); location.reload(); } else alert('Error: '+resp.error); }, 'json').fail(()=>alert('Server error')); });
 </script>
 
 </body>

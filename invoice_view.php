@@ -2,6 +2,66 @@
 <?php include('./constant/layout/header.php'); ?>
 <?php include('./constant/layout/sidebar.php'); ?>
 
+<!-- Print styles: hide UI chrome and try to fit invoice on a single page -->
+<style>
+@media print {
+    @page { size: A4 portrait; margin: 10mm; }
+    html, body { background: #fff; color: #000; }
+    body { -webkit-print-color-adjust: exact; }
+
+    /* Hide navigation and controls */
+    .left-sidebar, .header, .top-navbar, .navbar, .sidebar-toggle, .sidebartoggler, .nav-toggler,
+    .breadcrumb, .page-titles .text-end, .btn, .btn-approve, .btn-delete, .profile-pic, .dropdown,
+    .mailbox, .navbar-nav, .page-footer, footer { display: none !important; }
+
+    /* Simplify layout for print */
+    .page-wrapper, .container-fluid { margin: 0; padding: 0; width: 100% !important; }
+    .card { box-shadow: none !important; border: none !important; }
+    .card-header { background: transparent !important; color: #000 !important; }
+    .card-body { padding: 6px 0 !important; }
+
+    /* Tables: avoid breaking rows across pages and ensure header repeats */
+    table { page-break-inside: avoid !important; width: 100% !important; font-size: 11pt; }
+    tr { page-break-inside: avoid !important; }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    .table-responsive { overflow: visible !important; }
+
+    /* Try to scale slightly to fit on one page when possible */
+    body { zoom: 0.92; }
+}
+</style>
+
+<style>
+/* Compact info tables: render label/value pairs side-by-side to save vertical space */
+.compact-info { width:100%; border-collapse:collapse; }
+.compact-info td { padding:4px 6px; width:50%; vertical-align:top; }
+.compact-info td strong { display:inline-block; margin-right:6px; min-width:90px; color:#111; }
+
+.notes-content { margin:0; white-space:pre-wrap; }
+.notes-content:empty { min-height:1.2em; }
+
+@media print {
+    .compact-info td { padding:2px 4px; font-size:11pt; }
+    .notes-content { font-size:11pt; }
+}
+</style>
+
+<style>
+/* Invoice dark/bill styling - applies to `.invoice-print-theme` wrapper */
+.invoice-print-theme { color: #111; }
+.invoice-print-theme .card-header { background: #0b2a4a !important; color: #fff !important; }
+.invoice-print-theme .card { border: 1px solid #222; }
+.invoice-print-theme .table thead th { background: #0b2a4a !important; color: #fff !important; }
+.invoice-print-theme .table, .invoice-print-theme .table td, .invoice-print-theme .table th { border-color: #222 !important; color: #111; }
+.invoice-print-theme .card.bg-light { background: #f7f7f7 !important; }
+.invoice-print-theme .card.bg-success .card-header { background: #0b2a4a !important; }
+
+@media print {
+    .invoice-print-theme .card-header, .invoice-print-theme .table thead th { -webkit-print-color-adjust: exact; }
+}
+</style>
+
 <?php
 require_once __DIR__ . '/php_action/purchase_invoice_action.php';
 
@@ -37,11 +97,11 @@ if (!$invoice) {
 
         <!-- Invoice Header Section -->
         <div class="row mb-3">
-            <div class="col-md-6">
+            <div class="col-sm-6">
                 <div class="card">
-                    <div class="card-header bg-primary text-white">Invoice Information</div>
+                    <div class="card-header bg-dark text-white">Invoice Information</div>
                     <div class="card-body">
-                        <table class="table table-sm table-borderless">
+                        <table class="table table-sm table-borderless compact-info">
                             <tr>
                                 <td><strong>Invoice #:</strong></td>
                                 <td><?=htmlspecialchars($invoice['invoice_no'])?></td>
@@ -83,11 +143,11 @@ if (!$invoice) {
                 </div>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-sm-6">
                 <div class="card">
-                    <div class="card-header bg-info text-white">Supplier Information</div>
+                    <div class="card-header bg-dark text-white">Supplier Information</div>
                     <div class="card-body">
-                        <table class="table table-sm table-borderless">
+                        <table class="table table-sm table-borderless compact-info">
                             <tr>
                                 <td><strong>Supplier Name:</strong></td>
                                 <td><?=htmlspecialchars($invoice['supplier_name'] ?? 'N/A')?></td>
@@ -174,8 +234,13 @@ if (!$invoice) {
             <div class="col-md-8">
                 <div class="card">
                     <div class="card-header bg-primary text-white">Notes & Remarks</div>
+                    <?php $notes = trim($invoice['notes'] ?? ''); ?>
                     <div class="card-body">
-                        <p><?=nl2br(htmlspecialchars($invoice['notes'] ?? 'No notes'))?></p>
+                        <?php if ($notes !== ''): ?>
+                            <p class="notes-content"><?=nl2br(htmlspecialchars($notes))?></p>
+                        <?php else: ?>
+                            <p class="notes-content text-muted">-</p>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -238,7 +303,7 @@ if (!$invoice) {
         <div class="row">
             <div class="col-md-12">
                 <?php if ($invoice['status'] !== 'Approved'): ?>
-                    <button class="btn btn-success btn-approve" data-id="<?=$invoiceId?>">
+                    <button class="btn btn-success btn-approve" data-id="<?=$invoiceId?>" data-status="<?=$invoice['status']?>">
                         <i class="fa fa-check"></i> Approve Invoice
                     </button>
                 <?php endif; ?>
@@ -275,6 +340,12 @@ if (!$invoice) {
     // Approve button
     $(document).on('click', '.btn-approve', function(){
         const invoiceId = $(this).data('id');
+        const currentStatus = $(this).data('status');
+        
+        if (currentStatus === 'Approved') {
+            alert('This invoice is already approved');
+            return;
+        }
         
         if (!confirm('Mark this invoice as Approved?')) return;
 
@@ -282,7 +353,7 @@ if (!$invoice) {
             url: 'php_action/po_actions.php',
             method: 'POST',
             data: {
-                action: 'approve',
+                action: 'approve_invoice',
                 invoice_id: invoiceId
             },
             dataType: 'json',
@@ -310,14 +381,14 @@ if (!$invoice) {
             url: 'php_action/po_actions.php',
             method: 'POST',
             data: {
-                action: 'delete',
+                action: 'delete_invoice',
                 invoice_id: invoiceId
             },
             dataType: 'json',
             success: function(resp){
                 if (resp.success) {
                     alert('✓ Invoice deleted successfully');
-                    window.location.href = 'po_list.php';
+                    window.location.href = 'invoice_list.php';
                 } else {
                     alert('✗ Error: ' + resp.error);
                 }
@@ -328,6 +399,19 @@ if (!$invoice) {
         });
     });
 </script>
+
+<?php if (isset($_GET['print'])): ?>
+<script>
+    // Auto-trigger print when opened with ?print=1
+    window.addEventListener('load', function(){
+        try {
+            window.print();
+        } catch(e) {
+            console.log('Auto-print failed', e);
+        }
+    });
+</script>
+<?php endif; ?>
 
 </body>
 </html>

@@ -43,6 +43,7 @@ foreach ($items as $item) {
         'batch_no' => $item['batch_no'],
         'expiry_date' => $item['expiry_date'],
         'qty' => floatval($item['qty']),
+        'free_qty' => floatval($item['free_qty'] ?? 0),
         'unit_cost' => floatval($item['unit_cost']),
         'mrp' => floatval($item['mrp']),
         'tax_rate' => floatval($item['tax_rate'])
@@ -106,8 +107,8 @@ try {
     $totalIgst = 0;
 
     $itemInsertSql = "INSERT INTO purchase_invoice_items 
-                    (invoice_id, product_id, hsn_code, batch_no, manufacture_date, expiry_date, qty, unit_cost, mrp, tax_rate, tax_amount, margin_percent, line_total, created_by) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    (invoice_id, product_id, hsn_code, batch_no, manufacture_date, expiry_date, qty, free_qty, unit_cost, effective_rate, mrp, tax_rate, tax_amount, margin_percent, line_total, created_by) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     $itemStmt = $connect->prepare($itemInsertSql);
 
     foreach ($validatedItems as $item) {
@@ -152,7 +153,10 @@ try {
         $tax_rate = $item['tax_rate'];
         $userId = $_SESSION['userId'] ?? null;
 
-        $itemStmt->bind_param('sisssdddddii', $invoiceId, $product_id, $hsn, $batch_no, $mfg_date, $exp_date, $qty, $unit_cost, $mrp, $tax_rate, $taxAmount, $margin, $lineTotal, $userId);
+        // calculate effective_rate (free_qty assumed to be 0 if not provided)
+        $freeQty = $item['free_qty'] ?? 0;
+        $effective = ($qty + $freeQty) > 0 ? ($qty * $unit_cost) / ($qty + $freeQty) : $unit_cost;
+        $itemStmt->bind_param('iissss' . 'ddddddddd' . 'i', $invoiceId, $product_id, $hsn, $batch_no, $mfg_date, $exp_date, $qty, $freeQty, $unit_cost, $effective, $mrp, $tax_rate, $taxAmount, $margin, $lineTotal, $userId);
         $itemStmt->execute();
 
         // Create or merge stock batch

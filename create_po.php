@@ -34,32 +34,74 @@ $formAction = $editing ? 'php_action/updatePurchaseOrder.php' : 'php_action/crea
 if (!$editing) {
     $year = date('y');
     $month = date('m');
-    $poSql = "SELECT MAX(CAST(SUBSTRING(po_number, -4) AS UNSIGNED)) as maxPO FROM purchase_orders WHERE YEAR(po_date) = '$year'";
-    $poResult = $connect->query($poSql);
-    $poRow = $poResult->fetch_assoc();
-    $nextPONum = (isset($poRow['maxPO']) && $poRow['maxPO']) ? $poRow['maxPO'] + 1 : 1;
-    $poNumber = 'PO-' . $year ."-" .str_pad($nextPONum, 4, '0', STR_PAD_LEFT);
+    
+    // Generate PO number with uniqueness check
+    $maxAttempts = 1000;
+    $poNumber = null;
+    
+    for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+        $testPONum = str_pad($attempt, 4, '0', STR_PAD_LEFT);
+        $testPONumber = 'PO-' . $year . "-" . $testPONum;
+        
+        // Check if this PO number already exists
+        $checkSql = "SELECT COUNT(*) as cnt FROM purchase_orders WHERE po_number = '" . $connect->real_escape_string($testPONumber) . "'";
+        $checkResult = $connect->query($checkSql);
+        $checkRow = $checkResult->fetch_assoc();
+        
+        if ($checkRow['cnt'] == 0) {
+            $poNumber = $testPONumber;
+            break;
+        }
+    }
+    
+    // Fallback to timestamp-based if sequential fails
+    if (!$poNumber) {
+        $poNumber = 'PO-' . $year . '-' . strtotime(date('Y-m-d H:i:s'));
+    }
 } else {
     $poNumber = $existingPo['po_number'];
 }
 
 // default values for form fields
-$poDateVal = $editing ? $existingPo['po_date'] : date('Y-m-d');
-$poTypeVal = $editing ? $existingPo['po_type'] : 'Regular';
-$referenceNumberVal = $editing ? $existingPo['reference_number'] : '';
-$expectedDeliveryVal = $editing ? $existingPo['expected_delivery_date'] : '';
-$deliveryLocationVal = $editing ? $existingPo['delivery_location'] : '';
-$supplierIdVal = $editing ? $existingPo['supplier_id'] : 0;
-$subtotalVal = $editing ? $existingPo['subtotal'] : '0.00';
-$discountPercentVal = $editing ? $existingPo['discount_percentage'] : '0';
-$discountAmtVal = $editing ? $existingPo['discount_amount'] : '0';
-$gstPercentVal = $editing ? $existingPo['gst_percentage'] : '0';
-$gstAmtVal = $editing ? $existingPo['gst_amount'] : '0';
-$otherChargesVal = $editing ? $existingPo['other_charges'] : '0';
-$grandTotalVal = $editing ? $existingPo['grand_total'] : '0';
-$poStatusVal = $editing ? $existingPo['po_status'] : 'Draft';
-$paymentStatusVal = $editing ? $existingPo['payment_status'] : 'NotDue';
-$notesVal = $editing ? $existingPo['notes'] : '';
+// determine values either from existing record (edit mode) or from previous POST (after error) or defaults
+$old = $_SESSION['old_post'] ?? null;
+if ($old) {
+    // keep old data around for item repopulation below
+    unset($_SESSION['old_post']);
+}
+
+// if there was an old POST with item arrays, build an array of pseudo-items for rendering
+$itemsFromOld = [];
+if ($old && isset($old['medicine_name']) && is_array($old['medicine_name'])) {
+    foreach ($old['medicine_name'] as $i => $name) {
+        $itemsFromOld[] = [
+            'product_name' => $name,
+            'product_id'   => $old['medicine_id'][$i] ?? '',
+            'hsn_code'     => $old['hsn_code'][$i] ?? '',
+            'pack_size'    => $old['pack_size'][$i] ?? '',
+            'unit_price'   => $old['unit_price'][$i] ?? '0.00',
+            'quantity_ordered' => $old['quantity'][$i] ?? 1,
+            'total_price'  => $old['item_total'][$i] ?? '0.00',
+            'gst_percentage'=> $old['gst_percentage'][$i] ?? '0'
+        ];
+    }
+}
+
+$poDateVal = $editing ? $existingPo['po_date'] : ($old['po_date'] ?? date('Y-m-d'));
+$poTypeVal = $editing ? $existingPo['po_type'] : ($old['po_type'] ?? 'Regular');
+$expectedDeliveryVal = $editing ? $existingPo['expected_delivery_date'] : ($old['expected_delivery_date'] ?? '');
+$deliveryLocationVal = $editing ? $existingPo['delivery_location'] : ($old['delivery_location'] ?? '');
+$supplierIdVal = $editing ? $existingPo['supplier_id'] : intval($old['supplier_id'] ?? 0);
+$subtotalVal = $editing ? $existingPo['subtotal'] : ($old['sub_total'] ?? '0.00');
+$discountPercentVal = $editing ? $existingPo['discount_percentage'] : ($old['discount_percent'] ?? '0');
+$discountAmtVal = $editing ? $existingPo['discount_amount'] : ($old['total_discount'] ?? '0');
+$gstPercentVal = $editing ? $existingPo['gst_percentage'] : ($old['gst_percent'] ?? '0');
+$gstAmtVal = $editing ? $existingPo['gst_amount'] : ($old['gst_amount'] ?? '0');
+$otherChargesVal = $editing ? $existingPo['other_charges'] : ($old['other_charges'] ?? '0');
+$grandTotalVal = $editing ? $existingPo['grand_total'] : ($old['grand_total'] ?? '0');
+$poStatusVal = $editing ? $existingPo['po_status'] : ($old['po_status'] ?? 'Draft');
+$paymentStatusVal = $editing ? $existingPo['payment_status'] : ($old['payment_status'] ?? 'NotDue');
+$notesVal = $editing ? $existingPo['notes'] : ($old['notes'] ?? '');
 
 ?>
 
@@ -78,7 +120,14 @@ $notesVal = $editing ? $existingPo['notes'] : '';
     </div>
 
     <div class="container-fluid">
-        <div id="createPoMessages"></div>
+        <div id="createPoMessages">
+            <?php if(!empty($_SESSION['success'])): ?>
+                <div class="alert alert-success"><?php echo $_SESSION['success']; unset($_SESSION['success']); ?></div>
+            <?php endif; ?>
+            <?php if(!empty($_SESSION['error'])): ?>
+                <div class="alert alert-danger"><?php echo $_SESSION['error']; unset($_SESSION['error']); ?></div>
+            <?php endif; ?>
+        </div>
         <form id="poForm" method="POST" action="<?=htmlspecialchars($formAction)?>">
             <?php if($editing): ?>
                 <input type="hidden" name="po_id" value="<?=intval($poId)?>">
@@ -151,12 +200,7 @@ $notesVal = $editing ? $existingPo['notes'] : '';
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Reference Number (Invoice/Bill)</label>
-                                <input type="text" class="form-control" name="reference_number" placeholder="Supplier's invoice number" value="<?=htmlspecialchars($referenceNumberVal)?>">
-                            </div>
-                        </div>
+                        <!-- Reference number removed: not required for PO in pharmacy workflow -->
                     </div>
 
                     <div class="row">
@@ -223,22 +267,33 @@ $notesVal = $editing ? $existingPo['notes'] : '';
                         <table class="table table-bordered table-sm">
                             <thead class="bg-light">
                                 <tr>
-                                    <th style="width:18%;">Medicine Name</th>
-                                    <th style="width:8%;">HSN Code</th>
+                                    <th style="width:28%;">Medicine Name</th>
+                                    <th style="width:8%;">HSN</th>
                                     <th style="width:12%;">Pack Size</th>
-                                    <th style="width:auto%;">MRP</th>
-                                    <th style="width:auto%;">PTR</th>
-                                    <th style="width:auto%;">Rate</th>
-                                    <th style="width:7%;">Qty</th>
-                                    <th style="width:auto%;">Disc %</th>
-                                    <th style="width:8%;">Amt</th>
-                                    <th style="width:auto;">Tax %</th>
-                                    <th style="width:8%;">Total</th>
+                                    <th style="width:12%;">Rate</th>
+                                    <th style="width:10%;">Qty</th>
+                                    <th style="width:10%;">GST %</th>
+                                    <th style="width:12%;">Line Total</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody id="itemsBody">
-                                <?php if($editing && count($poItems) > 0):
+                                <?php 
+                                // decide which set of items to render: old POST (highest priority), editing records, or defaults
+                                if (!empty($itemsFromOld)):
+                                    foreach($itemsFromOld as $item):
+                                        $prodName = $item['product_name'];
+                                        $hsn = $item['hsn_code'];
+                                        $pack = $item['pack_size'];
+                                        $unit = isset($item['unit_price']) ? number_format($item['unit_price'],2) : '0.00';
+                                        $qty = isset($item['quantity_ordered']) ? intval($item['quantity_ordered']) : 1;
+                                        $totalPrice = isset($item['total_price']) ? number_format($item['total_price'],2) : '0.00';
+                                        $taxPct = isset($item['gst_percentage']) ? $item['gst_percentage'] : '0';
+                                ?>
+                                    <tr class="item-row">
+                                <?php
+                                    endforeach;
+                                elseif($editing && count($poItems) > 0):
                                     foreach($poItems as $item):
                                         // optionally fetch product details if missing
                                         $prodName = $item['product_name'] ?? '';
@@ -250,7 +305,12 @@ $notesVal = $editing ? $existingPo['notes'] : '';
                                         $qty = isset($item['quantity_ordered']) ? intval($item['quantity_ordered']) : 1;
                                         $totalPrice = isset($item['total_price']) ? number_format($item['total_price'],2) : '0.00';
                                         $discPct = isset($item['discount_percent']) ? $item['discount_percent'] : '0.00';
-                                        $taxPct = isset($item['tax_percent']) ? $item['tax_percent'] : '18';
+                                        $taxPct = isset($item['gst_percentage']) ? $item['gst_percentage'] : (isset($item['tax_percent']) ? $item['tax_percent'] : '18');
+                                ?>
+                                    <tr class="item-row">
+                                <?php
+                                    endforeach;
+                                else:
                                 ?>
                                     <tr class="item-row">
                                         <td>
@@ -263,35 +323,10 @@ $notesVal = $editing ? $existingPo['notes'] : '';
                                         <td><input type="text" class="form-control form-control-sm hsn-code" name="hsn_code[]" readonly value="<?=htmlspecialchars($hsn)?>"></td>
                                         <td><input type="text" class="form-control form-control-sm pack-size" name="pack_size[]" readonly value="<?=htmlspecialchars($pack)?>"></td>
 
-                                        <td><input type="text" class="form-control form-control-sm mrp-value" name="mrp[]"  step="0.01" readonly value="<?=htmlspecialchars($unit)?>"></td>
-                                        <td><input type="text" class="form-control form-control-sm ptr-value" name="ptr[]"  step="0.01" readonly value="<?=htmlspecialchars($unit)?>" style="background-color: #fff3cd;"></td>
                                         <td><input type="text" class="form-control form-control-sm unit-price" name="unit_price[]" step="0.01" min="0" value="<?=htmlspecialchars($unit)?>"></td>
                                         <td><input type="number" class="form-control form-control-sm quantity" name="quantity[]" min="1" value="<?=htmlspecialchars($qty)?>"></td>
-                                        <td><input type="text" class="form-control form-control-sm discount-percent" name="discount_percent[]" step="0.01" min="0" value="<?=htmlspecialchars($discPct)?>"></td>
-                                        <td><input type="text" class="form-control form-control-sm line-amount" readonly value="<?=htmlspecialchars($totalPrice)?>" style="background-color: #f0f0f0;"></td>
-                                        <td><input type="text" class="form-control form-control-sm tax-percent" name="tax_percent[]" step="0.01" value="<?=htmlspecialchars($taxPct)?>"></td>
+                                        <td><input type="text" class="form-control form-control-sm gst-percentage" name="gst_percentage[]" step="0.01" value="<?=htmlspecialchars($taxPct)?>"></td>
                                         <td><input type="text" class="form-control form-control-sm item-total"   readonly value="<?=htmlspecialchars($totalPrice)?>" style="background-color: #f0f0f0;"></td>
-                                        <td><button type="button" class="btn btn-danger btn-sm remove-row" onclick="removeRow(event)"><i class="fa fa-trash"></i></button></td>
-                                    </tr>
-                                <?php endforeach; else: ?>
-                                    <tr class="item-row">
-                                        <td>
-                                            <div style="position: relative;">
-                                                <input type="text" class="form-control form-control-sm medicine-search"  name="medicine_name[]" placeholder="Search..." autocomplete="off">
-                                                <input type="hidden" class="medicine-id" name="medicine_id[]" value="">
-                                                <div class="medicine-dropdown" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 250px; overflow-y: auto; display: none; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"></div>
-                                            </div>
-                                        </td>
-                                        <td><input type="text" class="form-control form-control-sm hsn-code" name="hsn_code[]" readonly></td>
-                                        <td><input type="text" class="form-control form-control-sm pack-size" name="pack_size[]" readonly></td>
-                                        <td><input type="text" class="form-control form-control-sm mrp-value" name="mrp[]"  step="0.01" readonly value="0.00"></td>
-                                        <td><input type="text" class="form-control form-control-sm ptr-value" name="ptr[]"  step="0.01" readonly value="0.00" style="background-color: #fff3cd;"></td>
-                                        <td><input type="text" class="form-control form-control-sm unit-price" name="unit_price[]" step="0.01" min="0" value="0.00"></td>
-                                        <td><input type="number" class="form-control form-control-sm quantity" name="quantity[]" min="1" value="1"></td>
-                                        <td><input type="text" class="form-control form-control-sm discount-percent" name="discount_percent[]" step="0.01" min="0" value="0.00"></td>
-                                        <td><input type="text" class="form-control form-control-sm line-amount" readonly value="0.00" style="background-color: #f0f0f0;"></td>
-                                        <td><input type="text" class="form-control form-control-sm tax-percent" name="tax_percent[]" step="0.01" value="18"></td>
-                                        <td><input type="text" class="form-control form-control-sm item-total"   readonly value="0.00" style="background-color: #f0f0f0;"></td>
                                         <td><button type="button" class="btn btn-danger btn-sm remove-row" onclick="removeRow(event)"><i class="fa fa-trash"></i></button></td>
                                     </tr>
                                 <?php endif; ?>
@@ -316,23 +351,15 @@ $notesVal = $editing ? $existingPo['notes'] : '';
                         </div>
                         <div class="col-md-3">
                             <div class="form-group">
-                                <label>Discount</label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" id="discountPercent" name="discount_percent" placeholder="%" step="0.01" min="0" value="0">
-                                    <span class="input-group-addon">%</span>
-                                </div>
+                                <label>Tax Total</label>
+                                <input type="number" class="form-control" id="totalTax" name="gst_amount" readonly style="font-size: 16px; font-weight: bold;" value="0.00">
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-group">
-                                <label>Discount Amount</label>
-                                <input type="number" class="form-control" id="totalDiscount" name="total_discount" readonly style="font-size: 16px; font-weight: bold;">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Taxable Amount</label>
-                                <input type="number" class="form-control" id="taxableAmount" name="taxable_amount" readonly style="font-size: 16px; font-weight: bold;">
+                                <label>Grand Total</label>
+                                <input type="number" class="form-control" id="grandTotal" name="grand_total" readonly style="font-size: 18px; font-weight: bold; background-color: #fff59d; border: 2px solid #ff9800;" value="<?=htmlspecialchars($grandTotalVal)?>">
+                                <input type="hidden" name="gst_percent" value="0">
                             </div>
                         </div>
                     </div>
@@ -398,7 +425,7 @@ $notesVal = $editing ? $existingPo['notes'] : '';
             <!-- Action Buttons -->
             <div class="mt-4 text-right">
                 <button type="button" class="btn btn-secondary mr-2" onclick="saveDraft()">Save as Draft</button>
-                <button type="button" class="btn btn-info mr-2" onclick="previewPO()">Preview</button>
+                <!-- <button type="button" class="btn btn-info mr-2" onclick="previewPO()">Preview</button> -->
                 <button type="submit" class="btn btn-success mr-2"><?= $editing ? 'Save Changes' : 'Create PO' ?></button>
                 <a href="po_list.php" class="btn btn-light">Cancel</a>
             </div>
@@ -444,6 +471,12 @@ $notesVal = $editing ? $existingPo['notes'] : '';
     padding: 4px 6px;
     font-size: 12px;
 }
+
+    /* allow dropdown to escape table container */
+    .table-responsive { overflow: visible !important; }
+    /* ensure search input keeps full width and dropdown overlays correctly */
+    .medicine-search { width: 100%; }
+    .medicine-dropdown { z-index: 9999; min-width: 100%; }
 </style>
 
 <script>
@@ -482,15 +515,9 @@ function addItemRow() {
         </td>
         <td><input type="text" class="form-control form-control-sm hsn-code" name="hsn_code[]" readonly></td>
         <td><input type="text" class="form-control form-control-sm pack-size" name="pack_size[]" readonly></td>
-        <td><input type="text" class="form-control form-control-sm batch-number" name="batch_number[]"  readonly></td>
-        <td style=""><input type="date" class="form-control form-control-sm  expiry-date" style="" name="expiry_date[]"  readonly></td>
-        <td><input type="text" class="form-control form-control-sm mrp-value" name="mrp[]"  step="0.01" readonly value="0.00"></td>
-        <td><input type="text" class="form-control form-control-sm ptr-value" name="ptr[]"  step="0.01" readonly value="0.00" style="background-color: #fff3cd;"></td>
         <td><input type="text" class="form-control form-control-sm unit-price" name="unit_price[]" step="0.01" min="0" value="0.00"></td>
         <td><input type="number" class="form-control form-control-sm quantity" name="quantity[]" min="1" value="1"></td>
-        <td><input type="text" class="form-control form-control-sm discount-percent" name="discount_percent[]" step="0.01" min="0" value="0.00"></td>
-        <td><input type="text" class="form-control form-control-sm line-amount" readonly value="0.00" style="background-color: #f0f0f0;"></td>
-        <td><input type="text" class="form-control form-control-sm tax-percent" name="tax_percent[]" step="0.01" value="18"></td>
+        <td><input type="text" class="form-control form-control-sm gst-percentage" name="gst_percentage[]" step="0.01" value="18"></td>
         <td><input type="text" class="form-control form-control-sm item-total"   readonly value="0.00" style="background-color: #f0f0f0;"></td>
         <td><button type="button" class="btn btn-danger btn-sm remove-row" onclick="removeRow(event)"><i class="fa fa-trash"></i></button></td>
     `;
@@ -559,11 +586,10 @@ function selectMedicine(row, medicine) {
     row.querySelector('.medicine-search').value = medicine.medicine_name;
     row.querySelector('.hsn-code').value = medicine.hsn_code;
     row.querySelector('.pack-size').value = medicine.pack_size;
-    row.querySelector('.batch-number').value = medicine.current_batch_number;
-    row.querySelector('.expiry-date').value = medicine.current_expiry_date;
-    row.querySelector('.mrp-value').value = parseFloat(medicine.mrp).toFixed(2);
-    row.querySelector('.ptr-value').value = parseFloat(medicine.ptr).toFixed(2);
-    row.querySelector('.unit-price').value = parseFloat(medicine.ptr).toFixed(2);
+    row.querySelector('.unit-price').value = parseFloat(medicine.ptr || medicine.mrp || 0).toFixed(2);
+    const gstVal = (medicine.gst_rate !== undefined) ? parseFloat(medicine.gst_rate) : 0;
+    const gstField = row.querySelector('.gst-percentage');
+    if (gstField) gstField.value = gstVal;
     
     row.querySelector('.medicine-dropdown').style.display = 'none';
     calculateRow(row);
@@ -596,10 +622,9 @@ function attachEventListeners() {
 function attachRowEventListeners(row) {
     const quantity = row.querySelector('.quantity');
     const unitPrice = row.querySelector('.unit-price');
-    const discountPercent = row.querySelector('.discount-percent');
-    const taxPercent = row.querySelector('.tax-percent');
-    
-    [quantity, unitPrice, discountPercent, taxPercent].forEach(input => {
+    const gstPercent = row.querySelector('.gst-percentage');
+    [quantity, unitPrice, gstPercent].forEach(input => {
+        if (!input) return;
         input.addEventListener('change', () => calculateRow(row));
         input.addEventListener('input', () => calculateRow(row));
     });
@@ -608,16 +633,11 @@ function attachRowEventListeners(row) {
 function calculateRow(row) {
     const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
     const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
-    const discountPercent = parseFloat(row.querySelector('.discount-percent').value) || 0;
-    const taxPercent = parseFloat(row.querySelector('.tax-percent').value) || 18;
-    
+    const taxPercent = parseFloat(row.querySelector('.gst-percentage').value) || 0;
     const lineAmount = quantity * unitPrice;
-    const discountAmount = (lineAmount * discountPercent) / 100;
-    const taxableAmount = lineAmount - discountAmount;
-    const taxAmount = (taxableAmount * taxPercent) / 100;
-    const itemTotal = taxableAmount + taxAmount;
-    
-    row.querySelector('.line-amount').value = lineAmount.toFixed(2);
+    const taxAmount = (lineAmount * taxPercent) / 100;
+    const itemTotal = lineAmount + taxAmount;
+
     row.querySelector('.item-total').value = itemTotal.toFixed(2);
     
     calculateTotals();
@@ -625,30 +645,22 @@ function calculateRow(row) {
 
 function calculateTotals() {
     let subTotal = 0;
-    let totalDiscount = 0;
-    
+    let totalTax = 0;
+
     document.querySelectorAll('.item-row').forEach(row => {
-        const amount = parseFloat(row.querySelector('.line-amount').value) || 0;
-        const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
-        const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
-        const discountPercent = parseFloat(row.querySelector('.discount-percent').value) || 0;
-        
-        const lineAmount = quantity * unitPrice;
-        const lineDiscount = (lineAmount * discountPercent) / 100;
-        
-        subTotal += lineAmount;
-        totalDiscount += lineDiscount;
+        const qty = parseFloat(row.querySelector('.quantity').value) || 0;
+        const unit = parseFloat(row.querySelector('.unit-price').value) || 0;
+        const gst = parseFloat(row.querySelector('.gst-percentage').value) || 0;
+        const line = qty * unit;
+        const tax = (line * gst) / 100;
+        subTotal += line;
+        totalTax += tax;
     });
-    
-    const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
-    const additionalDiscount = (subTotal * discountPercent) / 100;
-    totalDiscount += additionalDiscount;
-    
-    const taxableAmount = subTotal - totalDiscount;
-    
+
+    const grand = subTotal + totalTax;
     document.getElementById('subTotal').value = subTotal.toFixed(2);
-    document.getElementById('totalDiscount').value = totalDiscount.toFixed(2);
-    document.getElementById('taxableAmount').value = taxableAmount.toFixed(2);
+    document.getElementById('totalTax').value = totalTax.toFixed(2);
+    document.getElementById('grandTotal').value = grand.toFixed(2);
 }
 
 document.getElementById('poForm').addEventListener('submit', function(e) {
@@ -712,14 +724,24 @@ function loadSupplierDetails() {
 
             const data = result.data; // 👈 THIS WAS MISSING
 
-            document.getElementById('supplierContact').value = data.primary_contact || '';
-            document.getElementById('supplierEmail').value = data.email || '';
-            document.getElementById('supplierAddress').value = data.billing_address || '';
-            document.getElementById('supplierCity').value = data.billing_city || '';
-            document.getElementById('supplierState').value = data.billing_state || '';
-            document.getElementById('supplierPincode').value = data.billing_pincode || '';
-            document.getElementById('supplierGst').value = data.gst_number || '';
-            document.getElementById('paymentTerms').value = data.payment_terms || '';
+            // fill supplier fields using tolerant key names
+            const contact = data.primary_contact || data.phone || data.contact_person || data.phone_number || data.mobile || '';
+            const email = data.email || data.contact_email || '';
+            const address = data.billing_address || data.address || data.supplier_address || data.billing_address_1 || '';
+            const city = data.billing_city || data.city || data.town || '';
+            const state = data.billing_state || data.state || '';
+            const pincode = data.billing_pincode || data.pincode || data.zip || '';
+            const gst = data.gst_number || data.gstin || data.supplier_gst || '';
+            const payment = data.payment_terms || data.credit_days || '';
+
+            document.getElementById('supplierContact').value = contact;
+            document.getElementById('supplierEmail').value = email;
+            document.getElementById('supplierAddress').value = address;
+            document.getElementById('supplierCity').value = city;
+            document.getElementById('supplierState').value = state;
+            document.getElementById('supplierPincode').value = pincode;
+            document.getElementById('supplierGst').value = gst;
+            document.getElementById('paymentTerms').value = payment;
         })
         .catch(err => {
             console.error('Supplier fetch error:', err);

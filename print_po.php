@@ -1,380 +1,543 @@
 <?php
-include('./constant/connect.php');
-
-$poId = isset($_GET['id']) ? intval($_GET['id']) : 0;
-
-if(!$poId) {
-    die('Invalid PO ID');
+// Professional PO Print Page - Print Optimized
+if (!isset($_GET['id']) || empty($_GET['id'])) {
+    die('Invalid Purchase Order ID');
 }
 
-$sql = "SELECT * FROM purchase_order WHERE po_id = $poId";
-$result = $connect->query($sql);
+require_once 'constant/connect.php';
 
-if($result->num_rows == 0) {
-    die('PO not found');
+$poId = intval($_GET['id']);
+
+// Fetch PO
+$poRes = $connect->query("SELECT * FROM purchase_orders WHERE po_id = $poId");
+if (!$poRes || $poRes->num_rows === 0) {
+    die('Purchase Order not found');
+}
+$po = $poRes->fetch_assoc();
+
+// Fetch supplier
+$suppRes = $connect->query("SELECT * FROM suppliers WHERE supplier_id = {$po['supplier_id']} LIMIT 1");
+$supplier = $suppRes ? $suppRes->fetch_assoc() : null;
+
+// Fetch items
+$itemsRes = $connect->query("SELECT * FROM po_items WHERE po_id = $poId ORDER BY po_item_id ASC");
+$items = [];
+while ($item = $itemsRes->fetch_assoc()) {
+    $items[] = $item;
 }
 
-$po = $result->fetch_assoc();
-
-// Get items
-$itemsSql = "SELECT * FROM purchase_order_items WHERE po_id = $poId";
-$itemsResult = $connect->query($itemsSql);
+// Calculate totals
+$totalQty = array_sum(array_column($items, 'quantity_ordered'));
+$totalReceived = array_sum(array_column($items, 'quantity_received'));
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Purchase Order - <?php echo $po['po_number']; ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PO - <?= htmlspecialchars($po['po_number']) ?></title>
     <style>
         * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
+        
         body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f5f5f5;
-            padding: 20px;
-        }
-        .container {
-            background-color: white;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 30px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 3px solid #333;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
-        }
-        .company-info h2 {
-            color: #333;
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-        .company-info p {
-            font-size: 11px;
-            color: #666;
-            margin: 2px 0;
-        }
-        .document-title {
-            text-align: right;
-        }
-        .document-title h1 {
-            font-size: 28px;
-            color: #d32f2f;
+            font-family: 'Courier New', monospace;
+            font-size: 10pt;
+            line-height: 1.4;
+            color: #000;
+            background: #fff;
+            padding: 0;
             margin: 0;
         }
-        .document-title .po-number {
-            font-size: 14px;
-            color: #666;
+        
+        .print-container {
+            width: 100%;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 10mm;
+            background: white;
+            line-height: 1.3;
         }
-        .po-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
+        
+        /* HEADER */
+        .header {
+            text-align: center;
+            margin-bottom: 8mm;
+            border-bottom: 2px solid #000;
+            padding-bottom: 5mm;
         }
-        .detail-box {
-            background-color: #f9f9f9;
-            padding: 12px;
-            border-left: 3px solid #333;
-        }
-        .detail-box h5 {
-            font-size: 11px;
-            color: #666;
+        
+        .header h1 {
+            font-size: 14pt;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 2mm;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        .detail-box p {
-            font-size: 12px;
-            margin: 3px 0;
-            color: #333;
+        
+        .header p {
+            font-size: 9pt;
+            margin: 1mm 0;
         }
-        .detail-box strong {
-            display: block;
+        
+        /* TOP INFO - 2 COLUMNS */
+        .top-info {
+            display: flex;
+            gap: 15mm;
+            margin-bottom: 6mm;
         }
+        
+        .top-left, .top-right {
+            flex: 1;
+            font-size: 9pt;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 2mm 0;
+            padding: 0 2mm;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            min-width: 45mm;
+        }
+        
+        .info-value {
+            text-align: right;
+            word-break: break-word;
+        }
+        
+        /* SUPPLIER & DELIVERY - 2 COLUMNS */
+        .mid-section {
+            display: flex;
+            gap: 15mm;
+            margin-bottom: 6mm;
+        }
+        
+        .info-box {
+            flex: 1;
+            font-size: 9pt;
+            border: 1px solid #000;
+            padding: 4mm;
+        }
+        
+        .info-box h3 {
+            font-size: 10pt;
+            font-weight: bold;
+            margin-bottom: 3mm;
+            text-transform: uppercase;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2mm;
+        }
+        
+        .box-row {
+            margin: 1.5mm 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .box-label {
+            font-weight: bold;
+            font-size: 8.5pt;
+        }
+        
+        .box-value {
+            font-size: 9pt;
+            word-break: break-word;
+            margin-left: 2mm;
+        }
+        
+        /* ITEMS TABLE */
+        .items-section {
+            margin-bottom: 6mm;
+        }
+        
+        .items-section h3 {
+            font-size: 10pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 3mm;
+            border-bottom: 2px solid #000;
+            padding-bottom: 2mm;
+        }
+        
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            font-size: 9pt;
+            margin-bottom: 4mm;
         }
-        thead {
-            background-color: #f0f0f0;
+        
+        table thead {
+            background: #333;
+            color: white;
         }
-        th {
-            padding: 10px;
+        
+        table th {
+            border: 1px solid #000;
+            padding: 3mm 2mm;
             text-align: left;
-            font-size: 11px;
             font-weight: bold;
-            border: 1px solid #ddd;
-            color: #333;
+            font-size: 8.5pt;
         }
-        td {
-            padding: 10px;
-            font-size: 11px;
-            border: 1px solid #ddd;
+        
+        table td {
+            border: 1px solid #ccc;
+            padding: 2.5mm 2mm;
+            text-align: left;
         }
-        tr:nth-child(even) {
-            background-color: #fafafa;
-        }
-        .amount-col {
+        
+        table td.num {
             text-align: right;
         }
-        .totals {
-            margin-left: auto;
-            width: 300px;
-            margin-top: 20px;
+        
+        table tbody tr:nth-child(even) {
+            background: #f5f5f5;
         }
+        
+        /* TOTALS - RIGHT ALIGNED BOX */
+        .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 6mm;
+        }
+        
+        .totals-box {
+            width: 75mm;
+            font-size: 9pt;
+            border: 2px solid #000;
+        }
+        
         .total-row {
             display: flex;
             justify-content: space-between;
-            padding: 8px;
-            border-bottom: 1px solid #ddd;
-            font-size: 12px;
+            padding: 2mm 4mm;
+            border-bottom: 1px solid #ccc;
         }
+        
         .total-row.grand {
-            background-color: #fff59d;
+            background: #333;
+            color: white;
             font-weight: bold;
-            font-size: 14px;
-            border: 2px solid #ff9800;
-            padding: 12px;
+            border: none;
+            padding: 3mm 4mm;
         }
-        .notes {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-left: 3px solid #333;
-            font-size: 11px;
-        }
-        .notes h5 {
-            margin-bottom: 10px;
+        
+        .total-label {
             font-weight: bold;
         }
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 30px;
+        
+        .total-value {
+            text-align: right;
+            min-width: 30mm;
         }
-        .signature {
+        
+        /* TERMS SECTION */
+        .terms-section {
+            font-size: 8.5pt;
+            margin-bottom: 6mm;
+            border: 1px solid #000;
+            padding: 3mm;
+            background: #f9f9f9;
+        }
+        
+        .terms-section h4 {
+            font-weight: bold;
+            margin-bottom: 2mm;
+            text-transform: uppercase;
+        }
+        
+        .terms-section ul {
+            margin-left: 4mm;
+            line-height: 1.3;
+        }
+        
+        .terms-section li {
+            margin: 1mm 0;
+        }
+        
+        /* SIGNATURES */
+        .signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8mm;
+            font-size: 9pt;
+        }
+        
+        .sig-block {
+            flex: 1;
             text-align: center;
-            font-size: 11px;
         }
-        .signature-line {
-            margin-top: 30px;
-            border-top: 1px solid #333;
-            padding-top: 5px;
+        
+        .sig-line {
+            border-top: 1px solid #000;
+            margin-top: 20mm;
+            padding-top: 1mm;
+            font-weight: bold;
         }
+        
+        .sig-label {
+            font-size: 8.5pt;
+            height: 4mm;
+        }
+        
+        /* FOOTER */
+        .footer {
+            font-size: 8pt;
+            margin-top: 5mm;
+            padding-top: 3mm;
+            border-top: 1px solid #000;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .footer-left {
+            flex: 1;
+        }
+        
+        .footer-center {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .footer-right {
+            text-align: right;
+            flex: 1;
+        }
+        
+        /* PRINT STYLES */
+        @page {
+            size: A4;
+            margin: 8mm;
+        }
+        
         @media print {
             body {
-                background-color: white;
+                margin: 0;
                 padding: 0;
+                background: white;
             }
-            .container {
-                box-shadow: none;
+            .print-container {
                 max-width: 100%;
+                margin: 0;
+                padding: 8mm;
+                box-shadow: none;
             }
-            .ptr-column {
-                display: none !important;
-            }
-        }
-        .status-cancelled {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-45deg);
-            font-size: 80px;
-            color: rgba(220, 53, 69, 0.3);
-            font-weight: bold;
-            z-index: 1;
-            pointer-events: none;
         }
     </style>
 </head>
 <body>
-    <?php if($po['cancelled_status'] == 1): ?>
-    <div class="status-cancelled">CANCELLED</div>
-    <?php endif; ?>
 
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="company-info">
-                <h2>SATYAM CLINICAL SUPPLIES</h2>
-                <p>Address: 123 Medical Lane, Mumbai - 400001</p>
-                <p>GST: 27AABCU9603R1Z0 | Contact: +91-9876543210</p>
-                <p>Email: info@satyamclinical.com</p>
+<div class="print-container">
+    <!-- HEADER -->
+    <div class="header">
+        <h1>PURCHASE ORDER</h1>
+        <p>SATYAM CLINICAL SUPPLIES - PHARMACY DIVISION</p>
+    </div>
+    
+    <!-- TOP INFO: 2 COLUMNS -->
+    <div class="top-info">
+        <div class="top-left">
+            <div class="info-row">
+                <span class="info-label">PO Number:</span>
+                <span class="info-value"><strong><?= htmlspecialchars($po['po_number']) ?></strong></span>
             </div>
-            <div class="document-title">
-                <h1>PURCHASE ORDER</h1>
-                <div class="po-number">
-                    <p>PO #: <?php echo htmlspecialchars($po['po_number']); ?></p>
-                    <p>Date: <?php echo date('d-m-Y', strtotime($po['po_date'])); ?></p>
-                </div>
+            <div class="info-row">
+                <span class="info-label">PO Date:</span>
+                <span class="info-value"><?= date('d-M-Y', strtotime($po['po_date'])) ?></span>
             </div>
-        </div>
-
-        <!-- PO Details -->
-        <div class="po-details">
-            <div class="detail-box">
-                <h5>Bill To:</h5>
-                <strong><?php echo htmlspecialchars($po['supplier_name']); ?></strong>
-                <p><?php echo htmlspecialchars($po['supplier_address']); ?></p>
-                <p><?php echo htmlspecialchars($po['supplier_city'] . ', ' . $po['supplier_state'] . ' - ' . $po['supplier_pincode']); ?></p>
-                <p><strong>GST:</strong> <?php echo htmlspecialchars($po['supplier_gst']); ?></p>
-                <p><strong>Contact:</strong> <?php echo htmlspecialchars($po['supplier_contact']); ?></p>
-                <p><strong>Email:</strong> <?php echo htmlspecialchars($po['supplier_email']); ?></p>
-            </div>
-            <div class="detail-box">
-                <h5>Ship To:</h5>
-                <strong><?php echo htmlspecialchars($po['supplier_name']); ?></strong>
-                <p><?php echo htmlspecialchars($po['supplier_address']); ?></p>
-                <p><?php echo htmlspecialchars($po['supplier_city'] . ', ' . $po['supplier_state'] . ' - ' . $po['supplier_pincode']); ?></p>
-                <p><strong>GST:</strong> <?php echo htmlspecialchars($po['supplier_gst']); ?></p>
-                <p><strong>Contact:</strong> <?php echo htmlspecialchars($po['supplier_contact']); ?></p>
-                <p><strong>Email:</strong> <?php echo htmlspecialchars($po['supplier_email']); ?></p>
-            </div>
-
-            <div class="detail-box">
-                <h5>DELIVERY DETAILS</h5>
-                <p><?php echo htmlspecialchars($po['delivery_address']); ?></p>
-                <p><?php echo htmlspecialchars($po['delivery_city'] . ', ' . $po['delivery_state'] . ' - ' . $po['delivery_pincode']); ?></p>
-                <p><strong>Expected Delivery:</strong> <?php echo date('d-m-Y', strtotime($po['expected_delivery_date'])); ?></p>
-                <p><strong>PO Status:</strong> <span style="color: #d32f2f;"><?php echo htmlspecialchars($po['po_status']); ?></span></p>
-                <p><strong>Payment Terms:</strong> <?php echo htmlspecialchars($po['payment_terms']); ?></p>
+            <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="info-value"><?= htmlspecialchars($po['po_status']) ?></span>
             </div>
         </div>
-
-        <!-- Line Items -->
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 5%;">Sr.</th>
-                    <th style="width: 25%;">Medicine Name</th>
-                    <th style="width: 8%;">HSN Code</th>
-                    <th style="width: 10%;">Pack Size</th>
-                    <th style="width: 8%;">Batch No.</th>
-                    <th style="width: 8%;">Qty</th>
-                    <th style="width: 8%;">MRP</th>
-                    <th style="width: 8%;">Rate</th>
-                    <th style="width: 10%;">Amount</th>
-                    <th style="width: 8%;">Tax %</th>
-                    <th style="width: 12%;">Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                $sr = 1;
-                while($item = $itemsResult->fetch_assoc()) {
-                ?>
-                <tr>
-                    <td><?php echo $sr++; ?></td>
-                    <td><?php echo htmlspecialchars($item['medicine_name']); ?></td>
-                    <td><?php echo htmlspecialchars($item['hsn_code']); ?></td>
-                    <td><?php echo htmlspecialchars($item['pack_size']); ?></td>
-                    <td><?php echo htmlspecialchars($item['batch_number']); ?></td>
-                    <td class="amount-col"><?php echo intval($item['quantity_ordered']); ?></td>
-                    <td class="amount-col">₹<?php echo number_format($item['mrp'] ?? 0, 2); ?></td>
-                    <td class="amount-col">₹<?php echo number_format($item['unit_price'], 2); ?></td>
-                    <td class="amount-col">₹<?php echo number_format($item['line_amount'], 2); ?></td>
-                    <td class="amount-col"><?php echo number_format($item['tax_percent'], 2); ?>%</td>
-                    <td class="amount-col"><strong>₹<?php echo number_format($item['item_total'], 2); ?></strong></td>
-                </tr>
-                <?php } ?>
-            </tbody>
-        </table>
-
-        <!-- Totals -->
-        <div style="display: flex; justify-content: flex-end;">
-            <div class="totals">
-                <div class="total-row">
-                    <span>Sub Total:</span>
-                    <span>₹<?php echo number_format($po['sub_total'], 2); ?></span>
-                </div>
-                <div class="total-row">
-                    <span>Discount:</span>
-                    <span>₹<?php echo number_format($po['total_discount'], 2); ?></span>
-                </div>
-                <div class="total-row">
-                    <span>Taxable Amount:</span>
-                    <span>₹<?php echo number_format($po['taxable_amount'], 2); ?></span>
-                </div>
-                <div class="total-row">
-                    <span>CGST (9%):</span>
-                    <span>₹<?php echo number_format($po['cgst_amount'], 2); ?></span>
-                </div>
-                <div class="total-row">
-                    <span>SGST (9%):</span>
-                    <span>₹<?php echo number_format($po['sgst_amount'], 2); ?></span>
-                </div>
-                <div class="total-row">
-                    <span>IGST (18%):</span>
-                    <span>₹<?php echo number_format($po['igst_amount'], 2); ?></span>
-                </div>
-                <div class="total-row">
-                    <span>Round Off:</span>
-                    <span>₹<?php echo number_format($po['round_off'], 2); ?></span>
-                </div>
-                <div class="total-row grand">
-                    <span>GRAND TOTAL:</span>
-                    <span>₹<?php echo number_format($po['grand_total'], 2); ?></span>
-                </div>
+        <div class="top-right">
+            <div class="info-row">
+                <span class="info-label">Expected Delivery:</span>
+                <span class="info-value"><?= $po['expected_delivery_date'] ? date('d-M-Y', strtotime($po['expected_delivery_date'])) : 'N/A' ?></span>
             </div>
-        </div>
-
-        <!-- Notes -->
-        <?php if(!empty($po['notes']) || !empty($po['terms_conditions'])): ?>
-        <div class="notes">
-            <?php if(!empty($po['notes'])): ?>
-            <h5>Special Instructions:</h5>
-            <p><?php echo nl2br(htmlspecialchars($po['notes'])); ?></p>
-            <?php endif; ?>
-            
-            <?php if(!empty($po['terms_conditions'])): ?>
-            <h5 style="margin-top: 10px;">Terms & Conditions:</h5>
-            <p><?php echo nl2br(htmlspecialchars($po['terms_conditions'])); ?></p>
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
-
-        <!-- Cancellation Info -->
-        <?php if($po['cancelled_status'] == 1): ?>
-        <div class="notes" style="border-left-color: #d32f2f; background-color: #ffebee;">
-            <h5 style="color: #d32f2f;">CANCELLATION DETAILS</h5>
-            <p><strong>Cancelled Date:</strong> <?php echo date('d-m-Y', strtotime($po['cancelled_date'])); ?></p>
-            <p><strong>Reason:</strong> <?php echo htmlspecialchars($po['cancellation_reason']); ?></p>
-            <p><strong>Details:</strong> <?php echo htmlspecialchars($po['cancellation_details']); ?></p>
-        </div>
-        <?php endif; ?>
-
-        <!-- Footer -->
-        <div class="footer">
-            <div class="signature">
-                <p>Prepared By</p>
-                <div class="signature-line"></div>
-            </div>
-            <div class="signature">
-                <p>Authorized By</p>
-                <div class="signature-line"></div>
-            </div>
-            <div class="signature">
-                <p>Supplier Acceptance</p>
-                <div class="signature-line"></div>
+            <div class="info-row">
+                <span class="info-label">Delivery Location:</span>
+                <span class="info-value"><?= htmlspecialchars($po['delivery_location'] ?? 'Main Warehouse') ?></span>
             </div>
         </div>
     </div>
+    
+    <!-- SUPPLIER & DELIVERY INFO: 2 COLUMNS -->
+    <div class="mid-section">
+        <div class="info-box">
+            <h3>Supplier Information</h3>
+            <?php if ($supplier): ?>
+                <div class="box-row">
+                    <span class="box-label">Name:</span>
+                    <span class="box-value"><?= htmlspecialchars($supplier['supplier_name']) ?></span>
+                </div>
+                <div class="box-row">
+                    <span class="box-label">Contact:</span>
+                    <span class="box-value"><?= htmlspecialchars($supplier['contact_person'] ?? '-') ?></span>
+                </div>
+                <div class="box-row">
+                    <span class="box-label">Phone:</span>
+                    <span class="box-value"><?= htmlspecialchars($supplier['phone'] ?? '-') ?></span>
+                </div>
+                <div class="box-row">
+                    <span class="box-label">Email:</span>
+                    <span class="box-value"><?= htmlspecialchars($supplier['email'] ?? '-') ?></span>
+                </div>
+                <div class="box-row">
+                    <span class="box-label">Address:</span>
+                    <span class="box-value"><?= htmlspecialchars($supplier['address'] ?? '-') ?></span>
+                </div>
+            <?php else: ?>
+                <div class="box-row">
+                    <span class="box-value">Supplier not found</span>
+                </div>
+            <?php endif; ?>
+        </div>
+        
+        <div class="info-box">
+            <h3>Delivery Details</h3>
+            <div class="box-row">
+                <span class="box-label">Location:</span>
+                <span class="box-value"><?= htmlspecialchars($po['delivery_location'] ?? 'Main Warehouse') ?></span>
+            </div>
+            <div class="box-row">
+                <span class="box-label">Expected By:</span>
+                <span class="box-value"><?= $po['expected_delivery_date'] ? date('d-M-Y', strtotime($po['expected_delivery_date'])) : 'N/A' ?></span>
+            </div>
+            <div class="box-row">
+                <span class="box-label">Total Items:</span>
+                <span class="box-value"><?= count($items) ?></span>
+            </div>
+            <div class="box-row">
+                <span class="box-label">Qty Ordered:</span>
+                <span class="box-value"><?= number_format($totalQty, 2) ?></span>
+            </div>
+            <div class="box-row">
+                <span class="box-label">Qty Received:</span>
+                <span class="box-value"><?= number_format($totalReceived, 2) ?></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ITEMS TABLE -->
+    <div class="items-section">
+        <h3>Ordered Items</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 35%;">Product</th>
+                    <th style="width: 10%;" class="num">Qty Ord</th>
+                    <th style="width: 10%;" class="num">Qty Rcv</th>
+                    <th style="width: 12%;" class="num">Unit Price</th>
+                    <th style="width: 8%;" class="num">GST%</th>
+                    <th style="width: 15%;" class="num">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($items as $idx => $item): ?>
+                    <tr>
+                        <td><?= $idx + 1 ?></td>
+                        <td><?= htmlspecialchars($item['product_name'] ?? $item['item_description'] ?? 'N/A') ?></td>
+                        <td class="num"><?= number_format($item['quantity_ordered'] ?? 0, 2) ?></td>
+                        <td class="num"><?= number_format($item['quantity_received'] ?? 0, 2) ?></td>
+                        <td class="num">₹ <?= number_format($item['unit_price'] ?? 0, 2) ?></td>
+                        <td class="num"><?= number_format($item['gst_percentage'] ?? 0, 0) ?>%</td>
+                        <td class="num"><strong>₹ <?= number_format($item['total_price'] ?? 0, 2) ?></strong></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- TOTALS -->
+    <div class="totals-section">
+        <div class="totals-box">
+            <div class="total-row">
+                <span class="total-label">Subtotal:</span>
+                <span class="total-value">₹ <?= number_format($po['subtotal'], 2) ?></span>
+            </div>
+            <div class="total-row">
+                <span class="total-label">Discount (<?= number_format($po['discount_percentage'] ?? 0, 1) ?>%):</span>
+                <span class="total-value">- ₹ <?= number_format($po['discount_amount'] ?? 0, 2) ?></span>
+            </div>
+            <div class="total-row">
+                <span class="total-label">GST (<?= number_format($po['gst_percentage'] ?? 0, 1) ?>%):</span>
+                <span class="total-value">₹ <?= number_format($po['gst_amount'], 2) ?></span>
+            </div>
+            <?php if ($po['other_charges'] > 0): ?>
+                <div class="total-row">
+                    <span class="total-label">Other Charges:</span>
+                    <span class="total-value">₹ <?= number_format($po['other_charges'], 2) ?></span>
+                </div>
+            <?php endif; ?>
+            <div class="total-row grand">
+                <span class="total-label">GRAND TOTAL:</span>
+                <span class="total-value">₹ <?= number_format($po['grand_total'], 2) ?></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- TERMS & CONDITIONS -->
+    <div class="terms-section">
+        <h4>Terms & Conditions</h4>
+        <ul>
+            <li>Payment: As per agreement</li>
+            <li>Delivery: As per agreed schedule</li>
+            <li>Products must meet quality standards</li>
+            <li>GRN to be prepared on receipt</li>
+            <li>Deviations must be reported immediately</li>
+            <li>Rates inclusive of applicable taxes</li>
+        </ul>
+    </div>
+    
+    <!-- SIGNATURES -->
+    <div class="signatures">
+        <div class="sig-block">
+            <div class="sig-label">Prepared By</div>
+            <div class="sig-line"></div>
+            <p style="font-size: 8pt; margin-top: 1mm;">Warehouse / Procurement</p>
+        </div>
+        <div class="sig-block">
+            <div class="sig-label">Approved By</div>
+            <div class="sig-line"></div>
+            <p style="font-size: 8pt; margin-top: 1mm;">Manager / Director</p>
+        </div>
+        <div class="sig-block">
+            <div class="sig-label">Supplier Accepted</div>
+            <div class="sig-line"></div>
+            <p style="font-size: 8pt; margin-top: 1mm;">Authorized Rep</p>
+        </div>
+    </div>
+    
+    <!-- FOOTER -->
+    <div class="footer">
+        <div class="footer-left">
+            <strong>Bank Details:</strong><br/>
+            A/C: XXXXXXXXXXXX<br/>
+            IFSC: BANK0001
+        </div>
+        <div class="footer-center">
+            <strong>GST: 27AABCT1234A1Z0</strong><br/>
+            <strong>PAN: AABCT1234A</strong>
+        </div>
+        <div class="footer-right">
+            Generated: <?= date('d-M-Y H:i') ?><br/>
+            PO ID: <?= $poId ?><br/>
+            Page 1 of 1
+        </div>
+    </div>
+</div>
 
-    <script>
-        window.print();
-    </script>
 </body>
 </html>
 
-<?php $connect->close(); ?>
+
+</body>
+</html>

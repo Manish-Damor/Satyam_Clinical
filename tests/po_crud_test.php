@@ -53,8 +53,8 @@ function createPo($connect, $data) {
     // items
     $itemCount = intval($data['item_count'] ?? 0);
     for ($i=0;$i<$itemCount;$i++) {
-        $productId = intval($data['medicine_id'][$i] ?? 0);
-        $qty = intval($data['quantity'][$i] ?? 0);
+        $productId = intval($data['product_id'][$i] ?? 0);
+        $qty = intval($data['quantity_ordered'][$i] ?? 0);
         $unitPrice = floatval($data['unit_price'][$i] ?? 0);
         if ($productId <=0 || $qty <=0) continue;
         $totalPrice = $qty * $unitPrice;
@@ -115,8 +115,8 @@ function updatePo($connect, $poId, $data) {
     $connect->query("DELETE FROM po_items WHERE po_id = $poId");
     $itemCount = intval($data['item_count'] ?? 0);
     for ($i=0;$i<$itemCount;$i++) {
-        $productId = intval($data['medicine_id'][$i] ?? 0);
-        $qty = intval($data['quantity'][$i] ?? 0);
+        $productId = intval($data['product_id'][$i] ?? 0);
+        $qty = intval($data['quantity_ordered'][$i] ?? 0);
         $unitPrice = floatval($data['unit_price'][$i] ?? 0);
         if ($productId <=0 || $qty <=0) continue;
         $totalPrice = $qty * $unitPrice;
@@ -158,8 +158,8 @@ try {
         'other_charges'=>0,
         'grand_total'=>500,
         'item_count'=>2,
-        'medicine_id'=>[1,2],
-        'quantity'=>[5,5],
+        'product_id'=>[1,2],
+        'quantity_ordered'=>[5,5],
         'unit_price'=>[50,50]
     ];
     $poId = createPo($connect, $data);
@@ -171,8 +171,8 @@ try {
     $data['delivery_location']='NewLoc';
     $data['grand_total']=1000;
     $data['item_count']=1;
-    $data['medicine_id']=[3];
-    $data['quantity']=[10];
+    $data['product_id']=[3];
+    $data['quantity_ordered']=[10];
     $data['unit_price']=[100];
     $data['po_status']='Approved';
     updatePo($connect,$poId,$data);

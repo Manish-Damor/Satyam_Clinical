@@ -168,15 +168,15 @@ class PurchaseInvoiceAction {
             $invoice_id = $connect->insert_id;
             $stmt->close();
 
-            // Insert invoice items with GST split
+            // Insert invoice items with GST split (including effective_rate)
             $itemSql = "INSERT INTO purchase_invoice_items (
                 invoice_id, product_id, product_name, hsn_code, batch_no, 
-                manufacture_date, expiry_date, qty, free_qty, unit_cost, mrp, 
+                manufacture_date, expiry_date, qty, free_qty, unit_cost, effective_rate, mrp, 
                 discount_percent, discount_amount, taxable_value,
                 cgst_percent, sgst_percent, igst_percent,
                 cgst_amount, sgst_amount, igst_amount,
                 tax_rate, tax_amount, line_total
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             $itemStmt = $connect->prepare($itemSql);
             if (!$itemStmt) throw new Exception('Prepare items failed: ' . $connect->error);
@@ -193,6 +193,7 @@ class PurchaseInvoiceAction {
                 $v_qty = floatval($item['qty'] ?? 0);
                 $v_free_qty = floatval($item['free_qty'] ?? 0);
                 $v_unit_cost = floatval($item['unit_cost'] ?? 0);
+                $v_effective_rate = floatval($item['effective_rate'] ?? 0);
                 $v_mrp = floatval($item['mrp'] ?? 0);
                 $v_discount_percent = floatval($item['discount_percent'] ?? 0);
                 $v_discount_amount = floatval($item['discount_amount'] ?? 0);
@@ -207,7 +208,7 @@ class PurchaseInvoiceAction {
                 $v_tax_amount = floatval($item['tax_amount'] ?? 0);
                 $v_line_total = floatval($item['line_total'] ?? 0);
 
-                $types = 'iisssss' . str_repeat('d', 16); // total 23 params
+                $types = 'iisssss' . str_repeat('d', 17); // now 24 params including effective_rate
                 $itemStmt->bind_param(
                     $types,
                     $v_item_invoice_id,
@@ -220,6 +221,7 @@ class PurchaseInvoiceAction {
                     $v_qty,
                     $v_free_qty,
                     $v_unit_cost,
+                    $v_effective_rate,
                     $v_mrp,
                     $v_discount_percent,
                     $v_discount_amount,
@@ -485,7 +487,7 @@ class PurchaseInvoiceAction {
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $insertStmt = $connect->prepare($insertSql);
             $userId = $_SESSION['userId'] ?? null;
-            $insertStmt->bind_param('isssddiiidi', $product_id, $batch_no, $manufacture_date, $expiry_date, $total_qty, $mrp, $cost_price, $supplier_id, $invoice_id, $tax_rate, $userId);
+            $insertStmt->bind_param('isssdddiidi', $product_id, $batch_no, $manufacture_date, $expiry_date, $total_qty, $mrp, $cost_price, $supplier_id, $invoice_id, $tax_rate, $userId);
             $insertStmt->execute();
             $insertStmt->close();
         }
@@ -503,13 +505,41 @@ class PurchaseInvoiceAction {
         return $inv;
     }
 
+    /**
+     * Set an invoice to approved and, if not already handled, credit the stock.
+     * This method is transaction‑safe and returns true on success.
+     */
     public static function approveInvoice($invoice_id, $user_id) {
         global $connect;
-        $stmt = $connect->prepare("UPDATE purchase_invoices SET status = 'Approved', approved_by = ?, approved_at = NOW() WHERE id = ?");
-        $stmt->bind_param('ii', $user_id, $invoice_id);
-        $ok = $stmt->execute();
-        $stmt->close();
-        return $ok;
+        $invoice_id = intval($invoice_id);
+        $connect->begin_transaction();
+        try {
+            // update status
+            $stmt = $connect->prepare("UPDATE purchase_invoices SET status = 'Approved', approved_by = ?, approved_at = NOW() WHERE id = ?");
+            if (!$stmt) throw new Exception('Prepare approve failed: ' . $connect->error);
+            $stmt->bind_param('ii', $user_id, $invoice_id);
+            if (!$stmt->execute()) throw new Exception('Execute approve failed: ' . $stmt->error);
+            $stmt->close();
+
+            // fetch supplier id for stock entries
+            $res = $connect->query("SELECT supplier_id FROM purchase_invoices WHERE id = $invoice_id");
+            if (!$res || $res->num_rows === 0) throw new Exception('Invoice not found after approve');
+            $row = $res->fetch_assoc();
+            $supplier_id = intval($row['supplier_id']);
+
+            // get all items and update/create batches
+            $itemsRes = $connect->query("SELECT * FROM purchase_invoice_items WHERE invoice_id = $invoice_id");
+            while ($item = $itemsRes->fetch_assoc()) {
+                // use same helper that createInvoice uses
+                self::updateOrCreateStockBatch($invoice_id, $item, $supplier_id);
+            }
+
+            $connect->commit();
+            return true;
+        } catch (Exception $e) {
+            $connect->rollback();
+            return false;
+        }
     }
 
 }

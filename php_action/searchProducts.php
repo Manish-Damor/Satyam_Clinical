@@ -1,7 +1,6 @@
 <?php 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-require_once 'core.php';
+include('../constant/connect.php');
 
 $search = isset($_GET['q']) ? trim($_GET['q']) : '';
 
@@ -10,57 +9,44 @@ if(empty($search)) {
     exit;
 }
 
-// 🔥 Normalize input (remove spaces, lowercase)
-$normalized = strtolower(preg_replace('/[\s\-]+/', '', $search));
+// Search products
+$search = '%' . $connect->real_escape_string($search) . '%';
 
-// SQL with ranking: starts-with first, then contains
-$sql = "
-SELECT 
-    product_id AS id,
-    product_name AS productName,
-    rate AS price,
-    quantity,
-    CASE 
-        WHEN REPLACE(LOWER(product_name), ' ', '') LIKE CONCAT(?, '%') THEN 1
-        ELSE 2
-    END AS rank_order
-FROM product
-WHERE status = 1
-AND REPLACE(LOWER(product_name), ' ', '') LIKE ?
-ORDER BY rank_order ASC, product_name ASC
-LIMIT 10
-";
+$sql = "SELECT product_id, product_name, hsn_code, pack_size, gst_rate, rate 
+        FROM product 
+        WHERE product_name LIKE ? 
+        AND product_status = 'Active'
+        ORDER BY product_name ASC 
+        LIMIT 15";
 
 $stmt = $connect->prepare($sql);
 if(!$stmt) {
-    echo json_encode(['error' => 'Prepare failed: ' . $connect->error]);
+    echo json_encode([]);
     exit;
 }
 
-$likeStart = $normalized;
-$likeAny   = "%" . $normalized . "%";
-
-$stmt->bind_param('ss', $likeStart, $likeAny);
+$stmt->bind_param('s', $search);
 $stmt->execute();
 $result = $stmt->get_result();
 
 $products = [];
 
-while($row = $result->fetch_assoc()) {
-    $products[] = [
-        'id' => intval($row['id']),
-        'productName' => $row['productName'],
-        'price' => floatval($row['price']),
-        'quantity' => intval($row['quantity']),
-        'outOfStock' => ($row['quantity'] <= 0)
-    ];
+if($result && $result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $products[] = [
+            'product_id' => intval($row['product_id']),
+                'product_name' => htmlspecialchars($row['product_name']),
+                'hsn_code' => $row['hsn_code'],
+                'pack_size' => $row['pack_size'],
+                'gst_rate' => floatval($row['gst_rate']),
+                'rate' => floatval($row['rate'])
+        ];
+    }
 }
-
 echo json_encode($products);
-
 $stmt->close();
-$connect->close();
 ?>
+
 
 
 <?php 

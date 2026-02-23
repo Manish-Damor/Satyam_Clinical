@@ -33,6 +33,10 @@ $response = [
 ];
 
 $supplierId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+// fallback to direct $_GET when running in CLI or when filter_input not available
+if (!$supplierId) {
+    if (isset($_GET['id'])) $supplierId = intval($_GET['id']);
+}
 
 if (!$supplierId) {
     http_response_code(400);

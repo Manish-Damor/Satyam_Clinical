@@ -47,13 +47,15 @@ if ($searchPO) {
 
 $whereClause = implode(' AND ', $where);
 
-// Fetch Purchase Orders from purchase_orders table
+// Fetch Purchase Orders from purchase_orders table with item aggregates
 $query = "
     SELECT 
         po.po_id, po.supplier_id, po.po_number, po.po_date, 
         po.expected_delivery_date, po.grand_total, po.po_status,
-        po.payment_status, s.supplier_name,
-        COUNT(poi.po_item_id) as item_count
+        s.supplier_name,
+        COUNT(poi.po_item_id) as item_count,
+        COALESCE(SUM(poi.quantity_ordered),0) AS total_ordered_qty,
+        COALESCE(SUM(poi.quantity_received),0) AS total_received_qty
     FROM purchase_orders po
     LEFT JOIN suppliers s ON po.supplier_id = s.supplier_id
     LEFT JOIN po_items poi ON po.po_id = poi.po_id
@@ -208,7 +210,9 @@ if ($res) while ($r = $res->fetch_assoc()) $suppliers[] = $r;
                                     <th style="width:8%">Items</th>
                                     <th style="width:12%">Grand Total</th>
                                     <th style="width:12%">PO Status</th>
-                                    <th style="width:12%">Payment Status</th>
+                                    <th style="width:10%">Total Ordered</th>
+                                    <th style="width:10%">Total Received</th>
+                                    <th style="width:10%">Pending</th>
                                     <th style="width:15%">Actions</th>
                                 </tr>
                             </thead>
@@ -234,33 +238,55 @@ if ($res) while ($r = $res->fetch_assoc()) $suppliers[] = $r;
                                             ?>
                                             <span class="badge bg-<?=$statusClass?>"><?=$po['po_status']?></span>
                                         </td>
-                                        <td>
-                                            <?php 
-                                                $payStatus = match($po['payment_status']) {
-                                                    'NotDue' => 'info',
-                                                    'Due' => 'warning',
-                                                    'PartialPaid' => 'primary',
-                                                    'Paid' => 'success',
-                                                    'Overdue' => 'danger',
-                                                    default => 'secondary'
-                                                };
-                                            ?>
-                                            <span class="badge bg-<?=$payStatus?>"><?=$po['payment_status']?></span>
-                                        </td>
+                                        <td class="text-end"><?=number_format($po['total_ordered_qty'] ?? 0, 2)?></td>
+                                        <td class="text-end"><?=number_format($po['total_received_qty'] ?? 0, 2)?></td>
+                                        <td class="text-end"><?=number_format((($po['total_ordered_qty'] ?? 0) - ($po['total_received_qty'] ?? 0)), 2)?></td>
                                         <td>
                                             <div class="btn-group btn-group-sm" role="group">
                                                 <a href="po_view.php?id=<?=$po['po_id']?>" class="btn btn-info" title="View">
                                                     <i class="fa fa-eye"></i>
                                                 </a>
-                                                <a href="editorder.php?po_id=<?=$po['po_id']?>" class="btn btn-warning" title="Edit">
-                                                    <i class="fa fa-edit"></i>
-                                                </a>
-                                                <button class="btn btn-success btn-approve-po" data-id="<?=$po['po_id']?>" data-status="<?=$po['po_status']?>" title="Approve">
-                                                    <i class="fa fa-check"></i>
-                                                </button>
-                                                <button class="btn btn-danger btn-delete-po" data-id="<?=$po['po_id']?>" title="Cancel">
-                                                    <i class="fa fa-trash"></i>
-                                                </button>
+                                                <?php if($po['po_status'] === 'Draft'): ?>
+                                                    <a href="create_po.php?id=<?=$po['po_id']?>" class="btn btn-warning" title="Edit">
+                                                        <i class="fa fa-edit"></i>
+                                                    </a>
+                                                    <button class="btn btn-primary btn-submit-po" data-id="<?=$po['po_id']?>" title="Submit">
+                                                        <i class="fa fa-upload"></i>
+                                                    </button>
+                                                    <button class="btn btn-danger btn-cancel-po" data-id="<?=$po['po_id']?>" title="Cancel">
+                                                        <i class="fa fa-trash"></i>
+                                                    </button>
+                                                <?php elseif($po['po_status'] === 'Submitted'): ?>
+                                                    <button class="btn btn-success btn-approve-po" data-id="<?=$po['po_id']?>" title="Approve">
+                                                        <i class="fa fa-check"></i>
+                                                    </button>
+                                                    <button class="btn btn-secondary btn-reject-po" data-id="<?=$po['po_id']?>" title="Reject">
+                                                        <i class="fa fa-undo"></i>
+                                                    </button>
+                                                    <button class="btn btn-danger btn-cancel-po" data-id="<?=$po['po_id']?>" title="Cancel">
+                                                        <i class="fa fa-trash"></i>
+                                                    </button>
+                                                <?php elseif($po['po_status'] === 'Approved'): ?>
+                                                    <button class="btn btn-primary btn-mark-partial" data-id="<?=$po['po_id']?>" title="Mark Partial Received">
+                                                        <i class="fa fa-box"></i>
+                                                    </button>
+                                                    <button class="btn btn-success btn-mark-received" data-id="<?=$po['po_id']?>" title="Mark Fully Received">
+                                                        <i class="fa fa-check-circle"></i>
+                                                    </button>
+                                                    <a href="po_view.php?id=<?=$po['po_id']?>" class="btn btn-info" title="View"><i class="fa fa-eye"></i></a>
+                                                <?php elseif($po['po_status'] === 'PartialReceived'): ?>
+                                                    <button class="btn btn-primary btn-update-received" data-id="<?=$po['po_id']?>" title="Update Received Qty">
+                                                        <i class="fa fa-edit"></i>
+                                                    </button>
+                                                    <a href="po_view.php?id=<?=$po['po_id']?>" class="btn btn-info" title="View"><i class="fa fa-eye"></i></a>
+                                                <?php elseif($po['po_status'] === 'Received'): ?>
+                                                    <button class="btn btn-dark btn-close-po" data-id="<?=$po['po_id']?>" title="Close PO">
+                                                        <i class="fa fa-lock"></i>
+                                                    </button>
+                                                    <a href="po_view.php?id=<?=$po['po_id']?>" class="btn btn-info" title="View"><i class="fa fa-eye"></i></a>
+                                                <?php else: ?>
+                                                    <a href="po_view.php?id=<?=$po['po_id']?>" class="btn btn-info" title="View"><i class="fa fa-eye"></i></a>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                     </tr>
@@ -288,66 +314,65 @@ if ($res) while ($r = $res->fetch_assoc()) $suppliers[] = $r;
         });
     });
 
+    // Submit PO (Draft -> Submitted)
+    $(document).on('click', '.btn-submit-po', function(){
+        const poId = $(this).data('id');
+        if (!confirm('Submit this PO for approval?')) return;
+        $.post('php_action/po_actions.php', { action: 'submit_po', po_id: poId }, function(resp){
+            if (resp.success) { alert(resp.message); location.reload(); } else { alert('Error: ' + resp.error); }
+        }, 'json').fail(()=>alert('Server error'));
+    });
+
     // Approve PO
     $(document).on('click', '.btn-approve-po', function(){
         const poId = $(this).data('id');
-        const currentStatus = $(this).data('status');
-        
-        if (currentStatus === 'Approved' || currentStatus === 'Received') {
-            alert('This PO is already approved/received');
-            return;
-        }
-
-        if (!confirm('Mark this PO as Approved?')) return;
-
-        $.ajax({
-            url: 'php_action/po_actions.php',
-            method: 'POST',
-            data: {
-                action: 'approve_po',
-                po_id: poId
-            },
-            dataType: 'json',
-            success: function(resp){
-                if (resp.success) {
-                    alert('✓ PO approved successfully');
-                    location.reload();
-                } else {
-                    alert('✗ Error: ' + resp.error);
-                }
-            },
-            error: function(){
-                alert('Server error occurred');
-            }
-        });
+        if (!confirm('Approve this PO?')) return;
+        $.post('php_action/po_actions.php', { action: 'approve_po', po_id: poId }, function(resp){
+            if (resp.success) { alert(resp.message); location.reload(); } else { alert('Error: ' + resp.error); }
+        }, 'json').fail(()=>alert('Server error'));
     });
 
-    // Cancel/Delete PO
-    $(document).on('click', '.btn-delete-po', function(){
+    // Reject PO (Submitted -> Draft)
+    $(document).on('click', '.btn-reject-po', function(){
         const poId = $(this).data('id');
-        
-        if (!confirm('Are you sure you want to cancel this PO?')) return;
+        if (!confirm('Reject this PO back to Draft?')) return;
+        $.post('php_action/po_actions.php', { action: 'reject_po', po_id: poId }, function(resp){
+            if (resp.success) { alert(resp.message); location.reload(); } else { alert('Error: ' + resp.error); }
+        }, 'json').fail(()=>alert('Server error'));
+    });
 
-        $.ajax({
-            url: 'php_action/po_actions.php',
-            method: 'POST',
-            data: {
-                action: 'cancel_po',
-                po_id: poId
-            },
-            dataType: 'json',
-            success: function(resp){
-                if (resp.success) {
-                    alert('✓ PO cancelled successfully');
-                    location.reload();
-                } else {
-                    alert('✗ Error: ' + resp.error);
-                }
-            },
-            error: function(){
-                alert('Server error occurred');
-            }
-        });
+    // Cancel PO
+    $(document).on('click', '.btn-cancel-po', function(){
+        const poId = $(this).data('id');
+        if (!confirm('Are you sure you want to cancel this PO? This action cannot be undone.')) return;
+        $.post('php_action/po_actions.php', { action: 'cancel_po', po_id: poId }, function(resp){
+            if (resp.success) { alert(resp.message); location.reload(); } else { alert('Error: ' + resp.error); }
+        }, 'json').fail(()=>alert('Server error'));
+    });
+
+    // Mark Fully Received
+    $(document).on('click', '.btn-mark-received', function(){
+        const poId = $(this).data('id');
+        if (!confirm('Mark all items on this PO as received?')) return;
+        $.post('php_action/po_actions.php', { action: 'mark_received', po_id: poId }, function(resp){
+            if (resp.success) { alert(resp.message); location.reload(); } else { alert('Error: ' + resp.error); }
+        }, 'json').fail(()=>alert('Server error'));
+    });
+
+    // Mark Partial / open update received modal (handled by reuse of view)
+    $(document).on('click', '.btn-mark-partial, .btn-update-received', function(){
+        const poId = $(this).data('id');
+        // open the PO view to edit received quantities (po_view.php may be extended to allow updating)
+        window.location = 'po_view.php?id=' + poId;
+    });
+
+    // Close PO
+    $(document).on('click', '.btn-close-po', function(){
+        const poId = $(this).data('id');
+        if (!confirm('Close this PO? This will make it read-only.')) return;
+        $.post('php_action/po_actions.php', { action: 'close_po', po_id: poId }, function(resp){
+            if (resp.success) { alert(resp.message); location.reload(); } else { alert('Error: ' + resp.error); }
+        }, 'json').fail(()=>alert('Server error'));
     });
 </script>
 

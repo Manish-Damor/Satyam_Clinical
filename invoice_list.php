@@ -293,6 +293,9 @@ if ($res) while ($r = $res->fetch_assoc()) $suppliers[] = $r;
                                                 <a href="invoice_view.php?id=<?=$inv['id']?>" class="btn btn-info" title="View">
                                                     <i class="fa fa-eye"></i>
                                                 </a>
+                                                <a href="invoice_view.php?id=<?=$inv['id']?>&print=1" target="_blank" class="btn btn-secondary" title="Print">
+                                                    <i class="fa fa-print"></i>
+                                                </a>
                                                 <?php if ($inv['status'] === 'Draft'): ?>
                                                     <a href="invoice_edit.php?id=<?=$inv['id']?>" class="btn btn-warning" title="Edit">
                                                         <i class="fa fa-edit"></i>

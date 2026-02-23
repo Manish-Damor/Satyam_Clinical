@@ -81,7 +81,7 @@ CREATE TABLE `audit_logs` (
   KEY `idx_action_timestamp` (`action_timestamp`),
   KEY `idx_table_action` (`table_name`,`action`),
   CONSTRAINT `fk_audit_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Complete audit trail of all financial and sensitive operations';
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Complete audit trail of all financial and sensitive operations';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -90,6 +90,7 @@ CREATE TABLE `audit_logs` (
 
 LOCK TABLES `audit_logs` WRITE;
 /*!40000 ALTER TABLE `audit_logs` DISABLE KEYS */;
+INSERT INTO `audit_logs` VALUES (1,'test_table',123,'UPDATE',1,'{\"test_field\":\"old_value\",\"amount\":4000}','{\"test_field\":\"test_value\",\"amount\":5000}','2 field(s) modified','UNKNOWN','','2026-02-17 16:07:07','2026-02-17 16:07:07'),(2,'test_table',123,'INSERT',1,'null','{\"field\":\"value\"}','','UNKNOWN','','2026-02-17 16:38:13','2026-02-17 16:38:13'),(3,'test_table',123,'UPDATE',1,'{\"old\":\"value\"}','{\"new\":\"value\"}','2 field(s) modified','UNKNOWN','','2026-02-17 16:38:13','2026-02-17 16:38:13'),(4,'test_table',123,'INSERT',1,'null','{\"field\":\"value\"}','','UNKNOWN','','2026-02-17 17:51:58','2026-02-17 17:51:58'),(5,'test_table',123,'UPDATE',1,'{\"old\":\"value\"}','{\"new\":\"value\"}','2 field(s) modified','UNKNOWN','','2026-02-17 17:51:58','2026-02-17 17:51:58'),(6,'test_table',123,'INSERT',1,'null','{\"field\":\"value\"}','','UNKNOWN','','2026-02-17 17:54:20','2026-02-17 17:54:20'),(7,'test_table',123,'UPDATE',1,'{\"old\":\"value\"}','{\"new\":\"value\"}','2 field(s) modified','UNKNOWN','','2026-02-17 17:54:20','2026-02-17 17:54:20'),(8,'test_table',123,'INSERT',1,'null','{\"field\":\"value\"}','','UNKNOWN','','2026-02-17 17:55:31','2026-02-17 17:55:31'),(9,'test_table',123,'UPDATE',1,'{\"old\":\"value\"}','{\"new\":\"value\"}','2 field(s) modified','UNKNOWN','','2026-02-17 17:55:31','2026-02-17 17:55:31'),(10,'test_table',123,'INSERT',1,'null','{\"field\":\"value\"}','','UNKNOWN','','2026-02-17 17:57:22','2026-02-17 17:57:22'),(11,'test_table',123,'UPDATE',1,'{\"old\":\"value\"}','{\"new\":\"value\"}','2 field(s) modified','UNKNOWN','','2026-02-17 17:57:22','2026-02-17 17:57:22'),(12,'test_table',123,'INSERT',1,'null','{\"field\":\"value\"}','','UNKNOWN','','2026-02-17 17:57:33','2026-02-17 17:57:33'),(13,'test_table',123,'UPDATE',1,'{\"old\":\"value\"}','{\"new\":\"value\"}','2 field(s) modified','UNKNOWN','','2026-02-17 17:57:33','2026-02-17 17:57:33');
 /*!40000 ALTER TABLE `audit_logs` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -230,6 +231,36 @@ INSERT INTO `categories` VALUES (1,'Tablets',1,1,'2026-02-17 04:51:53','2026-02-
 UNLOCK TABLES;
 
 --
+-- Table structure for table `company_settings`
+--
+
+DROP TABLE IF EXISTS `company_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `company_settings` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `setting_key` varchar(100) NOT NULL,
+  `setting_value` text DEFAULT NULL,
+  `setting_type` varchar(50) DEFAULT 'string',
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `setting_key` (`setting_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `company_settings`
+--
+
+LOCK TABLES `company_settings` WRITE;
+/*!40000 ALTER TABLE `company_settings` DISABLE KEYS */;
+INSERT INTO `company_settings` VALUES (1,'company_state','Gujarat','string','Company location state for GST determination','2026-02-17 17:54:40','2026-02-17 17:54:40'),(2,'company_gstin','','string','Company GSTIN number','2026-02-17 17:54:40','2026-02-17 17:54:40'),(3,'company_name','Satyam Clinical','string','Company name','2026-02-17 17:54:40','2026-02-17 17:54:40'),(4,'gst_registration_type','1','string','1=Regular, 2=Composition, 3=Not Registered','2026-02-17 17:54:40','2026-02-17 17:54:40'),(5,'default_payment_term_days','30','integer','Default credit days for invoices','2026-02-17 17:54:40','2026-02-17 17:54:40');
+/*!40000 ALTER TABLE `company_settings` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `customer_credit_log`
 --
 
@@ -366,6 +397,7 @@ CREATE TABLE `goods_received` (
   `created_by` int(10) unsigned DEFAULT NULL COMMENT 'Who created GRN',
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `submitted_by` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`grn_id`),
   KEY `idx_grn_po` (`po_id`),
   KEY `idx_supplier` (`supplier_id`),
@@ -579,7 +611,7 @@ CREATE TABLE `orders` (
   KEY `idx_delete_status` (`delete_status`),
   KEY `fk_orders_created_by` (`created_by`),
   CONSTRAINT `fk_orders_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -588,6 +620,7 @@ CREATE TABLE `orders` (
 
 LOCK TABLES `orders` WRITE;
 /*!40000 ALTER TABLE `orders` DISABLE KEYS */;
+INSERT INTO `orders` VALUES (999,'TEST-999','0000-00-00','Test Customer 120532',NULL,'9999999999',NULL,0.00,0.00,0.00,18,0.00,0.00,0.00,0.00,NULL,'',NULL,0,NULL,'2026-02-17 11:05:32','2026-02-17 11:05:32','DRAFT','UNPAID',NULL,NULL,NULL);
 /*!40000 ALTER TABLE `orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -603,23 +636,23 @@ CREATE TABLE `po_items` (
   `po_id` int(10) unsigned NOT NULL,
   `product_id` int(10) unsigned NOT NULL,
   `quantity_ordered` int(10) unsigned NOT NULL,
+  `pending_qty` int(10) unsigned DEFAULT 0,
   `quantity_received` int(10) unsigned DEFAULT 0,
   `unit_price` decimal(10,2) NOT NULL,
   `total_price` decimal(12,2) NOT NULL,
-  `batch_number` varchar(50) DEFAULT NULL,
-  `expiry_date` date DEFAULT NULL,
-  `manufacturing_date` date DEFAULT NULL,
   `item_status` enum('Pending','PartialReceived','Received','Cancelled') DEFAULT 'Pending',
   `notes` varchar(255) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `gst_percentage` float DEFAULT 18,
   PRIMARY KEY (`po_item_id`),
   KEY `idx_po_id` (`po_id`),
   KEY `idx_product_id` (`product_id`),
   KEY `idx_item_status` (`item_status`),
+  KEY `idx_po_product` (`po_id`,`product_id`),
   CONSTRAINT `fk_po_items_po` FOREIGN KEY (`po_id`) REFERENCES `purchase_orders` (`po_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_po_items_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -628,6 +661,7 @@ CREATE TABLE `po_items` (
 
 LOCK TABLES `po_items` WRITE;
 /*!40000 ALTER TABLE `po_items` DISABLE KEYS */;
+INSERT INTO `po_items` VALUES (1,1,1,10,0,0,100.00,1000.00,'Pending',NULL,'2026-02-22 09:15:37','2026-02-22 09:15:37',18),(2,1,2,10,0,0,100.00,1000.00,'Pending',NULL,'2026-02-22 09:15:37','2026-02-22 09:15:37',18),(3,2,1,10,0,0,100.00,1000.00,'Pending',NULL,'2026-02-22 09:17:05','2026-02-22 09:17:05',18),(4,2,2,10,0,0,100.00,1000.00,'Pending',NULL,'2026-02-22 09:17:05','2026-02-22 09:17:05',18),(5,3,1,10,0,10,100.00,1000.00,'Received',NULL,'2026-02-22 09:17:22','2026-02-23 06:45:29',18),(6,3,2,10,0,10,100.00,1000.00,'Received',NULL,'2026-02-22 09:17:22','2026-02-23 06:45:29',18),(7,4,1,10,0,0,100.00,1000.00,'Pending',NULL,'2026-02-22 09:18:14','2026-02-22 09:18:14',18),(8,4,2,10,0,0,100.00,1000.00,'Pending',NULL,'2026-02-22 09:18:14','2026-02-22 09:18:14',18),(9,5,1,5,0,0,10.00,50.00,'Pending',NULL,'2026-02-23 04:24:37','2026-02-23 04:24:37',18),(10,7,1,100,0,0,10.00,1000.00,'Pending',NULL,'2026-02-23 05:44:48','2026-02-23 05:44:48',5),(11,7,2,1000,0,0,20.00,20000.00,'Pending',NULL,'2026-02-23 05:44:48','2026-02-23 05:44:48',5),(12,8,1,10,0,0,50.00,500.00,'Pending',NULL,'2026-02-23 06:39:00','2026-02-23 06:39:00',0),(13,8,2,5,0,0,100.00,500.00,'Pending',NULL,'2026-02-23 06:39:00','2026-02-23 06:39:00',0),(14,9,1,10,0,0,50.00,500.00,'Pending',NULL,'2026-02-23 06:39:09','2026-02-23 06:39:09',0),(15,9,2,5,0,0,100.00,500.00,'Pending',NULL,'2026-02-23 06:39:09','2026-02-23 06:39:09',0),(16,10,1,10,0,0,50.00,500.00,'Pending',NULL,'2026-02-23 06:39:40','2026-02-23 06:39:40',0),(17,10,2,5,0,0,100.00,500.00,'Pending',NULL,'2026-02-23 06:39:40','2026-02-23 06:39:40',0),(18,11,1,10,0,0,50.00,500.00,'Pending',NULL,'2026-02-23 06:39:50','2026-02-23 06:39:50',0),(19,11,2,5,0,0,100.00,500.00,'Pending',NULL,'2026-02-23 06:39:50','2026-02-23 06:39:50',0),(20,12,1,10,0,10,50.00,500.00,'Received',NULL,'2026-02-23 06:40:00','2026-02-23 06:41:15',0),(21,12,2,5,0,5,100.00,500.00,'Received',NULL,'2026-02-23 06:40:00','2026-02-23 06:41:15',0),(22,13,1,5,0,5,10.00,50.00,'Received',NULL,'2026-02-23 06:43:59','2026-02-23 06:47:51',18),(23,14,1,5,0,5,10.00,50.00,'Received',NULL,'2026-02-23 06:48:25','2026-02-23 06:51:12',18),(24,15,1,5,0,0,10.00,50.00,'Pending',NULL,'2026-02-23 07:00:35','2026-02-23 07:00:35',18),(25,16,1,5,0,0,10.00,50.00,'Pending',NULL,'2026-02-23 07:01:01','2026-02-23 07:01:01',18),(26,17,1,5,0,0,10.00,50.00,'Pending',NULL,'2026-02-23 07:09:34','2026-02-23 07:09:34',18),(27,19,1,1000,0,1000,10.00,10000.00,'Received',NULL,'2026-02-23 07:18:23','2026-02-23 07:19:30',5),(28,20,1,1000,0,0,5.00,5000.00,'Pending',NULL,'2026-02-23 07:27:21','2026-02-23 07:27:21',5),(29,20,2,500,0,0,12.00,6000.00,'Pending',NULL,'2026-02-23 07:27:21','2026-02-23 07:27:21',5);
 /*!40000 ALTER TABLE `po_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -653,6 +687,7 @@ CREATE TABLE `product` (
   `status` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  `expected_mrp` decimal(14,2) DEFAULT NULL COMMENT 'Expected MRP for products (can be overridden per batch)',
   PRIMARY KEY (`product_id`),
   UNIQUE KEY `unique_product` (`product_name`,`brand_id`),
   KEY `idx_brand_id` (`brand_id`),
@@ -670,7 +705,7 @@ CREATE TABLE `product` (
 
 LOCK TABLES `product` WRITE;
 /*!40000 ALTER TABLE `product` DISABLE KEYS */;
-INSERT INTO `product` VALUES (1,'Paracetamol 650mg','Paracetamol 650mg',1,1,'Tablet','Strip','10x10','30045010',5.00,50,1,'2026-02-17 10:21:54',NULL),(2,'Aspirin 500mg','Aspirin 500mg',2,1,'Tablet','Strip','10x10','30045010',5.00,40,1,'2026-02-17 10:21:54',NULL),(3,'Amoxicillin 500mg','Amoxicillin 500mg',3,1,'Capsule','Strip','10x10','30049099',5.00,30,1,'2026-02-17 10:21:54',NULL),(4,'Pantoprazole 40mg','Pantoprazole 40mg',2,4,'Capsule','Strip','10x15','30049099',5.00,40,1,'2026-02-17 10:21:54',NULL),(5,'Ibuprofen 400mg','Ibuprofen 400mg',4,1,'Tablet','Strip','10x10','30045010',5.00,60,1,'2026-02-17 10:21:54',NULL),(6,'Vitamin C 500mg','Vitamin C 500mg',5,1,'Tablet','Strip','10x10','30045010',5.00,45,1,'2026-02-17 10:21:54',NULL),(7,'Cough Syrup DX','Cough Syrup',2,2,'Syrup','Bottle','100ml','30049099',12.00,20,1,'2026-02-17 10:21:54',NULL),(8,'Calcium Syrup','Calcium Carbonate',1,2,'Syrup','Bottle','200ml','30049099',12.00,15,1,'2026-02-17 10:21:54',NULL);
+INSERT INTO `product` VALUES (1,'Paracetamol 650mg','Paracetamol 650mg',1,1,'Tablet','Strip','10x10','30045010',5.00,50,1,'2026-02-17 10:21:54',NULL,NULL),(2,'Aspirin 500mg','Aspirin 500mg',2,1,'Tablet','Strip','10x10','30045010',5.00,40,1,'2026-02-17 10:21:54',NULL,NULL),(3,'Amoxicillin 500mg','Amoxicillin 500mg',3,1,'Capsule','Strip','10x10','30049099',5.00,30,1,'2026-02-17 10:21:54',NULL,NULL),(4,'Pantoprazole 40mg','Pantoprazole 40mg',2,4,'Capsule','Strip','10x15','30049099',5.00,40,1,'2026-02-17 10:21:54',NULL,NULL),(5,'Ibuprofen 400mg','Ibuprofen 400mg',4,1,'Tablet','Strip','10x10','30045010',5.00,60,1,'2026-02-17 10:21:54',NULL,NULL),(6,'Vitamin C 500mg','Vitamin C 500mg',5,1,'Tablet','Strip','10x10','30045010',5.00,45,1,'2026-02-17 10:21:54',NULL,NULL),(7,'Cough Syrup DX','Cough Syrup',2,2,'Syrup','Bottle','100ml','30049099',12.00,20,1,'2026-02-17 10:21:54',NULL,NULL),(8,'Calcium Syrup','Calcium Carbonate',1,2,'Syrup','Bottle','200ml','30049099',12.00,15,1,'2026-02-17 10:21:54',NULL,NULL);
 /*!40000 ALTER TABLE `product` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -736,19 +771,33 @@ CREATE TABLE `purchase_invoice_items` (
   `qty` decimal(14,3) NOT NULL DEFAULT 0.000,
   `free_qty` decimal(14,3) NOT NULL DEFAULT 0.000,
   `unit_cost` decimal(14,4) NOT NULL DEFAULT 0.0000,
+  `effective_rate` decimal(14,4) DEFAULT NULL,
   `mrp` decimal(14,2) DEFAULT NULL,
   `discount_percent` decimal(6,2) NOT NULL DEFAULT 0.00,
   `discount_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
   `taxable_value` decimal(14,2) NOT NULL DEFAULT 0.00,
   `tax_rate` decimal(6,2) NOT NULL DEFAULT 0.00,
+  `cgst_percent` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `sgst_percent` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `igst_percent` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `cgst_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `sgst_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `igst_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
   `tax_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
   `line_total` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `product_gst_rate` decimal(5,2) DEFAULT NULL COMMENT 'Product gst_rate from product table (audit trail)',
+  `supplier_quoted_mrp` decimal(14,2) DEFAULT NULL COMMENT 'MRP as quoted by supplier for this batch',
+  `our_selling_price` decimal(14,2) DEFAULT NULL COMMENT 'Our calculated selling price',
+  `margin_amount` decimal(14,2) DEFAULT NULL COMMENT 'MRP - Cost',
+  `margin_percent` decimal(6,2) DEFAULT NULL COMMENT 'Margin percentage: (MRP - Cost) / Cost * 100',
   PRIMARY KEY (`id`),
   KEY `idx_invoice` (`invoice_id`),
   KEY `idx_product` (`product_id`),
+  KEY `idx_gst_rate` (`product_gst_rate`),
+  KEY `idx_margin` (`margin_percent`),
   CONSTRAINT `fk_inv_items_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `purchase_invoices` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_inv_items_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -757,6 +806,7 @@ CREATE TABLE `purchase_invoice_items` (
 
 LOCK TABLES `purchase_invoice_items` WRITE;
 /*!40000 ALTER TABLE `purchase_invoice_items` DISABLE KEYS */;
+INSERT INTO `purchase_invoice_items` VALUES (1,1,1,'Paracetamol 650mg','30045010','batch333','2026-02-12','2026-03-07',1900.000,20.000,20.0000,NULL,25.00,2.00,760.00,37240.00,5.00,0.00,0.00,5.00,0.00,0.00,1862.00,1862.00,39102.00,NULL,NULL,NULL,NULL,NULL),(3,3,1,'Paracetamol 650mg','30045010','batch23','2026-02-11','2029-02-26',1000.000,50.000,5.0000,NULL,10.00,2.00,100.00,4900.00,5.00,2.50,2.50,0.00,122.50,122.50,0.00,245.00,5145.00,NULL,NULL,NULL,NULL,NULL),(4,4,1,'Paracetamol 650mg','30041090','WF-BATCH-f82ae138','2025-11-22','2027-02-22',100.000,10.000,50.0000,45.4545,65.00,5.00,250.00,4750.00,5.00,0.00,0.00,5.00,0.00,0.00,237.50,237.50,4987.50,NULL,NULL,NULL,NULL,NULL),(5,5,1,'Paracetamol 650mg','30041090','WF-BATCH-f82ae138','2025-11-22','2027-02-22',100.000,10.000,50.0000,45.4545,65.00,5.00,250.00,4750.00,5.00,0.00,0.00,5.00,0.00,0.00,237.50,237.50,4987.50,NULL,NULL,NULL,NULL,NULL),(6,6,1,'Paracetamol 650mg','30041090','WF-BATCH-3a73ebf5','2025-11-22','2027-02-22',100.000,10.000,50.0000,45.4545,65.00,5.00,250.00,4750.00,5.00,0.00,0.00,5.00,0.00,0.00,237.50,237.50,4987.50,NULL,NULL,NULL,NULL,NULL),(7,7,1,'Paracetamol 650mg','30041090','WF-BATCH-3a73ebf5','2025-11-22','2027-02-22',100.000,10.000,50.0000,45.4545,65.00,5.00,250.00,4750.00,5.00,0.00,0.00,5.00,0.00,0.00,237.50,237.50,4987.50,NULL,NULL,NULL,NULL,NULL),(8,8,1,'Paracetamol 650mg','30041090','WF-BATCH-5adbb9e3','2025-11-22','2027-02-22',100.000,10.000,50.0000,45.4545,65.00,5.00,250.00,4750.00,5.00,0.00,0.00,5.00,0.00,0.00,237.50,237.50,4987.50,NULL,NULL,NULL,NULL,NULL),(9,9,1,'Paracetamol 650mg','30041090','WF-BATCH-5adbb9e3','2025-11-22','2027-02-22',100.000,10.000,50.0000,45.4545,65.00,5.00,250.00,4750.00,5.00,0.00,0.00,5.00,0.00,0.00,237.50,237.50,4987.50,NULL,NULL,NULL,NULL,NULL),(10,10,3,'Amoxicillin 500mg','30049099','batch99','2026-01-22','2030-11-22',1000.000,10.000,10.5000,10.3960,15.00,2.00,210.00,10290.00,5.00,0.00,0.00,5.00,0.00,0.00,514.50,514.50,10804.50,NULL,NULL,NULL,NULL,NULL),(11,11,1,'','30045010',NULL,NULL,NULL,10.000,0.000,100.0000,100.0000,NULL,0.00,0.00,1000.00,5.00,0.00,0.00,5.00,0.00,0.00,50.00,50.00,1050.00,5.00,NULL,NULL,NULL,NULL),(12,11,2,'','30045010',NULL,NULL,NULL,10.000,0.000,100.0000,100.0000,NULL,0.00,0.00,1000.00,5.00,0.00,0.00,5.00,0.00,0.00,50.00,50.00,1050.00,5.00,NULL,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `purchase_invoice_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -771,6 +821,8 @@ CREATE TABLE `purchase_invoices` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `supplier_id` int(10) unsigned NOT NULL,
   `invoice_no` varchar(100) NOT NULL,
+  `supplier_invoice_no` varchar(100) DEFAULT NULL,
+  `supplier_invoice_date` date DEFAULT NULL,
   `invoice_date` date NOT NULL,
   `po_reference` varchar(100) DEFAULT NULL,
   `grn_reference` varchar(100) DEFAULT NULL,
@@ -783,7 +835,10 @@ CREATE TABLE `purchase_invoices` (
   `freight` decimal(14,2) NOT NULL DEFAULT 0.00,
   `round_off` decimal(14,2) NOT NULL DEFAULT 0.00,
   `grand_total` decimal(14,2) NOT NULL DEFAULT 0.00,
-  `status` enum('Draft','Received','Matched','Approved','Paid','Cancelled') NOT NULL DEFAULT 'Draft',
+  `paid_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `payment_mode` enum('Cash','Credit','Bank','Cheque') DEFAULT 'Credit',
+  `outstanding_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `status` enum('Draft','Approved','Cancelled','Received','Paid') DEFAULT 'Draft',
   `attachment_path` varchar(255) DEFAULT NULL,
   `notes` text DEFAULT NULL,
   `created_by` int(11) DEFAULT NULL,
@@ -801,16 +856,31 @@ CREATE TABLE `purchase_invoices` (
   `payment_status` enum('UNPAID','PARTIAL','PAID') DEFAULT 'UNPAID' COMMENT 'Payment status',
   `last_payment_date` date DEFAULT NULL COMMENT 'Last payment date',
   `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `submitted_by` int(10) unsigned DEFAULT NULL,
+  `company_location_state` varchar(100) DEFAULT 'Gujarat' COMMENT 'Our company state for GST determination',
+  `supplier_location_state` varchar(100) DEFAULT NULL COMMENT 'Supplier state (denormalized for convenience)',
+  `place_of_supply` varchar(100) DEFAULT 'Gujarat',
+  `gst_determination_type` enum('intrastate','interstate') DEFAULT NULL COMMENT 'Auto-detected GST type',
+  `is_gst_registered` tinyint(1) DEFAULT 1 COMMENT 'Is supplier GST registered',
+  `supplier_gstin` varchar(15) DEFAULT NULL COMMENT 'Denormalized from suppliers table',
+  `total_cgst` decimal(14,2) NOT NULL DEFAULT 0.00 COMMENT 'Central GST total for intra-state',
+  `total_sgst` decimal(14,2) NOT NULL DEFAULT 0.00 COMMENT 'State GST total for intra-state',
+  `total_igst` decimal(14,2) NOT NULL DEFAULT 0.00 COMMENT 'Integrated GST total for inter-state',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_supplier_invoice` (`supplier_id`,`invoice_no`),
+  UNIQUE KEY `unique_supplier_invoice` (`supplier_id`,`supplier_invoice_no`),
   KEY `idx_supplier` (`supplier_id`),
   KEY `idx_deleted_at` (`deleted_at`),
   KEY `idx_deleted_at_pi` (`deleted_at`),
   KEY `idx_invoice_status` (`status`),
   KEY `idx_payment_status` (`payment_status`),
   KEY `idx_supplier_invoice` (`supplier_id`,`status`),
+  KEY `idx_status` (`status`),
+  KEY `idx_invoice_date` (`invoice_date`),
+  KEY `idx_gst_type` (`gst_determination_type`),
+  KEY `idx_state` (`supplier_location_state`),
   CONSTRAINT `fk_inv_supplier` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`supplier_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -819,6 +889,7 @@ CREATE TABLE `purchase_invoices` (
 
 LOCK TABLES `purchase_invoices` WRITE;
 /*!40000 ALTER TABLE `purchase_invoices` DISABLE KEYS */;
+INSERT INTO `purchase_invoices` VALUES (1,2,'INV-26-00001','INV-01','2026-02-15','2026-02-21','PO-001',NULL,'','2026-03-23','INR',38000.00,760.00,1862.00,0.00,0.00,39102.00,39102.00,'Credit',0.00,'Approved',NULL,'',1,'2026-02-21 16:19:14',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,'UNPAID',NULL,'2026-02-21 16:19:14',NULL,'0','Delhi','Delhi','interstate',1,'0',0.00,0.00,1862.00),(3,3,'INV-26-00001','INV-01','2026-02-20','2026-02-22','PO-001',NULL,'','2026-03-24','INR',5000.00,100.00,245.00,0.00,0.00,5145.00,5145.00,'Cash',0.00,'Approved',NULL,'',1,'2026-02-22 10:17:02',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,'UNPAID',NULL,'2026-02-22 10:17:43',NULL,'0','Gujarat','Gujarat','intrastate',1,'0',122.50,122.50,0.00),(4,1,'WORKFLOW-TEST-20260222075434','SUP-TEST-20260222075434','2026-02-22','2026-02-22','WF-TEST-001',NULL,'Net 30',NULL,'INR',5000.00,250.00,237.50,50.00,0.00,5037.50,0.00,'Credit',5037.50,'Draft',NULL,'Workflow test invoice',1,'2026-02-22 12:24:34',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,'UNPAID',NULL,'2026-02-22 12:24:34',NULL,'0','Maharashtra','Maharashtra','interstate',1,'0',0.00,0.00,237.50),(5,1,'WORKFLOW-APPR-20260222075434','SUP-APPR-20260222075434','2026-02-22','2026-02-22','WF-TEST-001',NULL,'Net 30',NULL,'INR',5000.00,250.00,237.50,50.00,0.00,5037.50,0.00,'Credit',5037.50,'Approved',NULL,'Workflow test invoice',1,'2026-02-22 12:24:34',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,'UNPAID',NULL,'2026-02-22 12:24:34',NULL,'0','Maharashtra','Maharashtra','interstate',1,'0',0.00,0.00,237.50),(6,1,'WORKFLOW-TEST-20260222075544','SUP-TEST-20260222075544','2026-02-22','2026-02-22','WF-TEST-001',NULL,'Net 30',NULL,'INR',5000.00,250.00,237.50,50.00,0.00,5037.50,0.00,'Credit',5037.50,'Approved',NULL,'Workflow test invoice',1,'2026-02-22 12:25:44',NULL,NULL,1,'2026-02-22 12:25:44',NULL,NULL,NULL,NULL,NULL,0.00,'UNPAID',NULL,'2026-02-22 12:25:44',NULL,'0','Maharashtra','Maharashtra','interstate',1,'0',0.00,0.00,237.50),(7,1,'WORKFLOW-APPR-20260222075544','SUP-APPR-20260222075544','2026-02-22','2026-02-22','WF-TEST-001',NULL,'Net 30',NULL,'INR',5000.00,250.00,237.50,50.00,0.00,5037.50,0.00,'Credit',5037.50,'Approved',NULL,'Workflow test invoice',1,'2026-02-22 12:25:44',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,'UNPAID',NULL,'2026-02-22 12:25:44',NULL,'0','Maharashtra','Maharashtra','interstate',1,'0',0.00,0.00,237.50),(8,1,'WORKFLOW-TEST-20260222075618','SUP-TEST-20260222075618','2026-02-22','2026-02-22','WF-TEST-001',NULL,'Net 30',NULL,'INR',5000.00,250.00,237.50,50.00,0.00,5037.50,0.00,'Credit',5037.50,'Approved',NULL,'Workflow test invoice',1,'2026-02-22 12:26:18',NULL,NULL,1,'2026-02-22 12:26:18',NULL,NULL,NULL,NULL,NULL,0.00,'UNPAID',NULL,'2026-02-22 12:26:18',NULL,'0','Maharashtra','Maharashtra','interstate',1,'0',0.00,0.00,237.50),(9,1,'WORKFLOW-APPR-20260222075618','SUP-APPR-20260222075618','2026-02-22','2026-02-22','WF-TEST-001',NULL,'Net 30',NULL,'INR',5000.00,250.00,237.50,50.00,0.00,5037.50,0.00,'Credit',5037.50,'Approved',NULL,'Workflow test invoice',1,'2026-02-22 12:26:18',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,'UNPAID',NULL,'2026-02-22 12:26:18',NULL,'0','Maharashtra','Maharashtra','interstate',1,'0',0.00,0.00,237.50),(10,1,'INV-26-00001','INV-01','2026-02-20','2026-02-22','PO-001',NULL,'','2026-03-24','INR',10500.00,210.00,514.50,0.00,0.50,10805.00,0.00,'Credit',10805.00,'Approved',NULL,'',1,'2026-02-22 12:33:15',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,'UNPAID',NULL,'2026-02-22 12:33:15',NULL,'0','Maharashtra','Maharashtra','interstate',1,'0',0.00,0.00,514.50),(11,1,'INV-Convert-20260222101814','','2026-02-22','2026-02-22','TEST-PO-20260222101814',NULL,NULL,NULL,'INR',1000.00,0.00,100.00,0.00,0.00,1100.00,0.00,'Credit',0.00,'Draft',NULL,'Converted from TEST-PO-20260222101814',1,'2026-02-22 14:48:14',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0.00,'UNPAID',NULL,'2026-02-22 14:48:14',NULL,'Gujarat','Maharashtra','Maharashtra','interstate',1,NULL,0.00,0.00,100.00);
 /*!40000 ALTER TABLE `purchase_invoices` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -856,6 +927,7 @@ CREATE TABLE `purchase_orders` (
   `submitted_at` datetime DEFAULT NULL COMMENT 'When PO was submitted for approval',
   `approved_at` datetime DEFAULT NULL COMMENT 'When PO was approved',
   `approval_remarks` text DEFAULT NULL COMMENT 'Approval notes',
+  `submitted_by` int(10) unsigned DEFAULT NULL COMMENT 'User who submitted PO',
   PRIMARY KEY (`po_id`),
   UNIQUE KEY `po_number` (`po_number`),
   UNIQUE KEY `uk_po_number` (`po_number`),
@@ -868,9 +940,10 @@ CREATE TABLE `purchase_orders` (
   KEY `idx_status` (`status`),
   KEY `idx_approved_by` (`approved_by`),
   KEY `idx_supplier_status` (`supplier_id`,`status`),
+  KEY `idx_po_submitted` (`submitted_at`),
   CONSTRAINT `fk_po_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `fk_po_supplier` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`supplier_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -879,6 +952,7 @@ CREATE TABLE `purchase_orders` (
 
 LOCK TABLES `purchase_orders` WRITE;
 /*!40000 ALTER TABLE `purchase_orders` DISABLE KEYS */;
+INSERT INTO `purchase_orders` VALUES (1,'TEST-PO-20260222101537','2026-02-22',1,'2026-03-01','Test Location',1000.00,0.00,0.00,0.00,100.00,0.00,1100.00,'Approved','NotDue','Test PO for module workflow',0,1,NULL,'2026-02-22 09:15:37','2026-02-22 09:15:37',NULL,'DRAFT',NULL,NULL,NULL,NULL),(2,'TEST-PO-20260222101705','2026-02-22',1,'2026-03-01','Test Location',1000.00,0.00,0.00,0.00,100.00,0.00,1100.00,'Approved','NotDue','Test PO for module workflow',0,1,NULL,'2026-02-22 09:17:05','2026-02-22 09:17:05',NULL,'DRAFT',NULL,NULL,NULL,NULL),(3,'TEST-PO-20260222101722','2026-02-22',1,'2026-03-01','Test Location',1000.00,0.00,0.00,0.00,100.00,0.00,1100.00,'Received','NotDue','Test PO for module workflow',0,1,NULL,'2026-02-22 09:17:22','2026-02-23 06:45:29',NULL,'DRAFT',NULL,NULL,NULL,NULL),(4,'TEST-PO-20260222101814','2026-02-22',1,'2026-03-01','Test Location',1000.00,0.00,0.00,0.00,100.00,0.00,1100.00,'','NotDue','Test PO for module workflow',0,1,NULL,'2026-02-22 09:18:14','2026-02-22 09:18:14',NULL,'DRAFT',NULL,NULL,NULL,NULL),(5,'CLI-AUTO-1771820677','2026-02-23',10000,'2026-03-02','Main Warehouse',0.00,0.00,0.00,0.00,0.00,0.00,0.00,'Draft','NotDue','Created from form',0,1,NULL,'2026-02-23 04:24:37','2026-02-23 04:24:37',NULL,'DRAFT',NULL,NULL,NULL,NULL),(7,'PO-26-0001','2026-02-23',10003,'2026-02-24','main warehouse',21000.00,0.00,0.00,0.00,1050.00,0.00,22050.00,'Approved','NotDue','Created from form',0,1,NULL,'2026-02-23 05:44:48','2026-02-23 05:45:02',NULL,'DRAFT',NULL,NULL,NULL,NULL),(8,'TESTPO-1771828740','2026-02-23',10000,NULL,NULL,1000.00,0.00,0.00,0.00,0.00,0.00,1000.00,'Submitted','NotDue','CLI test',0,1,NULL,'2026-02-23 06:39:00','2026-02-23 06:39:00',NULL,'DRAFT',NULL,NULL,NULL,NULL),(9,'TESTPO-1771828749','2026-02-23',10000,NULL,NULL,1000.00,0.00,0.00,0.00,0.00,0.00,1000.00,'Submitted','NotDue','CLI test',0,1,NULL,'2026-02-23 06:39:09','2026-02-23 06:39:09',NULL,'DRAFT',NULL,NULL,NULL,NULL),(10,'TESTPO-1771828780','2026-02-23',10000,NULL,NULL,1000.00,0.00,0.00,0.00,0.00,0.00,1000.00,'Submitted','NotDue','CLI test',0,1,NULL,'2026-02-23 06:39:40','2026-02-23 06:39:40',NULL,'DRAFT',NULL,NULL,NULL,NULL),(11,'TESTPO-1771828790','2026-02-23',10000,NULL,NULL,1000.00,0.00,0.00,0.00,0.00,0.00,1000.00,'Submitted','NotDue','CLI test',0,1,NULL,'2026-02-23 06:39:50','2026-02-23 06:39:50',NULL,'DRAFT',NULL,NULL,NULL,NULL),(12,'TESTPO-1771828800','2026-02-23',10000,NULL,NULL,1000.00,0.00,0.00,0.00,0.00,0.00,1000.00,'','NotDue','CLI test',0,1,NULL,'2026-02-23 06:40:00','2026-02-23 06:41:15',NULL,'DRAFT',NULL,NULL,NULL,NULL),(13,'CLI-AUTO-1771829039','2026-02-23',999,'2026-03-02','Main Warehouse',0.00,0.00,0.00,0.00,0.00,0.00,0.00,'','NotDue','Created from form',0,1,NULL,'2026-02-23 06:43:59','2026-02-23 06:48:10',NULL,'DRAFT',NULL,NULL,NULL,NULL),(14,'CLI-AUTO-1771829305','2026-02-23',999,'2026-03-02','Main Warehouse',0.00,0.00,0.00,0.00,0.00,0.00,0.00,'','NotDue','Created from form',0,1,NULL,'2026-02-23 06:48:25','2026-02-23 06:51:27',NULL,'DRAFT',NULL,NULL,NULL,NULL),(15,'TEST-1771830035','2026-02-23',999,'2026-03-02','Main Warehouse',0.00,0.00,0.00,0.00,0.00,0.00,0.00,'Draft','NotDue','Created from form',0,1,NULL,'2026-02-23 07:00:35','2026-02-23 07:00:35',NULL,'DRAFT',NULL,NULL,NULL,NULL),(16,'TEST-1771830061','2026-02-23',999,'2026-03-02','Main Warehouse',0.00,0.00,0.00,0.00,0.00,0.00,0.00,'Draft','NotDue','Created from form',0,1,NULL,'2026-02-23 07:01:01','2026-02-23 07:01:01',NULL,'DRAFT',NULL,NULL,NULL,NULL),(17,'TEST-1771830574','2026-02-23',999,'2026-03-02','Main Warehouse',0.00,0.00,0.00,0.00,0.00,0.00,0.00,'Draft','NotDue','Created from form',0,1,NULL,'2026-02-23 07:09:34','2026-02-23 07:09:34',NULL,'DRAFT',NULL,NULL,NULL,NULL),(19,'PO-26-0002','2026-02-23',10008,'2026-02-25','main warehouse',10000.00,0.00,0.00,0.00,500.00,0.00,10500.00,'Received','NotDue','Created from form',0,1,NULL,'2026-02-23 07:18:23','2026-02-23 07:19:30',NULL,'DRAFT',NULL,NULL,NULL,NULL),(20,'PO-26-0003','2026-02-23',10003,'2026-02-26','main warehouse',11000.00,0.00,0.00,0.00,550.00,0.00,11550.00,'Draft','NotDue','Created from form',0,1,NULL,'2026-02-23 07:27:21','2026-02-23 07:27:21',NULL,'DRAFT',NULL,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `purchase_orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -937,10 +1011,17 @@ CREATE TABLE `stock_batches` (
   `mrp` decimal(14,2) DEFAULT NULL,
   `cost_price` decimal(14,4) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `supplier_id` int(10) unsigned DEFAULT NULL COMMENT 'Which supplier provided this batch',
+  `invoice_id` int(10) unsigned DEFAULT NULL COMMENT 'Which purchase invoice received this batch',
+  `gst_rate_applied` decimal(5,2) DEFAULT NULL COMMENT 'GST rate applied on purchase',
+  `unit_cost_with_tax` decimal(14,4) DEFAULT NULL COMMENT 'Cost price after tax (for valuation)',
+  `created_by` int(11) DEFAULT NULL COMMENT 'User who created batch record',
   PRIMARY KEY (`id`),
   KEY `idx_product_batch` (`product_id`,`batch_no`),
+  KEY `idx_supplier` (`supplier_id`),
+  KEY `idx_invoice` (`invoice_id`),
   CONSTRAINT `fk_stock_batches_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -949,6 +1030,7 @@ CREATE TABLE `stock_batches` (
 
 LOCK TABLES `stock_batches` WRITE;
 /*!40000 ALTER TABLE `stock_batches` DISABLE KEYS */;
+INSERT INTO `stock_batches` VALUES (1,1,'batch333','2026-02-12','2026-03-07',1920.000,25.00,20.0000,'2026-02-21 16:19:14',2,1,5.00,NULL,1),(2,1,'WF-BATCH-f82ae138','2025-11-22','2027-02-22',110.000,65.00,50.0000,'2026-02-22 12:24:34',1,5,5.00,NULL,1),(3,1,'WF-BATCH-3a73ebf5','2025-11-22','2027-02-22',220.000,65.00,50.0000,'2026-02-22 12:25:44',1,6,5.00,NULL,1),(4,1,'WF-BATCH-5adbb9e3','2025-11-22','2027-02-22',220.000,65.00,50.0000,'2026-02-22 12:26:18',1,8,5.00,NULL,1),(5,3,'batch99','2026-01-22','2030-11-22',1010.000,15.00,10.5000,'2026-02-22 12:33:15',1,10,5.00,NULL,1);
 /*!40000 ALTER TABLE `stock_batches` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1068,7 +1150,7 @@ CREATE TABLE `suppliers` (
   KEY `idx_supplier_code` (`supplier_code`),
   KEY `idx_supplier_name` (`supplier_name`),
   KEY `idx_status` (`supplier_status`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10015 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1077,7 +1159,7 @@ CREATE TABLE `suppliers` (
 
 LOCK TABLES `suppliers` WRITE;
 /*!40000 ALTER TABLE `suppliers` DISABLE KEYS */;
-INSERT INTO `suppliers` VALUES (1,'SUP001','Cipla Limited',NULL,NULL,NULL,'9876543210',NULL,'123 Pharma Street','Mumbai','Maharashtra',NULL,'India',NULL,NULL,30,NULL,'Active',0,'2026-02-17 04:51:54','2026-02-17 04:51:54'),(2,'SUP002','Mankind Pharma',NULL,NULL,NULL,'9876543211',NULL,'456 Medical Road','Delhi','Delhi',NULL,'India',NULL,NULL,30,NULL,'Active',0,'2026-02-17 04:51:54','2026-02-17 04:51:54'),(3,'SUP003','Sun Pharmaceuticals',NULL,NULL,NULL,'9876543212',NULL,'789 Science Park','Ahmedabad','Gujarat',NULL,'India',NULL,NULL,30,NULL,'Active',0,'2026-02-17 04:51:54','2026-02-17 04:51:54'),(4,'SUP004','MicroLabs Pvt Ltd',NULL,NULL,NULL,'9876543213',NULL,'Industrial Area','Bangalore','Karnataka',NULL,'India',NULL,NULL,30,NULL,'Active',0,'2026-02-17 04:51:54','2026-02-17 04:51:54'),(5,'SUP005','Dr. Reddy Laboratories',NULL,NULL,NULL,'9876543214',NULL,'Pharma Zone','Hyderabad','Telangana',NULL,'India',NULL,NULL,30,NULL,'Active',0,'2026-02-17 04:51:54','2026-02-17 04:51:54');
+INSERT INTO `suppliers` VALUES (999,'TEST999','Test Supplier 074234',NULL,'9876543210','test999@supplier.com','9876543210',NULL,'',NULL,NULL,NULL,'India',NULL,NULL,30,NULL,'Active',0,'2026-02-23 06:42:34','2026-02-23 06:42:34'),(10000,'SUP001','Sun Pharma Distributor','Sun Pharmaceutical Industries Ltd','Rakesh Sharma','rakesh@sunpharma.com','9876543210','9825012345','GIDC Industrial Estate, Makarpura','Vadodara','Gujarat','390010','India','24ABCDE1234F1Z5','ABCDE1234F',30,'Payment within 30 days','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10001,'SUP002','Cipla Regional Supply','Cipla Ltd','Amit Verma','amit@cipla.com','9876543211',NULL,'Plot 12, Pharma Zone, Andheri East','Mumbai','Maharashtra','400069','India','27ABCDE2345G1Z6','ABCDE2345G',45,'45 days credit','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10002,'SUP003','Zydus Healthcare Supply','Zydus Lifesciences Ltd','Nirav Patel','nirav@zydus.com','9876543212',NULL,'Zydus Tower, SG Highway','Ahmedabad','Gujarat','380015','India','24ABCDE3456H1Z7','ABCDE3456H',30,'Net 30 days','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10003,'SUP004','Torrent Pharma Distributor','Torrent Pharmaceuticals Ltd','Mehul Shah','mehul@torrentpharma.com','9876543213',NULL,'Ashram Road','Ahmedabad','Gujarat','380009','India','24ABCDE4567J1Z8','ABCDE4567J',60,'60 days credit period','Active',0,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10004,'SUP005','Alkem Wholesale Pharma','Alkem Laboratories Ltd','Sanjay Joshi','sanjay@alkem.com','9876543214',NULL,'MIDC Industrial Area','Nashik','Maharashtra','422007','India','27ABCDE5678K1Z9','ABCDE5678K',30,'Net 30 days','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10005,'SUP006','Mankind Pharma Supply','Mankind Pharma Ltd','Vikram Singh','vikram@mankind.com','9876543215',NULL,'Sector 62','Noida','Uttar Pradesh','201301','India','09ABCDE6789L1Z1','ABCDE6789L',45,'Payment within 45 days','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10006,'SUP007','Lupin Distribution','Lupin Ltd','Rahul Kapoor','rahul@lupin.com','9876543216',NULL,'Kalina, Santacruz East','Mumbai','Maharashtra','400098','India','27ABCDE7890M1Z2','ABCDE7890M',30,'Standard credit 30 days','Inactive',0,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10007,'SUP008','Dr Reddy Supply Chain','Dr Reddy’s Laboratories Ltd','Anjali Rao','anjali@drreddys.com','9876543217',NULL,'Banjara Hills','Hyderabad','Telangana','500034','India','36ABCDE8901N1Z3','ABCDE8901N',30,'Net 30','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10008,'SUP009','Intas Pharma Distributor','Intas Pharmaceuticals Ltd','Harsh Patel','harsh@intas.com','9876543218',NULL,'Corporate House, SG Highway','Ahmedabad','Gujarat','380054','India','24ABCDE9012P1Z4','ABCDE9012P',60,'60 days credit','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10009,'SUP010','Glenmark Pharma Supply','Glenmark Pharmaceuticals Ltd','Deepak Nair','deepak@glenmark.com','9876543219',NULL,'Andheri West','Mumbai','Maharashtra','400053','India','27ABCDE0123Q1Z5','ABCDE0123Q',45,'45 days payment term','Blocked',0,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10010,'SUP011','Cadila Pharma Trade','Cadila Pharmaceuticals Ltd','Bhavesh Trivedi','bhavesh@cadilapharma.com','9876543220',NULL,'Dholka Road','Ahmedabad','Gujarat','382210','India','24ABCDE1122R1Z6','ABCDE1122R',30,'Net 30','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10011,'SUP012','Micro Labs Distributor','Micro Labs Ltd','Suresh Kumar','suresh@microlabs.com','9876543221',NULL,'Bommasandra Industrial Area','Bangalore','Karnataka','560099','India','29ABCDE2233S1Z7','ABCDE2233S',30,'Payment in 30 days','Active',0,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10012,'SUP013','Abbott India Supply','Abbott India Ltd','Priya Mehta','priya@abbott.com','9876543222',NULL,'BKC Complex','Mumbai','Maharashtra','400051','India','27ABCDE3344T1Z8','ABCDE3344T',45,'45 days credit','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10013,'SUP014','Pfizer Pharma Distribution','Pfizer Ltd','Arjun Malhotra','arjun@pfizer.com','9876543223',NULL,'Bandra East','Mumbai','Maharashtra','400051','India','27ABCDE4455U1Z9','ABCDE4455U',30,'Net 30 days','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27'),(10014,'SUP015','Local Generic Supplier','Shree Medical Agencies','Mahesh Patel','mahesh@shreemedical.com','9876543224',NULL,'Raopura Main Road','Vadodara','Gujarat','390001','India','24ABCDE5566V1Z1','ABCDE5566V',15,'15 days short credit','Active',1,'2026-02-22 10:53:27','2026-02-22 10:53:27');
 /*!40000 ALTER TABLE `suppliers` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1249,6 +1331,19 @@ SET character_set_client = utf8;
 SET character_set_client = @saved_cs_client;
 
 --
+-- Temporary table structure for view `v_pending_approvals`
+--
+
+DROP TABLE IF EXISTS `v_pending_approvals`;
+/*!50001 DROP VIEW IF EXISTS `v_pending_approvals`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+/*!50001 CREATE VIEW `v_pending_approvals` AS SELECT
+ 1 AS `note`,
+  1 AS `description` */;
+SET character_set_client = @saved_cs_client;
+
+--
 -- Temporary table structure for view `v_stock_movement_recent`
 --
 
@@ -1399,6 +1494,24 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = @saved_col_connection */;
 
 --
+-- Final view structure for view `v_pending_approvals`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_pending_approvals`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_pending_approvals` AS select 'IMPLEMENTATION_NOTE' AS `note`,'Pending approvals require service layer querying across multiple tables' AS `description` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
 -- Final view structure for view `v_stock_movement_recent`
 --
 
@@ -1425,4 +1538,4 @@ SET character_set_client = @saved_cs_client;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-02-17 14:20:27
+-- Dump completed on 2026-02-23 15:00:27

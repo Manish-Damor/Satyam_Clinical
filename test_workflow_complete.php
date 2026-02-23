@@ -30,16 +30,30 @@ foreach ($tables as $table) {
 // Verify Phase 2 columns
 echo "\nPhase 2 Columns:\n";
 $newCols = ['supplier_invoice_no', 'supplier_invoice_date', 'place_of_supply', 'effective_rate'];
+// look at both header and item tables for new columns
+$existingInvCols = [];
 $colsResult = $connect->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='purchase_invoices'");
-$existingCols = [];
 while ($row = $colsResult->fetch_assoc()) {
-    $existingCols[] = $row['COLUMN_NAME'];
+    $existingInvCols[] = $row['COLUMN_NAME'];
+}
+$existingItemCols = [];
+$colsResult = $connect->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='purchase_invoice_items'");
+while ($row = $colsResult->fetch_assoc()) {
+    $existingItemCols[] = $row['COLUMN_NAME'];
 }
 foreach ($newCols as $col) {
-    if (in_array($col, $existingCols)) {
-        echo "  ✓ $col\n";
+    if ($col === 'effective_rate') {
+        if (in_array($col, $existingItemCols)) {
+            echo "  ✓ $col (items table)\n";
+        } else {
+            echo "  ✗ $col missing in items table\n";
+        }
     } else {
-        echo "  ✗ $col - MISSING!\n";
+        if (in_array($col, $existingInvCols)) {
+            echo "  ✓ $col (invoices table)\n";
+        } else {
+            echo "  ✗ $col missing in invoices table\n";
+        }
     }
 }
 
@@ -164,6 +178,22 @@ try {
         } else {
             echo "   ✗ Stock batches found for DRAFT (should be empty!)\n";
         }
+
+        // extra: approve the draft via helper and check stock
+        echo "\n4a. Approving DRAFT invoice using helper...\n";
+        if (PurchaseInvoiceAction::approveInvoice($draft_invoice_id, $_SESSION['userId'])) {
+            echo "   ✓ Helper approved invoice\n";
+            $st = $connect->query("SELECT status FROM purchase_invoices WHERE id=$draft_invoice_id")->fetch_assoc()['status'];
+            echo "   ✓ New status: $st\n";
+            $stockCheck2 = $connect->query("SELECT * FROM stock_batches WHERE invoice_id=$draft_invoice_id");
+            if ($stockCheck2 && $stockCheck2->num_rows > 0) {
+                echo "   ✓ Stock batch created by helper approval\n";
+            } else {
+                echo "   ✗ No stock batch after helper approval\n";
+            }
+        } else {
+            echo "   ✗ Helper failed to approve draft\n";
+        }
         
         // Test 4: Create APPROVED invoice
         echo "\n5. Creating APPROVED invoice...\n";
@@ -176,21 +206,24 @@ try {
             $approved_invoice_id = $result2['invoice_id'];
             echo "   ✓ Approved invoice created: ID=$approved_invoice_id\n";
             
-            // Verify APPROVED creates stock
-            echo "6. Verifying APPROVED creates stock batches...\n";
-            $stockCheck = $connect->query("SELECT * FROM stock_batches WHERE invoice_id=$approved_invoice_id");
+            // Verify APPROVED creates/updates stock
+            echo "6. Verifying APPROVED affects stock batches...\n";
+            $batchNo = $testItems[0]['batch_no'];
+            $stockCheck = $connect->query("SELECT * FROM stock_batches WHERE batch_no='$batchNo'");
             if ($stockCheck && $stockCheck->num_rows > 0) {
-                echo "   ✓ Stock batch created for APPROVED!\n";
+                echo "   ✓ Stock batch exists for batch_no $batchNo\n";
                 while ($batch = $stockCheck->fetch_assoc()) {
-                    $total_qty = $testItems[0]['qty'] + $testItems[0]['free_qty'];
+                    $total_qty_expected = ($testItems[0]['qty'] + $testItems[0]['free_qty']) * 2; // two invoices
                     echo "     - Batch: {$batch['batch_no']}\n";
-                    echo "     - Quantity: {$batch['qty']} (should be $total_qty)\n";
-                    if ($batch['qty'] == $total_qty) {
-                        echo "     ✓ Quantity correct (qty + free_qty)\n";
+                    echo "     - Quantity: {$batch['qty']} (expected $total_qty_expected)\n";
+                    if (abs($batch['qty'] - $total_qty_expected) < 0.001) {
+                        echo "     ✓ Quantity correctly accumulated across invoices\n";
+                    } else {
+                        echo "     ✗ Quantity mismatch\n";
                     }
                 }
             } else {
-                echo "   ✗ No stock batches created for APPROVED!\n";
+                echo "   ✗ No stock batch found for batch_no $batchNo\n";
             }
         } else {
             echo "   ✗ Approved invoice failed: {$result2['error']}\n";

@@ -6,7 +6,6 @@
 
  
         <div class="left-sidebar">
-            
             <div class="scroll-sidebar">
                 
                 <nav class="sidebar-nav">
@@ -17,6 +16,16 @@
                         </li> 
                  
                          <?php if(isset($_SESSION['userId'])) { ?>
+                        <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-users"></i><span class="hide-menu">Clients</span></a>
+                            <ul aria-expanded="false" class="collapse">
+                           
+                                <li><a href="clients_form.php">Add Client</a></li>
+                           
+                                <li><a href="clients_list.php">Manage Clients</a></li>
+                            </ul>
+                        </li>
+                    <?php }?>
+                        <?php if(isset($_SESSION['userId'])) { ?>
                         <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-industry"></i><span class="hide-menu">Manufacturer</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
@@ -52,9 +61,9 @@
                         <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Sales Invoice</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
-                                <li><a href="add-order.php">Add Sales Invoice</a></li>
+                                <li><a href="sales_invoice_form.php">Add Sales Invoice</a></li>
                            
-                                <li><a href="Order.php">Manage Sales Invoices</a></li>
+                                <li><a href="sales_invoice_list.php">Manage Sales Invoices</a></li>
                             </ul>
                         </li>
 
@@ -79,7 +88,8 @@
                             </ul>
                         </li>
 
-                    <?php }
+                    <?php } ?>
+                    <?php
                     // add GRN link available to same roles
                     if(isset($_SESSION['userId'])) { ?>
                         <li> <a href="grn_list.php" aria-expanded="false"><i class="fa fa-check-square"></i><span class="hide-menu">Goods Received</span></a></li>
@@ -121,9 +131,11 @@
             </div>
             
         </div>
+        <!-- sidebar hide/show toggle (moved outside to avoid being clipped by transform) -->
+        <div class="sidebar-toggle"><i class="fa fa-chevron-left"></i></div>
 <script>
 // sidebar anchor click prevention to avoid '#' on URL
-document.addEventListener('DOMContentLoaded', function() {
+function initSidebarBehavior() {
     var anchors = document.querySelectorAll('#sidebarnav a.has-arrow');
     anchors.forEach(function(a) {
         a.addEventListener('click', function(e) {
@@ -135,5 +147,71 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    // toggle button behavior
+    var toggle = document.querySelector('.sidebar-toggle');
+    if (toggle) {
+        // ensure arrow matches current state
+        var icon = toggle.querySelector('i');
+        var sidebar = document.querySelector('.left-sidebar');
+        if (sidebar && sidebar.classList.contains('collapsed')) {
+            icon.classList.remove('fa-chevron-left');
+            icon.classList.add('fa-chevron-right');
+            document.body.classList.add('body-with-collapsed-sidebar');
+            document.body.classList.add('sidebar-hide');
+        }
+        toggle.addEventListener('click', function() {
+            var sidebar = document.querySelector('.left-sidebar');
+            sidebar.classList.toggle('collapsed');
+            var collapsed = sidebar.classList.contains('collapsed');
+            document.body.classList.toggle('body-with-collapsed-sidebar', collapsed);
+            document.body.classList.toggle('sidebar-hide', collapsed);
+            // change icon
+            var icon = toggle.querySelector('i');
+            if (collapsed) {
+                icon.classList.remove('fa-chevron-left');
+                icon.classList.add('fa-chevron-right');
+            } else {
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-left');
+            }
+        });
+
+        // keep in sync with any other script that toggles body.sidebar-hide
+        var observer = new MutationObserver(function(muts) {
+            muts.forEach(function(m) {
+                if (m.attributeName === 'class') {
+                    var collapsed = document.body.classList.contains('sidebar-hide');
+                    var sidebar = document.querySelector('.left-sidebar');
+                    if (sidebar) {
+                        sidebar.classList.toggle('collapsed', collapsed);
+                    }
+                    var icon = toggle.querySelector('i');
+                    if (collapsed) {
+                        icon.classList.remove('fa-chevron-left');
+                        icon.classList.add('fa-chevron-right');
+                    } else {
+                        icon.classList.remove('fa-chevron-right');
+                        icon.classList.add('fa-chevron-left');
+                    }
+                    document.body.classList.toggle('body-with-collapsed-sidebar', collapsed);
+                }
+            });
+        });
+        observer.observe(document.body, { attributes: true });
+    }
+}
+document.addEventListener('DOMContentLoaded', initSidebarBehavior);
+
+document.addEventListener('DOMContentLoaded', function() {
+    var toggle = document.querySelector('.sidebar-toggle');
+    if (toggle) {
+        var navbarButtons = document.querySelectorAll('.sidebartoggler, .nav-toggler');
+        navbarButtons.forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                toggle.click();
+            });
+        });
+    }
 });
 </script>        

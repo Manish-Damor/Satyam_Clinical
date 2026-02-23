@@ -147,6 +147,17 @@ $tests = [
     "  2. Calculate expected effective_rate = (100*100)/(100+20) = 83.33",
     "  3. Check database: SELECT * FROM purchase_invoice_items WHERE invoice_id=?",
     "  4. VERIFY: effective_rate ≈ 83.33",
+    "",
+    "Test 11: View-Invoice Page Actions",
+    "  1. Open an invoice in 'Draft' or 'Submitted' status using invoice_view.php?id=<id>",
+    "  2. Click 'Approve Invoice' button",
+    "  3. VERIFY: Page reloads with status 'Approved'; approve button and edit link are gone",
+    "  4. Click 'Print Invoice' to ensure printing still works",
+    "",
+    "Test 12: Deletion from View",
+    "  1. Open any non-deleted invoice with invoice_view.php?id=<id>",
+    "  2. Click 'Delete Invoice' and confirm",
+    "  3. VERIFY: User is redirected to invoice_list.php and the invoice no longer appears in the list",
 ];
 
 foreach ($tests as $line) {
