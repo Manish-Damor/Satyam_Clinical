@@ -20,7 +20,7 @@ try {
             si.invoice_number,
             si.invoice_date,
             si.grand_total,
-            si.invoice_status,
+            si.payment_type,
             si.payment_status,
             si.paid_amount,
             si.due_amount,

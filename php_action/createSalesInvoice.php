@@ -39,10 +39,14 @@ try {
     $invoiceDate = $_POST['invoice_date'];
     $dueDate = $_POST['due_date'] ?? null;
     $deliveryAddress = $_POST['delivery_address'] ?? null;
-    $invoiceStatus = $_POST['invoice_status'] ?? 'DRAFT';
-    $paymentType = $_POST['payment_type'] ?? null;
-    $paymentPlace = $_POST['payment_place'] ?? null;
-    $paymentStatus = $_POST['payment_status'] ?? 'UNPAID';
+    $paymentType = $_POST['payment_type'] ?? 'Cash';
+    $paymentMethod = $_POST['payment_method'] ?? null;
+    $paymentNotes = $_POST['payment_notes'] ?? null;
+    
+    // Payment status is auto-calculated on frontend, still use it but ensure it's valid
+    $paymentStatusValue = $_POST['payment_status'] ?? 'UNPAID';
+    $validStatuses = ['UNPAID', 'PARTIAL', 'PAID'];
+    $paymentStatus = in_array($paymentStatusValue, $validStatuses) ? $paymentStatusValue : 'UNPAID';
     
     // Financial data
     $subtotal = floatval($_POST['subtotal'] ?? 0);
@@ -56,13 +60,39 @@ try {
     // Audit
     $userId = $_SESSION['userId'] ?? null;
     
-    // Validate client exists
-    $clientCheck = $connect->prepare("SELECT client_id FROM clients WHERE client_id = ?");
-    $clientCheck->bind_param('i', $clientId);
-    $clientCheck->execute();
-    if ($clientCheck->get_result()->num_rows === 0) {
+    // Fetch client details including addresses and tax info
+    $clientFetch = $connect->prepare("SELECT client_id, name, state, billing_address, shipping_address, gstin, pan, drug_licence_no, credit_limit, outstanding_balance FROM clients WHERE client_id = ?");
+    $clientFetch->bind_param('i', $clientId);
+    $clientFetch->execute();
+    $clientResult = $clientFetch->get_result();
+    
+    if ($clientResult->num_rows === 0) {
         throw new Exception('Invalid client selected');
     }
+    
+    $clientData = $clientResult->fetch_assoc();
+    $clientState = $clientData['state'] ?? 'Gujarat';
+    $clientGstin = $clientData['gstin'] ?? '';
+    $clientPan = $clientData['pan'] ?? '';
+    $clientDL = $clientData['drug_licence_no'] ?? '';
+    $billingAddr = $clientData['billing_address'] ?? $deliveryAddress;
+    $shippingAddr = $clientData['shipping_address'] ?? $deliveryAddress;
+    $creditLimit = floatval($clientData['credit_limit']) ?? 0;
+    $outstandingBalance = floatval($clientData['outstanding_balance']) ?? 0;
+    
+    // Determine tax type: Intrastate (CGST+SGST) or Interstate (IGST)
+    $companyState = 'Gujarat'; // All company state in Gujarat
+    $isIntrastate = (strtolower($clientState) === 'gujarat');
+    
+    // Calculate CGST, SGST, or IGST
+    $gstPercentage = floatval($_POST['gst_rate'] ?? 18);
+    $cgstPercent = $isIntrastate ? ($gstPercentage / 2) : 0;
+    $sgstPercent = $isIntrastate ? ($gstPercentage / 2) : 0;
+    $igstPercent = !$isIntrastate ? $gstPercentage : 0;
+    
+    $cgstAmount = $isIntrastate ? round($gstAmount / 2, 2) : 0;
+    $sgstAmount = $isIntrastate ? round($gstAmount / 2, 2) : 0;
+    $igstAmount = !$isIntrastate ? $gstAmount : 0;
     
     // Check invoice number is unique
     $dupCheck = $connect->prepare("SELECT invoice_id FROM sales_invoices WHERE invoice_number = ?");
@@ -72,38 +102,58 @@ try {
         throw new Exception('Invoice number already exists');
     }
     
+    // CREDIT SYSTEM LOGIC
+    // For Credit payments, update the client's outstanding balance
+    if (strtolower($paymentType) === 'credit') {
+        $newOutstanding = $outstandingBalance + $grandTotal;
+        // Note: We allow credit even if it exceeds limit (with warning shown on frontend)
+        // Proceed anyway as per user requirement
+    }
+    
     // Begin transaction
     $connect->begin_transaction();
     
     try {
-        // Insert main invoice
+        // Insert main invoice with all tax and client details
         $insertInvoice = $connect->prepare("
             INSERT INTO sales_invoices
-            (invoice_number, client_id, invoice_date, due_date, delivery_address,
+            (invoice_number, client_id, invoice_date, due_date, delivery_address, billing_address, shipping_address,
              subtotal, discount_amount, discount_percent, gst_amount, grand_total,
-             paid_amount, due_amount, payment_type, payment_place,
-             invoice_status, payment_status, created_by, created_at)
+             cgst_percent, sgst_percent, igst_percent, cgst_amount, sgst_amount, igst_amount,
+             client_gstin, client_pan, client_dl_no,
+             paid_amount, due_amount, payment_type, payment_method, payment_notes, payment_status, created_by, created_at)
             VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         
         $insertInvoice->bind_param(
-            'sissddddddddssis',
+            'sisssssdddddddddddsssddssssi',
             $invoiceNumber,
             $clientId,
             $invoiceDate,
             $dueDate,
             $deliveryAddress,
+            $billingAddr,
+            $shippingAddr,
             $subtotal,
             $discountAmount,
             $discountPercent,
             $gstAmount,
             $grandTotal,
+            $cgstPercent,
+            $sgstPercent,
+            $igstPercent,
+            $cgstAmount,
+            $sgstAmount,
+            $igstAmount,
+            $clientGstin,
+            $clientPan,
+            $clientDL,
             $paidAmount,
             $dueAmount,
             $paymentType,
-            $paymentPlace,
-            $invoiceStatus,
+            $paymentMethod,
+            $paymentNotes,
             $paymentStatus,
             $userId
         );
@@ -114,7 +164,18 @@ try {
         
         $invoiceId = $connect->insert_id;
         
-        // Insert items
+        // UPDATE CLIENT OUTSTANDING BALANCE IF CREDIT PAYMENT
+        if (strtolower($paymentType) === 'credit') {
+            $updateBalance = $connect->prepare("
+                UPDATE clients SET outstanding_balance = outstanding_balance + ? WHERE client_id = ?
+            ");
+            $updateBalance->bind_param('di', $grandTotal, $clientId);
+            if (!$updateBalance->execute()) {
+                throw new Exception('Failed to update client credit: ' . $updateBalance->error);
+            }
+        }
+        
+        // Insert items and process allocation plan
         if (!empty($_POST['product_id'])) {
             $insertItem = $connect->prepare("
                 INSERT INTO sales_invoice_items
@@ -123,7 +184,17 @@ try {
                 VALUES
                 (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
-            
+
+            $insertMovement = $connect->prepare("
+                INSERT INTO stock_movements
+                (product_id, batch_id, movement_type, quantity, reference_type, reference_id, notes, created_at)
+                VALUES (?, ?, 'Sales', ?, 'Invoice', ?, ?, NOW())
+            ");
+
+            $updateBatch = $connect->prepare("
+                UPDATE product_batches SET available_quantity = available_quantity - ? WHERE batch_id = ? AND available_quantity >= ?
+            ");
+
             $productIds = $_POST['product_id'];
             $batchIds = $_POST['batch_id'];
             $quantities = $_POST['quantity'];
@@ -131,35 +202,105 @@ try {
             $ptrs = $_POST['ptr'];
             $gstRates = $_POST['gst_rate'];
             $lineTotals = $_POST['line_total'];
-            
+            $allocationPlans = $_POST['allocation_plan'] ?? [];
+
+            // track plans we've already processed (to avoid duplicates added by JS)
+            $seenPlans = [];
             for ($i = 0; $i < count($productIds); $i++) {
                 $productId = intval($productIds[$i]);
-                $batchId = intval($batchIds[$i]) ?: null;
                 $quantity = floatval($quantities[$i]);
                 $rate = floatval($rates[$i]);
                 $ptr = floatval($ptrs[$i]) ?: null;
                 $gstRate = floatval($gstRates[$i]);
                 $lineTotal = floatval($lineTotals[$i]);
-                
-                // Calculate line subtotal (before GST)
-                $lineSubtotal = $quantity * $rate;
-                $lineGstAmount = $lineSubtotal * ($gstRate / 100);
-                
-                $insertItem->bind_param(
-                    'iidddrddd',
-                    $invoiceId,
-                    $productId,
-                    $batchId,
-                    $quantity,
-                    $rate,
-                    $ptr,
-                    $lineSubtotal,
-                    $gstRate,
-                    $lineGstAmount
-                );
-                
-                if (!$insertItem->execute()) {
-                    throw new Exception('Failed to add item: ' . $insertItem->error);
+                $allocationPlan = isset($allocationPlans[$i]) ? json_decode($allocationPlans[$i], true) : null;
+
+                // if the same plan JSON already handled, skip this row entirely
+                if (is_array($allocationPlan) && count($allocationPlan) > 0) {
+                    $hash = md5(json_encode($allocationPlan));
+                    if (in_array($hash, $seenPlans)) {
+                        // skip duplicate
+                        continue;
+                    }
+                    $seenPlans[] = $hash;
+                }
+
+                // If allocation plan exists and is valid, insert one sales_invoice_item per batch allocation
+                if (is_array($allocationPlan) && count($allocationPlan) > 0) {
+                    foreach ($allocationPlan as $alloc) {
+                        $batchId = intval($alloc['batch_id']);
+                        $allocQty = floatval($alloc['allocated_quantity']);
+                        $batchMrp = isset($alloc['mrp']) ? floatval($alloc['mrp']) : $rate;
+                        $batchPtr = isset($alloc['purchase_rate']) ? floatval($alloc['purchase_rate']) : $ptr;
+                        $lineSubtotal = $allocQty * $batchMrp;
+                        $lineGstAmount = $lineSubtotal * ($gstRate / 100);
+                        $lineTotalBatch = $lineSubtotal + $lineGstAmount;
+
+                        $insertItem->bind_param(
+                            'iiiddddddd',
+                            $invoiceId,
+                            $productId,
+                            $batchId,
+                            $allocQty,
+                            $batchMrp,
+                            $batchPtr,
+                            $lineSubtotal,
+                            $gstRate,
+                            $lineGstAmount,
+                            $lineTotalBatch
+                        );
+                        if (!$insertItem->execute()) {
+                            throw new Exception('Failed to add item: ' . $insertItem->error);
+                        }
+
+                        // Decrement batch stock
+                        $updateBatch->bind_param('did', $allocQty, $batchId, $allocQty);
+                        if (!$updateBatch->execute() || $updateBatch->affected_rows === 0) {
+                            throw new Exception('Insufficient stock for batch ' . $batchId);
+                        }
+
+                        // Log stock movement
+                        $note = 'Sales Invoice #' . $invoiceNumber;
+                        $insertMovement->bind_param('iiids', $productId, $batchId, $allocQty, $invoiceId, $note);
+                        if (!$insertMovement->execute()) {
+                            throw new Exception('Failed to log stock movement: ' . $insertMovement->error);
+                        }
+                    }
+                } else {
+                    // Fallback: single batch (legacy)
+                    $batchId = intval($batchIds[$i]) ?: null;
+                    $lineSubtotal = $quantity * $rate;
+                    $lineGstAmount = $lineSubtotal * ($gstRate / 100);
+
+                    $lineTotalSingle = $lineSubtotal + $lineGstAmount;
+                    $insertItem->bind_param(
+                        'iiiddddddd',
+                        $invoiceId,
+                        $productId,
+                        $batchId,
+                        $quantity,
+                        $rate,
+                        $ptr,
+                        $lineSubtotal,
+                        $gstRate,
+                        $lineGstAmount,
+                        $lineTotalSingle
+                    );
+                    if (!$insertItem->execute()) {
+                        throw new Exception('Failed to add item: ' . $insertItem->error);
+                    }
+
+                    if ($batchId) {
+                        $updateBatch->bind_param('did', $quantity, $batchId, $quantity);
+                        if (!$updateBatch->execute() || $updateBatch->affected_rows === 0) {
+                            throw new Exception('Insufficient stock for batch ' . $batchId);
+                        }
+                        $note = 'Sales Invoice #' . $invoiceNumber;
+                        $insertMovement->bind_param('iiids', $productId, $batchId, $quantity, $invoiceId, $note);
+                        if (!$insertMovement->execute()) {
+                            throw new Exception('Failed to log stock movement: ' . $insertMovement->error);
+                        }
+                    }
                 }
             }
         }
@@ -173,6 +314,17 @@ try {
         ");
         $updateSeq->bind_param('i', $sequenceYear);
         $updateSeq->execute();
+        
+        // Log initial payment transaction if paid amount > 0
+        if ($paidAmount > 0) {
+            $insertTxn = $connect->prepare("
+                INSERT INTO invoice_transactions
+                (invoice_id, transaction_type, amount, payment_method, created_by, created_at)
+                VALUES (?, 'PAYMENT', ?, ?, ?, NOW())
+            ");
+            $insertTxn->bind_param('idsi', $invoiceId, $paidAmount, $paymentMethod, $userId);
+            $insertTxn->execute();
+        }
         
         // Commit transaction
         $connect->commit();

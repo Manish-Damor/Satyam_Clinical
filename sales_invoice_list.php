@@ -43,17 +43,15 @@ require './constant/connect.php';
                         <input type="date" id="dateTo" class="form-control" placeholder="To date" />
                     </div>
                     <div class="col-md-2">
-                        <select id="statusFilter" class="form-control">
-                            <option value="">-- All Status --</option>
-                            <option value="DRAFT">Draft</option>
-                            <option value="SUBMITTED">Submitted</option>
-                            <option value="FULFILLED">Fulfilled</option>
-                            <option value="CANCELLED">Cancelled</option>
+                        <select id="paymentTypeFilter" class="form-control">
+                            <option value="">-- Payment Type --</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Credit">Credit</option>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <select id="paymentFilter" class="form-control">
-                            <option value="">-- All Payment Status --</option>
+                            <option value="">-- Payment Status --</option>
                             <option value="UNPAID">Unpaid</option>
                             <option value="PARTIAL">Partial</option>
                             <option value="PAID">Paid</option>
@@ -66,14 +64,15 @@ require './constant/connect.php';
                     <table class="table table-bordered table-striped" id="invoicesTable">
                         <thead>
                             <tr>
-                                <th style="width: 5%;">#</th>
-                                <th style="width: 12%;">Invoice No.</th>
-                                <th style="width: 18%;">Client Name</th>
-                                <th style="width: 12%;">Date</th>
-                                <th style="width: 12%;">Amount</th>
-                                <th style="width: 12%;">Invoice Status</th>
+                                <th style="width: 4%;">#</th>
+                                <th style="width: 10%;">Invoice No.</th>
+                                <th style="width: 15%;">Client</th>
+                                <th style="width: 9%;">Date</th>
+                                <th style="width: 9%;">Amount</th>
+                                <th style="width: 8%;">Type</th>
                                 <th style="width: 12%;">Payment Status</th>
-                                <th style="width: 17%;">Action</th>
+                                <th style="width: 12%;">Paid / Due</th>
+                                <th style="width: 12%;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="invoicesBody">
@@ -137,25 +136,32 @@ $(document).ready(function() {
         $('#invoicesTable').show();
         
         invoices.forEach((invoice, index) => {
-            const invoiceStatusBadge = getInvoiceStatusBadge(invoice.invoice_status);
             const paymentStatusBadge = getPaymentStatusBadge(invoice.payment_status);
+            const paymentTypeBadge = getPaymentTypeBadge(invoice.payment_type);
             
             const row = `
                 <tr>
-                    <td>${index + 1}</td>
+                    <td align="center">${index + 1}</td>
                     <td><strong>${invoice.invoice_number}</strong></td>
                     <td>${invoice.client_name}</td>
                     <td>${formatDate(invoice.invoice_date)}</td>
-                    <td align="right">₹${parseFloat(invoice.grand_total).toFixed(2)}</td>
-                    <td>${invoiceStatusBadge}</td>
-                    <td>${paymentStatusBadge}</td>
-                    <td>
+                    <td align="right"><strong>₹${parseFloat(invoice.grand_total).toFixed(2)}</strong></td>
+                    <td align="center">${paymentTypeBadge}</td>
+                    <td align="center">${paymentStatusBadge}</td>
+                    <td align="center">
+                        <span class="text-success font-weight-bold">₹${parseFloat(invoice.paid_amount || 0).toFixed(2)}</span> / 
+                        <span class="text-danger">₹${parseFloat(invoice.due_amount || 0).toFixed(2)}</span>
+                    </td>
+                    <td align="center">
                         <a href="sales_invoice_form.php?id=${invoice.invoice_id}" class="btn btn-xs btn-primary" title="Edit">
                             <i class="fa fa-pencil"></i>
                         </a>
                         <a href="print_invoice.php?id=${invoice.invoice_id}" target="_blank" class="btn btn-xs btn-success" title="Print">
                             <i class="fa fa-print"></i>
                         </a>
+                        <button type="button" class="btn btn-xs btn-warning record-payment-btn" data-id="${invoice.invoice_id}" title="Record Payment">
+                            <i class="fa fa-rupee"></i>
+                        </button>
                         <button type="button" class="btn btn-xs btn-danger delete-btn" data-id="${invoice.invoice_id}" title="Delete">
                             <i class="fa fa-trash"></i>
                         </button>
@@ -174,6 +180,14 @@ $(document).ready(function() {
             'CANCELLED': '<span class="badge badge-danger">Cancelled</span>'
         };
         return badges[status] || status;
+    }
+    
+    function getPaymentTypeBadge(type) {
+        const badges = {
+            'Cash': '<span class="badge badge-info">💵 Cash</span>',
+            'Credit': '<span class="badge badge-warning">📋 Credit</span>'
+        };
+        return badges[type] || type;
     }
     
     function getPaymentStatusBadge(status) {
@@ -203,7 +217,7 @@ $(document).ready(function() {
         applyFilters();
     });
     
-    $('#statusFilter').on('change', function() {
+    $('#paymentTypeFilter').on('change', function() {
         applyFilters();
     });
     
@@ -215,13 +229,13 @@ $(document).ready(function() {
         const searchTerm = $('#searchInput').val().toLowerCase();
         const dateFrom = $('#dateFrom').val();
         const dateTo = $('#dateTo').val();
-        const statusFilter = $('#statusFilter').val();
+        const paymentTypeFilter = $('#paymentTypeFilter').val();
         const paymentFilter = $('#paymentFilter').val();
         
         const filtered = allInvoices.filter(invoice => {
             const matchSearch = invoice.invoice_number.toLowerCase().includes(searchTerm) || 
                               invoice.client_name.toLowerCase().includes(searchTerm);
-            const matchStatus = statusFilter === '' || invoice.invoice_status === statusFilter;
+            const matchPaymentType = paymentTypeFilter === '' || invoice.payment_type === paymentTypeFilter;
             const matchPayment = paymentFilter === '' || invoice.payment_status === paymentFilter;
             
             let matchDate = true;
@@ -235,12 +249,47 @@ $(document).ready(function() {
                 }
             }
             
-            return matchSearch && matchStatus && matchPayment && matchDate;
+            return matchSearch && matchPaymentType && matchPayment && matchDate;
         });
         
         displayInvoices(filtered);
     }
     
+    // Record payment functionality
+    $(document).on('click', '.record-payment-btn', function() {
+        const invoiceId = $(this).data('id');
+        const amount = prompt('Enter payment amount:');
+        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+            return;
+        }
+        const method = prompt('Enter payment method (Cash/Cheque/Card/etc):');
+        const notes = prompt('Any notes/reference?');
+
+        $.ajax({
+            url: 'php_action/addInvoicePayment.php',
+            type: 'POST',
+            data: {
+                invoice_id: invoiceId,
+                transaction_type: 'PAYMENT',
+                amount: parseFloat(amount),
+                payment_method: method || '',
+                notes: notes || ''
+            },
+            dataType: 'json',
+            success: function(res) {
+                if (res.success) {
+                    alert('Payment recorded');
+                    loadInvoices();
+                } else {
+                    alert('Error: ' + res.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('Error recording payment: ' + error);
+            }
+        });
+    });
+
     // Delete functionality
     $(document).on('click', '.delete-btn', function() {
         const invoiceId = $(this).data('id');

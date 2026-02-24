@@ -20,7 +20,7 @@ try {
     
     $searchPattern = '%' . $searchTerm . '%';
     
-    // Search products by name, content, or HSN code
+    // Search products by name, content, or HSN code - removed status filter to check all products
     $stmt = $connect->prepare("
         SELECT 
             product_id,
@@ -32,7 +32,6 @@ try {
             gst_rate
         FROM product
         WHERE (product_name LIKE ? OR content LIKE ? OR hsn_code LIKE ?)
-        AND status = 1
         ORDER BY product_name ASC
         LIMIT 20
     ");
@@ -48,7 +47,6 @@ try {
     while ($row = $result->fetch_assoc()) {
         $response[] = [
             'id' => $row['product_id'],
-            'text' => $row['product_name'] . ' (' . $row['content'] . ') - ' . $row['pack_size'],
             'product_name' => $row['product_name'],
             'content' => $row['content'],
             'pack_size' => $row['pack_size'],

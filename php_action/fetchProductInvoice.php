@@ -52,19 +52,19 @@ try {
     
     $product = $result->fetch_assoc();
     
-    // Fetch available batches with quantities
+    // Fetch available batches with quantities and batch-specific pricing
     $batchStmt = $connect->prepare("
         SELECT 
             b.batch_id,
             b.batch_number,
             b.expiry_date,
-            COALESCE(SUM(sm.quantity_in - sm.quantity_out), 0) as available_quantity
-        FROM medicine_batch b
-        LEFT JOIN stock_movements sm ON b.batch_id = sm.batch_id
+            COALESCE(b.available_quantity, 0) as available_quantity,
+            b.mrp,
+            b.purchase_rate
+        FROM product_batches b
         WHERE b.product_id = ? 
-        AND b.status = 'active'
-        GROUP BY b.batch_id
-        HAVING available_quantity > 0
+        AND LOWER(b.status) = 'active'
+        AND COALESCE(b.available_quantity, 0) > 0
         ORDER BY b.expiry_date ASC
     ");
     

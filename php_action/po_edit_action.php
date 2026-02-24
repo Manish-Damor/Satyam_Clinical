@@ -90,10 +90,40 @@ try {
     // Get old items to find stock batches
     $oldItems = $connect->query("SELECT invoice_item_id, product_id, batch_no FROM purchase_invoice_items WHERE invoice_id = $invoiceId");
     while ($oldItem = $oldItems->fetch_assoc()) {
-        // Delete from stock_batches (soft delete by setting a flag or hard delete)
-        $sbRes = $connect->query("SELECT id FROM stock_batches WHERE invoice_id = $invoiceId AND product_id = " . intval($oldItem['product_id']) . " AND batch_no = '" . $connect->real_escape_string($oldItem['batch_no']) . "'");
-        while ($sb = $sbRes->fetch_assoc()) {
-            $connect->query("DELETE FROM stock_batches WHERE id = " . intval($sb['id']));
+        // Decrement available_quantity in product_batches for the old item
+        $prodId = intval($oldItem['product_id']);
+        $oldBatch = $connect->real_escape_string($oldItem['batch_no']);
+        $oldQty = floatval($oldItem['qty'] ?? 0);
+
+        $pbRes = $connect->query("SELECT batch_id, available_quantity FROM product_batches WHERE product_id = $prodId AND batch_number = '$oldBatch'");
+        if ($pbRes && $pbRes->num_rows > 0) {
+            $pbRow = $pbRes->fetch_assoc();
+            $batchId = intval($pbRow['batch_id']);
+            $avail = floatval($pbRow['available_quantity'] ?? 0);
+            $newAvail = max(0, $avail - $oldQty);
+            $connect->query("UPDATE product_batches SET available_quantity = $newAvail WHERE batch_id = $batchId");
+
+            // Record reversal movement (edit) into stock_movements if table supports it
+            $colCheck = $connect->query("SHOW COLUMNS FROM stock_movements LIKE 'quantity_moved'");
+            if ($colCheck && $colCheck->num_rows > 0) {
+                $stmtMv = $connect->prepare("INSERT INTO stock_movements (product_id, batch_id, warehouse_id, movement_type, quantity_moved, balance_before, balance_after, reference_type, reference_id, recorded_by, recorded_at) VALUES (?, ?, NULL, 'purchase_edit_reversal', ?, ?, ?, 'purchase_invoice', ?, ?, NOW())");
+                if ($stmtMv) {
+                    $userId = $_SESSION['userId'] ?? null;
+                    $stmtMv->bind_param('iiidddi', $prodId, $batchId, $oldQty, $avail, $newAvail, $invoiceId, $userId);
+                    $stmtMv->execute();
+                    $stmtMv->close();
+                }
+            } else {
+                $colCheck2 = $connect->query("SHOW COLUMNS FROM stock_movements LIKE 'quantity'");
+                if ($colCheck2 && $colCheck2->num_rows > 0) {
+                    $stmtMv = $connect->prepare("INSERT INTO stock_movements (product_id, batch_id, movement_type, quantity, reference_number, reference_type, reason, created_at) VALUES (?, ?, 'Adjustment', ?, ?, 'purchase_invoice', 'Invoice edit reversal', NOW())");
+                    if ($stmtMv) {
+                        $stmtMv->bind_param('iid', $prodId, $batchId, $oldQty);
+                        $stmtMv->execute();
+                        $stmtMv->close();
+                    }
+                }
+            }
         }
     }
 
@@ -159,34 +189,73 @@ try {
         $itemStmt->bind_param('iissss' . 'ddddddddd' . 'i', $invoiceId, $product_id, $hsn, $batch_no, $mfg_date, $exp_date, $qty, $freeQty, $unit_cost, $effective, $mrp, $tax_rate, $taxAmount, $margin, $lineTotal, $userId);
         $itemStmt->execute();
 
-        // Create or merge stock batch
-        $checkSql = "SELECT id, qty FROM stock_batches WHERE product_id = ? AND batch_no = ?";
+        // Create or merge batch in product_batches
+        $checkSql = "SELECT batch_id, available_quantity FROM product_batches WHERE product_id = ? AND batch_number = ?";
         $checkStmt = $connect->prepare($checkSql);
         $checkStmt->bind_param('is', $product_id, $batch_no);
         $checkStmt->execute();
         $result = $checkStmt->get_result();
         $checkStmt->close();
 
-        if ($result->num_rows > 0) {
-            // Merge: add to existing batch
+        if ($result && $result->num_rows > 0) {
+            // Merge: add to available_quantity
             $row = $result->fetch_assoc();
-            $batch_id = $row['id'];
-            $updateSql = "UPDATE stock_batches SET qty = qty + ? WHERE id = ?";
+            $batch_id = $row['batch_id'];
+            $updateSql = "UPDATE product_batches SET available_quantity = available_quantity + ? WHERE batch_id = ?";
             $updateStmt = $connect->prepare($updateSql);
             $updateStmt->bind_param('di', $qty, $batch_id);
             $updateStmt->execute();
             $updateStmt->close();
+            // Record movement
+            $colCheck = $connect->query("SHOW COLUMNS FROM stock_movements LIKE 'quantity_moved'");
+            if ($colCheck && $colCheck->num_rows > 0) {
+                $stmtMv = $connect->prepare("INSERT INTO stock_movements (product_id, batch_id, warehouse_id, movement_type, quantity_moved, balance_before, balance_after, reference_type, reference_id, recorded_by, recorded_at) VALUES (?, ?, NULL, 'purchase', ?, ?, ?, 'purchase_invoice', ?, ?, NOW())");
+                if ($stmtMv) {
+                    $userId = $_SESSION['userId'] ?? null;
+                    // fetch current balance after update
+                    $balRes = $connect->query("SELECT available_quantity FROM product_batches WHERE batch_id = $batch_id");
+                    $balRow = $balRes ? $balRes->fetch_assoc() : null;
+                    $balance_after = floatval($balRow['available_quantity'] ?? 0);
+                    $balance_before = $balance_after - $qty;
+                    $stmtMv->bind_param('iidddii', $product_id, $batch_id, $qty, $balance_before, $balance_after, $invoiceId, $userId);
+                    $stmtMv->execute();
+                    $stmtMv->close();
+                }
+            } else {
+                $colCheck2 = $connect->query("SHOW COLUMNS FROM stock_movements LIKE 'quantity'");
+                if ($colCheck2 && $colCheck2->num_rows > 0) {
+                    $stmtMv = $connect->prepare("INSERT INTO stock_movements (product_id, batch_id, movement_type, quantity, reference_number, reference_type, reason, created_at) VALUES (?, ?, 'Purchase', ?, ?, 'purchase_invoice', 'PO edit created', NOW())");
+                    if ($stmtMv) {
+                        $stmtMv->bind_param('iid', $product_id, $batch_id, $qty);
+                        $stmtMv->execute();
+                        $stmtMv->close();
+                    }
+                }
+            }
         } else {
-            // Create new batch
-            $batchSql = "INSERT INTO stock_batches 
-                         (product_id, batch_no, manufacture_date, expiry_date, qty, mrp, cost_price, supplier_id, invoice_id, gst_rate_applied, created_by) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            $batchStmt = $connect->prepare($batchSql);
-            $cost_price = $item['unit_cost'];
-            $tax_rate_applied = $item['tax_rate'];
-            $batchStmt->bind_param('isssddiiidi', $product_id, $batch_no, $mfg_date, $exp_date, $qty, $mrp, $cost_price, $supplier_id, $invoiceId, $tax_rate_applied, $userId);
-            $batchStmt->execute();
-            $batchStmt->close();
+            // Create new batch in product_batches
+            $supplier_val = ($supplier_id > 0) ? $supplier_id : null;
+            $insertSql = "INSERT INTO product_batches (product_id, supplier_id, batch_number, manufacturing_date, expiry_date, available_quantity, reserved_quantity, damaged_quantity, purchase_rate, mrp, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 'Active', NOW())";
+            $insStmt = $connect->prepare($insertSql);
+            if ($insStmt) {
+                $avail = $qty;
+                $insStmt->bind_param('iisssddd', $product_id, $supplier_val, $batch_no, $mfg_date, $exp_date, $avail, $unit_cost, $mrp);
+                $insStmt->execute();
+                $batch_id = $insStmt->insert_id;
+                $insStmt->close();
+            }
+            // Record movement similar to above
+            $colCheck = $connect->query("SHOW COLUMNS FROM stock_movements LIKE 'quantity_moved'");
+            if ($colCheck && $colCheck->num_rows > 0) {
+                $stmtMv = $connect->prepare("INSERT INTO stock_movements (product_id, batch_id, warehouse_id, movement_type, quantity_moved, balance_before, balance_after, reference_type, reference_id, recorded_by, recorded_at) VALUES (?, ?, NULL, 'purchase', ?, 0, ?, 'purchase_invoice', ?, ?, NOW())");
+                if ($stmtMv) {
+                    $userId = $_SESSION['userId'] ?? null;
+                    $balance_after = $qty;
+                    $stmtMv->bind_param('iidiii', $product_id, $batch_id, $qty, $balance_after, $invoiceId, $userId);
+                    $stmtMv->execute();
+                    $stmtMv->close();
+                }
+            }
         }
     }
     $itemStmt->close();

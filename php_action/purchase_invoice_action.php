@@ -243,7 +243,7 @@ class PurchaseInvoiceAction {
             }
             $itemStmt->close();
 
-            // Handle batch updates in stock_batches table ONLY IF STATUS IS APPROVED
+            // Handle batch updates in product_batches table ONLY IF STATUS IS APPROVED
             if ($data['status'] === 'Approved') {
                 foreach ($calculations['items'] as $item) {
                     self::updateOrCreateStockBatch($invoice_id, $item, $supplier_id);
@@ -464,32 +464,78 @@ class PurchaseInvoiceAction {
         $cost_price = floatval($item['unit_cost']);
         $tax_rate = floatval($item['tax_rate'] ?? 0);
 
-        // Check if batch already exists
-        $checkSql = "SELECT id FROM stock_batches WHERE product_id = ? AND batch_no = ?";
+        // Consolidated behavior: use product_batches as canonical batch table
+        // Check if batch already exists in product_batches
+        $checkSql = "SELECT batch_id, available_quantity FROM product_batches WHERE product_id = ? AND batch_number = ?";
         $checkStmt = $connect->prepare($checkSql);
+        if (!$checkStmt) throw new Exception('Prepare check batch failed: ' . $connect->error);
         $checkStmt->bind_param('is', $product_id, $batch_no);
         $checkStmt->execute();
         $result = $checkStmt->get_result();
         $checkStmt->close();
 
-            if ($result->num_rows > 0) {
-                // Update existing batch - add to quantity (using total qty)
-                $row = $result->fetch_assoc();
-                $batch_id = $row['id'];
-                $updateSql = "UPDATE stock_batches SET qty = qty + ? WHERE id = ?";
-                $updateStmt = $connect->prepare($updateSql);
-                $updateStmt->bind_param('di', $total_qty, $batch_id);
-                $updateStmt->execute();
-                $updateStmt->close();
-            } else {
+        $batch_id = null;
+        $balance_before = 0;
+
+        if ($result && $result->num_rows > 0) {
+            // Update existing batch - add to available_quantity
+            $row = $result->fetch_assoc();
+            $batch_id = $row['batch_id'];
+            $balance_before = floatval($row['available_quantity'] ?? 0);
+            $updateSql = "UPDATE product_batches SET available_quantity = available_quantity + ? WHERE batch_id = ?";
+            $updateStmt = $connect->prepare($updateSql);
+            if (!$updateStmt) throw new Exception('Prepare update batch failed: ' . $connect->error);
+            $updateStmt->bind_param('di', $total_qty, $batch_id);
+            if (!$updateStmt->execute()) throw new Exception('Execute update batch failed: ' . $updateStmt->error);
+            $updateStmt->close();
+        } else {
             // Insert new batch with supplier and invoice tracking (using total qty)
-            $insertSql = "INSERT INTO stock_batches (product_id, batch_no, manufacture_date, expiry_date, qty, mrp, cost_price, supplier_id, invoice_id, gst_rate_applied, created_by) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $insertSql = "INSERT INTO product_batches 
+                (product_id, supplier_id, batch_number, manufacturing_date, expiry_date, available_quantity, reserved_quantity, damaged_quantity, purchase_rate, mrp, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 'Active', NOW())";
             $insertStmt = $connect->prepare($insertSql);
-            $userId = $_SESSION['userId'] ?? null;
-            $insertStmt->bind_param('isssdddiidi', $product_id, $batch_no, $manufacture_date, $expiry_date, $total_qty, $mrp, $cost_price, $supplier_id, $invoice_id, $tax_rate, $userId);
-            $insertStmt->execute();
+            if (!$insertStmt) throw new Exception('Prepare insert batch failed: ' . $connect->error);
+            $supplier_val = ($supplier_id > 0) ? $supplier_id : null;
+            $avail = $total_qty;
+            // types: i (product_id), i (supplier_id), s (batch_number), s (manufacturing_date), s (expiry_date), d (available_quantity), d (purchase_rate), d (mrp)
+            $insertStmt->bind_param('iisssddd', $product_id, $supplier_val, $batch_no, $manufacture_date, $expiry_date, $avail, $cost_price, $mrp);
+            if (!$insertStmt->execute()) throw new Exception('Execute insert batch failed: ' . $insertStmt->error);
+            $batch_id = $insertStmt->insert_id;
+            $balance_before = 0;
             $insertStmt->close();
+        }
+
+        // Record stock movement into stock_movements table (try to adapt to available schema)
+        // Determine balance_after
+        $balance_after = $balance_before + $total_qty;
+
+        // Try modern StockService schema first
+        $colCheck = $connect->query("SHOW COLUMNS FROM stock_movements LIKE 'quantity_moved'");
+        if ($colCheck && $colCheck->num_rows > 0) {
+            $movementSql = "INSERT INTO stock_movements 
+                (product_id, batch_id, warehouse_id, movement_type, quantity_moved, balance_before, balance_after, reference_type, reference_id, recorded_by, recorded_at)
+                VALUES (?, ?, NULL, 'purchase', ?, ?, ?, 'purchase_invoice', ?, ?, NOW())";
+            $movementStmt = $connect->prepare($movementSql);
+            if ($movementStmt) {
+                $userId = $_SESSION['userId'] ?? null;
+                $movementStmt->bind_param('iidddii', $product_id, $batch_id, $total_qty, $balance_before, $balance_after, $invoice_id, $userId);
+                $movementStmt->execute();
+                $movementStmt->close();
+            }
+        } else {
+            // Fallback to older schema (common fields observed elsewhere)
+            $colCheck2 = $connect->query("SHOW COLUMNS FROM stock_movements LIKE 'quantity'");
+            if ($colCheck2 && $colCheck2->num_rows > 0) {
+                $movementSql = "INSERT INTO stock_movements 
+                    (product_id, batch_id, movement_type, quantity, reference_number, reference_type, reason, created_at)
+                    VALUES (?, ?, 'Purchase', ?, ?, 'purchase_invoice', 'Purchase via GRN', NOW())";
+                $movementStmt = $connect->prepare($movementSql);
+                if ($movementStmt) {
+                    $movementStmt->bind_param('iid', $product_id, $batch_id, $total_qty);
+                    $movementStmt->execute();
+                    $movementStmt->close();
+                }
+            }
         }
     }
 
