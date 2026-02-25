@@ -58,6 +58,28 @@
                             </ul>
                         </li>
                     <?php }?>
+                    <?php if(isset($_SESSION['userId'])) { ?>
+                    <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Purchase Order</span></a>
+                        <ul aria-expanded="false" class="collapse">
+                       
+                            <li><a href="create_po.php">Create PO</a></li>
+                       
+                            <li><a href="po_list.php">Manage POs</a></li>
+                        </ul>
+                    </li>
+
+                <?php } ?>
+                <?php if(isset($_SESSION['userId'])) { ?>
+                <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Purchase Invoice</span></a>
+                    <ul aria-expanded="false" class="collapse">
+                   
+                        <li><a href="purchase_invoice.php">Create Invoice</a></li>
+                   
+                        <li><a href="invoice_list.php">Manage PIs</a></li>
+                    </ul>
+                </li>
+
+            <?php }?>
                         <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Sales Invoice</span></a>
                             <ul aria-expanded="false" class="collapse">
                            
@@ -67,35 +89,13 @@
                             </ul>
                         </li>
 
-                        <?php if(isset($_SESSION['userId'])) { ?>
-                        <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Purchase Invoice</span></a>
-                            <ul aria-expanded="false" class="collapse">
-                           
-                                <li><a href="purchase_invoice.php">Create Invoice</a></li>
-                           
-                                <li><a href="invoice_list.php">Manage PIs</a></li>
-                            </ul>
-                        </li>
-
-                    <?php }?>
-                        <?php if(isset($_SESSION['userId'])) { ?>
-                        <li> <a class="has-arrow" href="javascript:void(0)" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Purchase Order</span></a>
-                            <ul aria-expanded="false" class="collapse">
-                           
-                                <li><a href="create_po.php">Create PO</a></li>
-                           
-                                <li><a href="po_list.php">Manage POs</a></li>
-                            </ul>
-                        </li>
-
-                    <?php } ?>
                     <?php
                     // add GRN link available to same roles
                     if(isset($_SESSION['userId'])) { ?>
                         <li> <a href="grn_list.php" aria-expanded="false"><i class="fa fa-check-square"></i><span class="hide-menu">Goods Received</span></a></li>
                     <?php }?>
                         <?php if(isset($_SESSION['userId'])) { ?>
-                        <li> <a class="has-arrow" href="suppliers.php" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Suppliers</span></a>
+                        <li> <a class="has-arrow" href="manage_suppliers.php" aria-expanded="false"><i class="fa fa-file"></i><span class="hide-menu">Suppliers</span></a>
                             <!-- <ul aria-expanded="false" class="collapse">
                            
                                 <li><a href="supplier.php">Suppliers</a></li>

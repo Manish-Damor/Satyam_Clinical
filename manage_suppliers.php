@@ -94,6 +94,16 @@ $stats = $stats_result->fetch_assoc();
   </div>
 
   <div class="container-fluid">
+    <?php if(isset($_GET['msg'])): ?>
+        <div class="alert alert-success">
+            <?php echo htmlspecialchars($_GET['msg']); ?>
+        </div>
+    <?php endif; ?>
+    <?php if(isset($_GET['error'])): ?>
+        <div class="alert alert-danger">
+            <?php echo htmlspecialchars($_GET['error']); ?>
+        </div>
+    <?php endif; ?>
 
     <!-- ============================================================
          STATISTICS DASHBOARD
@@ -290,7 +300,7 @@ $stats = $stats_result->fetch_assoc();
 
                 <td class="text-center">
                   <div class="btn-group btn-group-sm" role="group">
-                    <a href="edit_supplier.php?id=<?php echo $row['supplier_id']; ?>"
+                    <a href="add_supplier.php?id=<?php echo $row['supplier_id']; ?>"
                        class="btn btn-primary"
                        title="Edit Supplier"
                        data-toggle="tooltip">

@@ -1,25 +1,11 @@
-<?php include('./constant/layout/head.php');?>
-<?php include('./constant/layout/header.php');?>
-<?php include('./constant/layout/sidebar.php');?>
-
-<?php 
-include('./constant/connect.php');
-
-// Check if tables exist, if not create them
-$tableCheck = $connect->query("SHOW TABLES LIKE 'suppliers'");
-if($tableCheck->num_rows == 0) {
-    die("<div class='alert alert-danger'>Database tables not initialized. Please run pharmacy_po_schema.sql first.</div>");
-}
-
-$sql = "SELECT supplier_id, supplier_code, supplier_name, phone_number, email, 
-        is_active, total_orders, total_amount_ordered FROM suppliers WHERE is_active = 1 
-        ORDER BY supplier_name ASC";
-$result = $connect->query($sql);
-
-if(!$result) {
-    die("Query Error: " . $connect->error);
-}
+<?php
+// legacy entry point kept for backward compatibility.
+// Redirect users to the new supplier management module which uses
+// the current schema (supplier_status, phone, address etc.).
+header('Location: manage_suppliers.php');
+exit;
 ?>
+
 
 <div class="page-wrapper">
     <div class="row page-titles">

@@ -2,23 +2,30 @@
 require_once 'core.php';
 
 $supplierId = isset($_GET['id']) ? intval($_GET['id']) : 0;
+// redirect target for legacy callers
+$redirect = '../manage_suppliers.php';
 
 if(!$supplierId) {
-    header('Location: ../supplier.php');
+    header("Location: {$redirect}");
     exit;
 }
 
 try {
-    $sql = "UPDATE suppliers SET is_active = 0 WHERE supplier_id = $supplierId";
-    
-    if($connect->query($sql)) {
-        header('Location: ../supplier.php?msg=Supplier deleted successfully');
+    // mark supplier as inactive rather than deleting row
+    $sql = "UPDATE suppliers SET supplier_status = 'Inactive' WHERE supplier_id = ?";
+    $stmt = $connect->prepare($sql);
+    $stmt->bind_param('i', $supplierId);
+    if($stmt->execute()) {
+        header('Location: ' . $redirect . '?msg=Supplier deleted successfully');
     } else {
-        header('Location: ../supplier.php?error=Error deleting supplier');
+        header('Location: ' . $redirect . '?error=Error deleting supplier');
     }
+    $stmt->close();
 } catch(Exception $e) {
-    header('Location: ../supplier.php?error=' . urlencode($e->getMessage()));
+    header('Location: ' . $redirect . '?error=' . urlencode($e->getMessage()));
 }
+
+$connect->close();
 
 $connect->close();
 ?>
