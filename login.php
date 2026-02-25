@@ -62,7 +62,7 @@ if($_POST) {
     <p>Login Successfully</p>
     <p>
      
-     <?php echo "<script>setTimeout(\"location.href = 'add_medicine.php';\",1500);</script>"; ?>
+     <?php echo "<script>setTimeout(\"location.href = 'dashboard.php';\",1500);</script>"; ?>
     </p>
   </div>
 </div>

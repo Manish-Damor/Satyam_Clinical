@@ -134,84 +134,55 @@
         <!-- sidebar hide/show toggle (moved outside to avoid being clipped by transform) -->
         <div class="sidebar-toggle"><i class="fa fa-chevron-left"></i></div>
 <script>
-// sidebar anchor click prevention to avoid '#' on URL
-function initSidebarBehavior() {
-    var anchors = document.querySelectorAll('#sidebarnav a.has-arrow');
-    anchors.forEach(function(a) {
-        a.addEventListener('click', function(e) {
-            e.preventDefault();
-            var parent = a.parentElement;
-            var sub = parent.querySelector('ul.collapse');
-            if (sub) {
-                sub.classList.toggle('show');
+// only handle the sidebar collapse/expand toggle button – submenu behavior
+// is managed by the MetisMenu plugin (
+// see assets/js/scripts.js which calls $("#sidebarnav").metisMenu()
+// and provides proper show/hide animations and sibling collapsing).
+
+function initSidebarToggle() {
+    var toggle = document.querySelector('.sidebar-toggle');
+    if (!toggle) return;
+
+    // sync icon state when page loads
+    var icon = toggle.querySelector('i');
+    var sidebar = document.querySelector('.left-sidebar');
+    if (sidebar && sidebar.classList.contains('collapsed')) {
+        icon.classList.replace('fa-chevron-left', 'fa-chevron-right');
+        document.body.classList.add('body-with-collapsed-sidebar', 'sidebar-hide');
+    }
+
+    toggle.addEventListener('click', function() {
+        var sidebar = document.querySelector('.left-sidebar');
+        var collapsed = sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('body-with-collapsed-sidebar', collapsed);
+        document.body.classList.toggle('sidebar-hide', collapsed);
+        if (collapsed) {
+            icon.classList.replace('fa-chevron-left', 'fa-chevron-right');
+        } else {
+            icon.classList.replace('fa-chevron-right', 'fa-chevron-left');
+        }
+    });
+
+    // mirror changes if some other script toggles body.sidebar-hide
+    var observer = new MutationObserver(function(muts) {
+        muts.forEach(function(m) {
+            if (m.attributeName === 'class') {
+                var collapsed = document.body.classList.contains('sidebar-hide');
+                var sidebar = document.querySelector('.left-sidebar');
+                if (sidebar) {
+                    sidebar.classList.toggle('collapsed', collapsed);
+                }
+                if (collapsed) {
+                    icon.classList.replace('fa-chevron-left', 'fa-chevron-right');
+                } else {
+                    icon.classList.replace('fa-chevron-right', 'fa-chevron-left');
+                }
+                document.body.classList.toggle('body-with-collapsed-sidebar', collapsed);
             }
         });
     });
-    // toggle button behavior
-    var toggle = document.querySelector('.sidebar-toggle');
-    if (toggle) {
-        // ensure arrow matches current state
-        var icon = toggle.querySelector('i');
-        var sidebar = document.querySelector('.left-sidebar');
-        if (sidebar && sidebar.classList.contains('collapsed')) {
-            icon.classList.remove('fa-chevron-left');
-            icon.classList.add('fa-chevron-right');
-            document.body.classList.add('body-with-collapsed-sidebar');
-            document.body.classList.add('sidebar-hide');
-        }
-        toggle.addEventListener('click', function() {
-            var sidebar = document.querySelector('.left-sidebar');
-            sidebar.classList.toggle('collapsed');
-            var collapsed = sidebar.classList.contains('collapsed');
-            document.body.classList.toggle('body-with-collapsed-sidebar', collapsed);
-            document.body.classList.toggle('sidebar-hide', collapsed);
-            // change icon
-            var icon = toggle.querySelector('i');
-            if (collapsed) {
-                icon.classList.remove('fa-chevron-left');
-                icon.classList.add('fa-chevron-right');
-            } else {
-                icon.classList.remove('fa-chevron-right');
-                icon.classList.add('fa-chevron-left');
-            }
-        });
-
-        // keep in sync with any other script that toggles body.sidebar-hide
-        var observer = new MutationObserver(function(muts) {
-            muts.forEach(function(m) {
-                if (m.attributeName === 'class') {
-                    var collapsed = document.body.classList.contains('sidebar-hide');
-                    var sidebar = document.querySelector('.left-sidebar');
-                    if (sidebar) {
-                        sidebar.classList.toggle('collapsed', collapsed);
-                    }
-                    var icon = toggle.querySelector('i');
-                    if (collapsed) {
-                        icon.classList.remove('fa-chevron-left');
-                        icon.classList.add('fa-chevron-right');
-                    } else {
-                        icon.classList.remove('fa-chevron-right');
-                        icon.classList.add('fa-chevron-left');
-                    }
-                    document.body.classList.toggle('body-with-collapsed-sidebar', collapsed);
-                }
-            });
-        });
-        observer.observe(document.body, { attributes: true });
-    }
+    observer.observe(document.body, { attributes: true });
 }
-document.addEventListener('DOMContentLoaded', initSidebarBehavior);
 
-document.addEventListener('DOMContentLoaded', function() {
-    var toggle = document.querySelector('.sidebar-toggle');
-    if (toggle) {
-        var navbarButtons = document.querySelectorAll('.sidebartoggler, .nav-toggler');
-        navbarButtons.forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                toggle.click();
-            });
-        });
-    }
-});
+document.addEventListener('DOMContentLoaded', initSidebarToggle);
 </script>        

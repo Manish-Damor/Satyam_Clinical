@@ -1595,12 +1595,15 @@ textarea {
   height: calc(100vh - 60px); /* fixed height accounting for header */
 }
 /* collapse behaviour for sidebar: hide completely when collapsed */
+/* accommodate both Bootstrap 4 ("show") and Bootstrap 3/MetisMenu ("in") states */
 .collapse,
-.collapse.show {
+.collapse.show,
+.collapse.in {
   display: none;
   visibility: hidden;
 }
-.collapse.show {
+.collapse.show,
+.collapse.in {
   display: block;
   visibility: visible;
 }
