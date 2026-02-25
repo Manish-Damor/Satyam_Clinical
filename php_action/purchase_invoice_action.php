@@ -531,7 +531,8 @@ class PurchaseInvoiceAction {
                     VALUES (?, ?, 'Purchase', ?, ?, 'purchase_invoice', 'Purchase via GRN', NOW())";
                 $movementStmt = $connect->prepare($movementSql);
                 if ($movementStmt) {
-                    $movementStmt->bind_param('iid', $product_id, $batch_id, $total_qty);
+                    $reference_number = (string)$invoice_id;
+                    $movementStmt->bind_param('iids', $product_id, $batch_id, $total_qty, $reference_number);
                     $movementStmt->execute();
                     $movementStmt->close();
                 }
