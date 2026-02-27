@@ -8,6 +8,9 @@
 
 header('Content-Type: application/json');
 require '../constant/connect.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 $response = [
     'success' => false,
@@ -187,120 +190,93 @@ try {
 
             $insertMovement = $connect->prepare("
                 INSERT INTO stock_movements
-                (product_id, batch_id, movement_type, quantity, reference_type, reference_id, notes, created_at)
-                VALUES (?, ?, 'Sales', ?, 'Invoice', ?, ?, NOW())
+                (product_id, batch_id, movement_type, quantity, reference_type, reference_id, notes, created_by, created_at)
+                VALUES (?, ?, 'Sales', ?, 'Invoice', ?, ?, ?, NOW())
             ");
 
             $updateBatch = $connect->prepare("
                 UPDATE product_batches SET available_quantity = available_quantity - ? WHERE batch_id = ? AND available_quantity >= ?
             ");
 
+            $fefoBatchFetch = $connect->prepare("\
+                SELECT batch_id, available_quantity, mrp, purchase_rate, expiry_date
+                FROM product_batches
+                WHERE product_id = ?
+                  AND status = 'Active'
+                  AND expiry_date > CURDATE()
+                  AND available_quantity > 0
+                ORDER BY expiry_date ASC, batch_id ASC
+                FOR UPDATE
+            ");
+
             $productIds = $_POST['product_id'];
-            $batchIds = $_POST['batch_id'];
             $quantities = $_POST['quantity'];
             $rates = $_POST['rate'];
             $ptrs = $_POST['ptr'];
             $gstRates = $_POST['gst_rate'];
-            $lineTotals = $_POST['line_total'];
-            $allocationPlans = $_POST['allocation_plan'] ?? [];
 
-            // track plans we've already processed (to avoid duplicates added by JS)
-            $seenPlans = [];
             for ($i = 0; $i < count($productIds); $i++) {
                 $productId = intval($productIds[$i]);
                 $quantity = floatval($quantities[$i]);
                 $rate = floatval($rates[$i]);
-                $ptr = floatval($ptrs[$i]) ?: null;
                 $gstRate = floatval($gstRates[$i]);
-                $lineTotal = floatval($lineTotals[$i]);
-                $allocationPlan = isset($allocationPlans[$i]) ? json_decode($allocationPlans[$i], true) : null;
 
-                // if the same plan JSON already handled, skip this row entirely
-                if (is_array($allocationPlan) && count($allocationPlan) > 0) {
-                    $hash = md5(json_encode($allocationPlan));
-                    if (in_array($hash, $seenPlans)) {
-                        // skip duplicate
-                        continue;
-                    }
-                    $seenPlans[] = $hash;
+                if ($productId <= 0 || $quantity <= 0) {
+                    continue;
                 }
 
-                // If allocation plan exists and is valid, insert one sales_invoice_item per batch allocation
-                if (is_array($allocationPlan) && count($allocationPlan) > 0) {
-                    foreach ($allocationPlan as $alloc) {
-                        $batchId = intval($alloc['batch_id']);
-                        $allocQty = floatval($alloc['allocated_quantity']);
-                        $batchMrp = isset($alloc['mrp']) ? floatval($alloc['mrp']) : $rate;
-                        $batchPtr = isset($alloc['purchase_rate']) ? floatval($alloc['purchase_rate']) : $ptr;
-                        $lineSubtotal = $allocQty * $batchMrp;
-                        $lineGstAmount = $lineSubtotal * ($gstRate / 100);
-                        $lineTotalBatch = $lineSubtotal + $lineGstAmount;
+                $remainingQty = $quantity;
+                $fefoBatchFetch->bind_param('i', $productId);
+                $fefoBatchFetch->execute();
+                $batchResult = $fefoBatchFetch->get_result();
 
-                        $insertItem->bind_param(
-                            'iiiddddddd',
-                            $invoiceId,
-                            $productId,
-                            $batchId,
-                            $allocQty,
-                            $batchMrp,
-                            $batchPtr,
-                            $lineSubtotal,
-                            $gstRate,
-                            $lineGstAmount,
-                            $lineTotalBatch
-                        );
-                        if (!$insertItem->execute()) {
-                            throw new Exception('Failed to add item: ' . $insertItem->error);
-                        }
-
-                        // Decrement batch stock
-                        $updateBatch->bind_param('did', $allocQty, $batchId, $allocQty);
-                        if (!$updateBatch->execute() || $updateBatch->affected_rows === 0) {
-                            throw new Exception('Insufficient stock for batch ' . $batchId);
-                        }
-
-                        // Log stock movement
-                        $note = 'Sales Invoice #' . $invoiceNumber;
-                        $insertMovement->bind_param('iiids', $productId, $batchId, $allocQty, $invoiceId, $note);
-                        if (!$insertMovement->execute()) {
-                            throw new Exception('Failed to log stock movement: ' . $insertMovement->error);
-                        }
+                while ($remainingQty > 0 && $batch = $batchResult->fetch_assoc()) {
+                    $batchId = (int) $batch['batch_id'];
+                    $availableQty = (float) $batch['available_quantity'];
+                    if ($availableQty <= 0) {
+                        continue;
                     }
-                } else {
-                    // Fallback: single batch (legacy)
-                    $batchId = intval($batchIds[$i]) ?: null;
-                    $lineSubtotal = $quantity * $rate;
-                    $lineGstAmount = $lineSubtotal * ($gstRate / 100);
 
-                    $lineTotalSingle = $lineSubtotal + $lineGstAmount;
+                    $allocQty = min($remainingQty, $availableQty);
+                    $unitRate = $rate > 0 ? $rate : (float) $batch['mrp'];
+                    $batchPtr = (float) $batch['purchase_rate'];
+                    $lineSubtotal = $allocQty * $unitRate;
+                    $lineGstAmount = $lineSubtotal * ($gstRate / 100);
+                    $lineTotal = $lineSubtotal + $lineGstAmount;
+
                     $insertItem->bind_param(
                         'iiiddddddd',
                         $invoiceId,
                         $productId,
                         $batchId,
-                        $quantity,
-                        $rate,
-                        $ptr,
+                        $allocQty,
+                        $unitRate,
+                        $batchPtr,
                         $lineSubtotal,
                         $gstRate,
                         $lineGstAmount,
-                        $lineTotalSingle
+                        $lineTotal
                     );
                     if (!$insertItem->execute()) {
                         throw new Exception('Failed to add item: ' . $insertItem->error);
                     }
 
-                    if ($batchId) {
-                        $updateBatch->bind_param('did', $quantity, $batchId, $quantity);
-                        if (!$updateBatch->execute() || $updateBatch->affected_rows === 0) {
-                            throw new Exception('Insufficient stock for batch ' . $batchId);
-                        }
-                        $note = 'Sales Invoice #' . $invoiceNumber;
-                        $insertMovement->bind_param('iiids', $productId, $batchId, $quantity, $invoiceId, $note);
-                        if (!$insertMovement->execute()) {
-                            throw new Exception('Failed to log stock movement: ' . $insertMovement->error);
-                        }
+                    $updateBatch->bind_param('did', $allocQty, $batchId, $allocQty);
+                    if (!$updateBatch->execute() || $updateBatch->affected_rows === 0) {
+                        throw new Exception('Insufficient stock for batch ' . $batchId);
                     }
+
+                    $note = 'Sales Invoice #' . $invoiceNumber;
+                    $insertMovement->bind_param('iiidisi', $productId, $batchId, $allocQty, $invoiceId, $note, $userId);
+                    if (!$insertMovement->execute()) {
+                        throw new Exception('Failed to log stock movement: ' . $insertMovement->error);
+                    }
+
+                    $remainingQty -= $allocQty;
+                }
+
+                if ($remainingQty > 0) {
+                    throw new Exception('Insufficient FEFO stock for product #' . $productId . ' (short by ' . $remainingQty . ')');
                 }
             }
         }

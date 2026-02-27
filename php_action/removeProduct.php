@@ -1,27 +1,43 @@
-<?php 	
+<?php
 
 require_once 'core.php';
 
+$productId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
-$valid['success'] = array('success' => false, 'messages' => array());
+if ($productId <= 0) {
+	header('location:../manage_medicine.php?error=invalid_product');
+	exit;
+}
 
-//$productId = $_POST['productId'];
-$productId = $_GET['id'];
-if($productId) { 
+$checkSql = "
+	SELECT COUNT(*) AS active_batches
+	FROM product_batches
+	WHERE product_id = ?
+	  AND status = 'Active'
+	  AND available_quantity > 0
+";
+$checkStmt = $connect->prepare($checkSql);
+$checkStmt->bind_param('i', $productId);
+$checkStmt->execute();
+$checkRes = $checkStmt->get_result();
+$checkRow = $checkRes ? $checkRes->fetch_assoc() : ['active_batches' => 0];
+$checkStmt->close();
 
- $sql = "UPDATE product SET active = 2, status = 2 WHERE product_id = {$productId}";
+if ((int) $checkRow['active_batches'] > 0) {
+	header('location:../manage_medicine.php?error=has_active_stock');
+	exit;
+}
 
- if($connect->query($sql) === TRUE) {
- 	$valid['success'] = true;
-	$valid['messages'] = "Successfully Removed";
-	header('location:../manage_medicine.php');		
- } else {
- 	$valid['success'] = false;
- 	$valid['messages'] = "Error while remove the brand";
- }
- 
- $connect->close();
+$sql = "UPDATE product SET status = 2 WHERE product_id = ?";
+$stmt = $connect->prepare($sql);
+$stmt->bind_param('i', $productId);
 
- echo json_encode($valid);
- 
-} // /if $_POST
+if ($stmt->execute()) {
+	header('location:../manage_medicine.php?success=removed');
+} else {
+	header('location:../manage_medicine.php?error=remove_failed');
+}
+
+$stmt->close();
+$connect->close();
+exit;

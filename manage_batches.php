@@ -168,9 +168,6 @@ $batchesResult = $connect->query($batchesSql);
           <a href="manage_batches.php?product_id=<?php echo $product_id; ?>" class="btn btn-secondary">
             <i class="fa fa-refresh"></i> Reset
           </a>
-          <a href="add_batch.php?product_id=<?php echo $product_id; ?>" class="btn btn-success ml-2">
-            <i class="fa fa-plus"></i> Add Batch
-          </a>
         </form>
       </div>
     </div>
@@ -196,7 +193,7 @@ $batchesResult = $connect->query($batchesSql);
                 <th style="width: 10%;">Purchase Rate</th>
                 <th style="width: 10%;">Supplier</th>
                 <th style="width: 8%;">Status</th>
-                <th style="width: 15%;">Actions</th>
+                <th style="width: 15%;">View</th>
               </tr>
             </thead>
 
@@ -280,22 +277,7 @@ $batchesResult = $connect->query($batchesSql);
                 </td>
 
                 <td class="text-center">
-                  <div class="btn-group btn-group-sm" role="group">
-                    <a href="edit_batch.php?batch_id=<?php echo $batch['batch_id']; ?>"
-                       class="btn btn-primary"
-                       title="Edit Batch"
-                       data-toggle="tooltip">
-                      <i class="fa fa-pencil"></i>
-                    </a>
-
-                    <a href="php_action/deleteBatch.php?batch_id=<?php echo $batch['batch_id']; ?>&product_id=<?php echo $product_id; ?>"
-                       class="btn btn-danger"
-                       onclick="return confirm('Are you sure?');"
-                       title="Delete Batch"
-                       data-toggle="tooltip">
-                      <i class="fa fa-trash"></i>
-                    </a>
-                  </div>
+                  <span class="badge badge-light">Read Only</span>
                 </td>
               </tr>
               <?php 
@@ -305,7 +287,7 @@ $batchesResult = $connect->query($batchesSql);
               <tr>
                 <td colspan="10" class="text-center text-muted py-4">
                   <i class="fa fa-inbox fa-3x mb-3"></i>
-                  <p>No batches found. <a href="add_batch.php?product_id=<?php echo $product_id; ?>">Add one now</a></p>
+                  <p>No batches found.</p>
                 </td>
               </tr>
               <?php 

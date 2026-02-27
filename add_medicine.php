@@ -2,6 +2,45 @@
 <?php include('./constant/layout/header.php');?>
 <?php include('./constant/layout/sidebar.php');?>
 
+<?php
+$productTypeOptions = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment', 'Drops', 'Others'];
+$unitTypeOptions = ['Strip', 'Box', 'Bottle', 'Vial', 'Tube', 'Piece', 'Sachet'];
+$gstRateOptions = ['0.00', '5.00', '12.00', '18.00', '28.00'];
+
+$checkTable = $connect->query("SHOW TABLES LIKE 'master_product_types'");
+if ($checkTable && $checkTable->num_rows > 0) {
+  $res = $connect->query("SELECT type_code FROM master_product_types WHERE is_active = 1 ORDER BY sort_order ASC, type_code ASC");
+  if ($res && $res->num_rows > 0) {
+    $productTypeOptions = [];
+    while ($row = $res->fetch_assoc()) {
+      $productTypeOptions[] = $row['type_code'];
+    }
+  }
+}
+
+$checkTable = $connect->query("SHOW TABLES LIKE 'master_unit_types'");
+if ($checkTable && $checkTable->num_rows > 0) {
+  $res = $connect->query("SELECT unit_code FROM master_unit_types WHERE is_active = 1 ORDER BY sort_order ASC, unit_code ASC");
+  if ($res && $res->num_rows > 0) {
+    $unitTypeOptions = [];
+    while ($row = $res->fetch_assoc()) {
+      $unitTypeOptions[] = $row['unit_code'];
+    }
+  }
+}
+
+$checkTable = $connect->query("SHOW TABLES LIKE 'master_gst_slabs'");
+if ($checkTable && $checkTable->num_rows > 0) {
+  $res = $connect->query("SELECT gst_rate FROM master_gst_slabs WHERE is_active = 1 ORDER BY sort_order ASC, gst_rate ASC");
+  if ($res && $res->num_rows > 0) {
+    $gstRateOptions = [];
+    while ($row = $res->fetch_assoc()) {
+      $gstRateOptions[] = number_format((float)$row['gst_rate'], 2, '.', '');
+    }
+  }
+}
+?>
+
 <div class="page-wrapper">
   <div class="row page-titles">
     <div class="col-md-5 align-self-center">
@@ -96,13 +135,9 @@
                 <label>Product Type</label>
                 <select class="form-control" name="product_type" required>
                   <option value="">~~ SELECT ~~</option>
-                  <option value="Tablet">Tablet</option>
-                  <option value="Capsule">Capsule</option>
-                  <option value="Syrup">Syrup</option>
-                  <option value="Injection">Injection</option>
-                  <option value="Ointment">Ointment</option>
-                  <option value="Drops">Drops</option>
-                  <option value="Others">Others</option>
+                  <?php foreach ($productTypeOptions as $type): ?>
+                    <option value="<?php echo htmlspecialchars($type); ?>"><?php echo htmlspecialchars($type); ?></option>
+                  <?php endforeach; ?>
                 </select>
               </div>
 
@@ -111,12 +146,9 @@
                 <label>Unit Type</label>
                 <select class="form-control" name="unit_type" required>
                   <option value="">~~ SELECT ~~</option>
-                  <option value="Strip">Strip</option>
-                  <option value="Box">Box</option>
-                  <option value="Bottle">Bottle</option>
-                  <option value="Vial">Vial</option>
-                  <option value="Tube">Tube</option>
-                  <option value="Piece">Piece</option>
+                  <?php foreach ($unitTypeOptions as $unit): ?>
+                    <option value="<?php echo htmlspecialchars($unit); ?>"><?php echo htmlspecialchars($unit); ?></option>
+                  <?php endforeach; ?>
                 </select>
               </div>
 
@@ -150,10 +182,9 @@
               <div class="form-group col-md-6">
                 <label>GST Rate (%)</label>
                 <select class="form-control" name="gst_rate" required>
-                  <option value="0">0%</option>
-                  <option value="5" selected>5%</option>
-                  <option value="12">12%</option>
-                  <option value="18">18%</option>
+                  <?php foreach ($gstRateOptions as $gst): ?>
+                    <option value="<?php echo htmlspecialchars($gst); ?>" <?php echo ((float)$gst === 5.00) ? 'selected' : ''; ?>><?php echo rtrim(rtrim($gst, '0'), '.'); ?>%</option>
+                  <?php endforeach; ?>
                 </select>
               </div>
 

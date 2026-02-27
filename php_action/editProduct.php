@@ -1,36 +1,110 @@
-<?php 	
+<?php
 
 require_once 'core.php';
 
-$valid['success'] = array('success' => false, 'messages' => array());
-$productId = $_GET['id'];
-if($_POST) {
-	
-	$productName 		= $_POST['editProductName']; 
-  $quantity 			= $_POST['editQuantity'];
-  $rate 					= $_POST['editRate'];
-  $brandName 			= $_POST['editBrandName'];
-  $categoryName 	= $_POST['editCategoryName'];
-  $productStatus 	= $_POST['editProductStatus'];
-  $mrp 	= $_POST['mrp'];
-  $bno 	= $_POST['bno'];
-  $expdate 	= $_POST['expdate'];
+function getAllowedValues($connect, $table, $column, $default)
+{
+    $allowed = $default;
+    $check = $connect->query("SHOW TABLES LIKE '{$table}'");
+    if ($check && $check->num_rows > 0) {
+        $sql = "SELECT {$column} AS v FROM {$table} WHERE is_active = 1 ORDER BY sort_order ASC";
+        $res = $connect->query($sql);
+        if ($res && $res->num_rows > 0) {
+            $allowed = [];
+            while ($row = $res->fetch_assoc()) {
+                $allowed[] = (string) $row['v'];
+            }
+        }
+    }
+    return $allowed;
+}
 
-				
-	$sql = "UPDATE product SET product_name = '$productName', brand_id = '$brandName', categories_id = '$categoryName', quantity = '$quantity', rate = '$rate', mrp = '$mrp', bno = '$bno', expdate = '$expdate', active = '$productStatus', status = 1 WHERE product_id = $productId ";
+$productId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
-	if($connect->query($sql) === TRUE) {
-		$valid['success'] = true;
-		$valid['messages'] = "Successfully Update";	
-		header('location:../manage_medicine.php');
-	} else {
-		$valid['success'] = false;
-		$valid['messages'] = "Error while updating product info";
-	}
+if ($productId <= 0 || !$_POST) {
+    header('location:../manage_medicine.php?error=invalid_product');
+    exit;
+}
 
-} // /$_POST
-	 
+$productName    = trim($_POST['editProductName'] ?? '');
+$content        = trim($_POST['editContent'] ?? '');
+$productType    = trim($_POST['editProductType'] ?? 'Tablet');
+$unitType       = trim($_POST['editUnitType'] ?? 'Strip');
+$packSize       = trim($_POST['editPackSize'] ?? '');
+$hsnCode        = trim($_POST['editHsnCode'] ?? '');
+$gstRate        = (float) ($_POST['editGstRate'] ?? 0);
+$reorderLevel   = (int) ($_POST['editReorderLevel'] ?? 0);
+$brandName      = (int) ($_POST['editBrandName'] ?? 0);
+$categoryName   = (int) ($_POST['editCategoryName'] ?? 0);
+$productStatus  = (int) ($_POST['editProductStatus'] ?? 1);
+
+$allowedProductTypes = getAllowedValues($connect, 'master_product_types', 'type_code', ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment', 'Drops', 'Others']);
+$allowedUnitTypes = getAllowedValues($connect, 'master_unit_types', 'unit_code', ['Strip', 'Box', 'Bottle', 'Vial', 'Tube', 'Piece', 'Sachet']);
+$allowedGstRates = array_map('floatval', getAllowedValues($connect, 'master_gst_slabs', 'gst_rate', ['0.00', '5.00', '12.00', '18.00', '28.00']));
+
+if (
+    $productName === '' ||
+    $content === '' ||
+    $packSize === '' ||
+    $hsnCode === '' ||
+    $brandName <= 0 ||
+    $categoryName <= 0 ||
+    !in_array($productType, $allowedProductTypes, true) ||
+    !in_array($unitType, $allowedUnitTypes, true) ||
+    !in_array((float) $gstRate, $allowedGstRates, true) ||
+    $reorderLevel < 0 ||
+    !in_array($productStatus, [1, 2], true)
+) {
+    header('location:../editproduct.php?id=' . $productId . '&error=invalid_input');
+    exit;
+}
+
+$sql = "
+    UPDATE product
+    SET product_name = ?,
+        content = ?,
+        brand_id = ?,
+        categories_id = ?,
+        product_type = ?,
+        unit_type = ?,
+        pack_size = ?,
+        hsn_code = ?,
+        gst_rate = ?,
+        reorder_level = ?,
+        status = ?
+    WHERE product_id = ?
+";
+
+$stmt = $connect->prepare($sql);
+if (!$stmt) {
+    header('location:../editproduct.php?id=' . $productId . '&error=db_prepare_failed');
+    exit;
+}
+
+$stmt->bind_param(
+    'ssiissssdiii',
+    $productName,
+    $content,
+    $brandName,
+    $categoryName,
+    $productType,
+    $unitType,
+    $packSize,
+    $hsnCode,
+    $gstRate,
+    $reorderLevel,
+    $productStatus,
+    $productId
+);
+
+if ($stmt->execute()) {
+    $stmt->close();
+    $connect->close();
+    header('location:../manage_medicine.php?success=updated');
+    exit;
+}
+
+$stmt->close();
 $connect->close();
-
-echo json_encode($valid);
- 
+header('location:../editproduct.php?id=' . $productId . '&error=update_failed');
+exit;

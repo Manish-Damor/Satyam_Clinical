@@ -1,240 +1,213 @@
+<?php include('./constant/layout/head.php'); ?>
+<?php include('./constant/layout/header.php'); ?>
+<?php include('./constant/layout/sidebar.php'); ?>
+<?php include('./constant/connect.php'); ?>
+
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-// die('reached here');
+$productId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+if ($productId <= 0) {
+  header('location:manage_medicine.php');
+  exit;
+}
+
+$stmt = $connect->prepare("SELECT * FROM product WHERE product_id = ?");
+$stmt->bind_param('i', $productId);
+$stmt->execute();
+$product = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+if (!$product) {
+  header('location:manage_medicine.php');
+  exit;
+}
+
+$productTypeOptions = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment', 'Drops', 'Others'];
+$unitTypeOptions = ['Strip', 'Box', 'Bottle', 'Vial', 'Tube', 'Piece', 'Sachet'];
+$gstRateOptions = ['0.00', '5.00', '12.00', '18.00', '28.00'];
+
+$checkTable = $connect->query("SHOW TABLES LIKE 'master_product_types'");
+if ($checkTable && $checkTable->num_rows > 0) {
+  $res = $connect->query("SELECT type_code FROM master_product_types WHERE is_active = 1 ORDER BY sort_order ASC, type_code ASC");
+  if ($res && $res->num_rows > 0) {
+    $productTypeOptions = [];
+    while ($row = $res->fetch_assoc()) {
+      $productTypeOptions[] = $row['type_code'];
+    }
+  }
+}
+
+$checkTable = $connect->query("SHOW TABLES LIKE 'master_unit_types'");
+if ($checkTable && $checkTable->num_rows > 0) {
+  $res = $connect->query("SELECT unit_code FROM master_unit_types WHERE is_active = 1 ORDER BY sort_order ASC, unit_code ASC");
+  if ($res && $res->num_rows > 0) {
+    $unitTypeOptions = [];
+    while ($row = $res->fetch_assoc()) {
+      $unitTypeOptions[] = $row['unit_code'];
+    }
+  }
+}
+
+$checkTable = $connect->query("SHOW TABLES LIKE 'master_gst_slabs'");
+if ($checkTable && $checkTable->num_rows > 0) {
+  $res = $connect->query("SELECT gst_rate FROM master_gst_slabs WHERE is_active = 1 ORDER BY sort_order ASC, gst_rate ASC");
+  if ($res && $res->num_rows > 0) {
+    $gstRateOptions = [];
+    while ($row = $res->fetch_assoc()) {
+      $gstRateOptions[] = number_format((float)$row['gst_rate'], 2, '.', '');
+    }
+  }
+}
+
+$brandRows = [];
+$brandRes = $connect->query("SELECT brand_id, brand_name FROM brands WHERE brand_status = 1 ORDER BY brand_name ASC");
+if ($brandRes) {
+  while ($row = $brandRes->fetch_assoc()) {
+    $brandRows[] = $row;
+  }
+}
+
+$categoryRows = [];
+$categoryRes = $connect->query("SELECT categories_id, categories_name FROM categories WHERE categories_status = 1 ORDER BY categories_name ASC");
+if ($categoryRes) {
+  while ($row = $categoryRes->fetch_assoc()) {
+    $categoryRows[] = $row;
+  }
+}
+
+$errorMsg = isset($_GET['error']) ? trim($_GET['error']) : '';
 ?>
 
-<?php 
-include('./constant/layout/head.php');
-?>
-<?php // die('reached here');  ?>
-<?php include('./constant/layout/header.php');?>
+<style>
+.edit-section-card { border: 1px solid #e8eef5; border-radius: 10px; }
+.edit-section-card .card-header { background: #f8fbff; border-bottom: 1px solid #e8eef5; }
+</style>
 
-<?php include('./constant/layout/sidebar.php');?>
-  
+<div class="page-wrapper">
+  <div class="row page-titles">
+    <div class="col-md-6 align-self-center">
+      <h3 class="text-primary mb-0">Edit Medicine</h3>
+      <small class="text-muted">Update medicine master details and image</small>
+    </div>
+    <div class="col-md-6 align-self-center text-right">
+      <a href="manage_medicine.php" class="btn btn-outline-secondary btn-sm"><i class="fa fa-arrow-left"></i> Back to Medicines</a>
+    </div>
+  </div>
 
-<?php include('./constant/connect.php');
+  <div class="container-fluid">
+    <?php if ($errorMsg !== ''): ?>
+      <div class="alert alert-warning"><?php echo htmlspecialchars(str_replace('_', ' ', $errorMsg)); ?></div>
+    <?php endif; ?>
 
-$sql="SELECT * from product where  product_id='".$_GET['id']."'";
-$result=$connect->query($sql)->fetch_assoc();  
-// print_r($result);
-
-$stockSQL="SELECT * from product_batches where  product_id='".$_GET['id']."'";
-$stockResult=$connect->query($stockSQL)->fetch_assoc(); 
-?> 
-
-
-
-  
- <div class="page-wrapper">
-            
-            <div class="row page-titles">
-                <div class="col-md-5 align-self-center">
-                    <h3 class="text-primary">Edit Medicine Management</h3> </div>
-                <div class="col-md-7 align-self-center">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="javascript:void(0)">Home</a></li>
-                        <li class="breadcrumb-item active">Edit Medicine</li>
-                    </ol>
-                </div>
+    <div class="row">
+      <div class="col-lg-4 mb-3">
+        <div class="card edit-section-card">
+          <div class="card-header"><strong>Medicine Image</strong></div>
+          <div class="card-body">
+            <div class="text-center mb-3">
+              <img src="assets/myimages/<?php echo htmlspecialchars($product['product_image'] ?? ''); ?>" alt="Medicine Image" style="width:220px;height:220px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;" />
             </div>
-            
-            
-            <div class="container-fluid">
-                
-                
-                
+            <form action="php_action/editProductImage.php?id=<?php echo $productId; ?>" method="POST" enctype="multipart/form-data">
+              <input type="hidden" name="old_image" value="<?php echo htmlspecialchars($product['product_image'] ?? ''); ?>">
+              <div class="form-group">
+                <label>Select New Image</label>
+                <input type="file" class="form-control" name="productImage">
+              </div>
+              <button type="submit" name="btn" class="btn btn-primary btn-block">Save Photo</button>
+            </form>
+          </div>
+        </div>
+      </div>
 
-                
-                
-                
-                <div class="row">
-                    <div class="col-lg-10 mx-auto">
-                        <div class="card">
-                            <div class="card-title">
-                               
-                            </div>
-                            <div id="add-brand-messages"></div>
-                            <div class="card-body">
-                                <div class="input-states">
+      <div class="col-lg-8 mb-3">
+        <div class="card edit-section-card">
+          <div class="card-header"><strong>Medicine Information</strong></div>
+          <div class="card-body">
+            <form method="POST" id="submitProductForm" action="php_action/editProduct.php?id=<?php echo $productId; ?>">
+              <div class="row">
+                <div class="form-group col-md-6">
+                  <label>Medicine Name</label>
+                  <input type="text" class="form-control" name="editProductName" value="<?php echo htmlspecialchars($product['product_name']); ?>" required>
+                </div>
+                <div class="form-group col-md-6">
+                  <label>Composition / Content</label>
+                  <input type="text" class="form-control" name="editContent" value="<?php echo htmlspecialchars($product['content']); ?>" required>
+                </div>
 
-                                    
+                <div class="form-group col-md-6">
+                  <label>Product Type</label>
+                  <select class="form-control" name="editProductType" required>
+                    <?php foreach ($productTypeOptions as $type): ?>
+                      <option value="<?php echo htmlspecialchars($type); ?>" <?php echo ($product['product_type'] === $type) ? 'selected' : ''; ?>><?php echo htmlspecialchars($type); ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group col-md-6">
+                  <label>Unit Type</label>
+                  <select class="form-control" name="editUnitType" required>
+                    <?php foreach ($unitTypeOptions as $unit): ?>
+                      <option value="<?php echo htmlspecialchars($unit); ?>" <?php echo ($product['unit_type'] === $unit) ? 'selected' : ''; ?>><?php echo htmlspecialchars($unit); ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
 
-                                     <form action="php_action/editProductImage.php?id=<?php 
-                                          echo $_GET['id'];
-                                    ?>" method="POST" id="updateProductImageForm" class="form-horizontal" enctype="multipart/form-data">
+                <div class="form-group col-md-6">
+                  <label>Pack Size</label>
+                  <input type="text" class="form-control" name="editPackSize" value="<?php echo htmlspecialchars($product['pack_size']); ?>" required>
+                </div>
+                <div class="form-group col-md-6">
+                  <label>HSN Code</label>
+                  <input type="text" class="form-control" name="editHsnCode" value="<?php echo htmlspecialchars($product['hsn_code']); ?>" required>
+                </div>
 
-                                        <fieldset>
-                        <h1>Update Photo</h1>
-<div class="changeUsenrameMessages"></div>
-                                        <div class="form-group">
-                                            <div class="row">
-                                                <label class="col-sm-3 control-label">Medicine Image:</label>
-                                                <div class="col-sm-9">
-                                                 
-                                                   <img src="assets/myimages/<?php 
-                                                   echo $result['product_image']
-                                                   ?>" style="width:250px; height:250px;" >
-                                                     <input type="hidden" name="old_image" value="<?php 
-                                                     echo $result['product_image']?>
-                                                     ">
+                <div class="form-group col-md-6">
+                  <label>GST Rate (%)</label>
+                  <select class="form-control" name="editGstRate" required>
+                    <?php foreach ($gstRateOptions as $rate): ?>
+                      <?php $rateLabel = rtrim(rtrim($rate, '0'), '.'); ?>
+                      <option value="<?php echo htmlspecialchars($rate); ?>" <?php echo ((float)$product['gst_rate'] === (float)$rate) ? 'selected' : ''; ?>><?php echo htmlspecialchars($rateLabel); ?>%</option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group col-md-6">
+                  <label>Reorder Level</label>
+                  <input type="number" class="form-control" name="editReorderLevel" min="0" value="<?php echo (int)$product['reorder_level']; ?>" required>
+                </div>
 
+                <div class="form-group col-md-6">
+                  <label>Manufacturer</label>
+                  <select name="editBrandName" class="form-control" required>
+                    <?php foreach ($brandRows as $brand): ?>
+                      <option value="<?php echo (int)$brand['brand_id']; ?>" <?php echo ((int)$product['brand_id'] === (int)$brand['brand_id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($brand['brand_name']); ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group col-md-6">
+                  <label>Category</label>
+                  <select name="editCategoryName" class="form-control" required>
+                    <?php foreach ($categoryRows as $category): ?>
+                      <option value="<?php echo (int)$category['categories_id']; ?>" <?php echo ((int)$product['categories_id'] === (int)$category['categories_id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($category['categories_name']); ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
 
+                <div class="form-group col-md-6">
+                  <label>Status</label>
+                  <select class="form-control" name="editProductStatus" required>
+                    <option value="1" <?php echo ((int)$product['status'] === 1) ? 'selected' : ''; ?>>Available</option>
+                    <option value="2" <?php echo ((int)$product['status'] === 2) ? 'selected' : ''; ?>>Not Available</option>
+                  </select>
+                </div>
 
-                                                   
-                                                </div>
-                                            </div>
-                                        </div>
-                                    <div class="form-group">
-                                      <div class="row">
-                                                <label for="editProductImage" class="col-sm-3 control-label">Select Photo: </label>
-                                               
-                                                <div class="col-sm-9">
-                                                  
-                                                  <div id="kv-avatar-errors-1" class="center-block" style="display:none;"></div>              
-                                                  <div class="kv-avatar center-block">                  
-                                                      <input type="file" class="form-control" id="productImage" placeholder="Medicine Name" name="productImage" class="file-loading" style="width:auto;"/>
-                                                  </div>
-                                                  
-                                                </div>
-                                              </div> 
-                                            </div>
-                                            <div class="col-md-2 mx-auto">
-                                        <button type="submit"  name="btn" id="changeUsernameBtn" class="btn btn-primary btn-flat m-b-30 m-t-30">Save Changes</button></div>
-                                        </fieldset>
+                <div class="col-md-12 text-center mt-2">
+                  <button type="submit" class="btn btn-primary px-4">Update Medicine</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-
-                                    </form>
-                                    <form method="POST"  id="submitProductForm" action="php_action/editProduct.php?id=<?php 
-                                     echo $_GET['id'];
-                                     ?>"enctype="multipart/form-data">
-
-                                      <fieldset>
-                                        <h1>Medicine Info</h1>
-
-                                          
-                                        <div class="row">
-                                          <div class="form-group col-md-6">
-                                                <label class="control-label">Medicine Name</label>
-                                                <input type="text" class="form-control" id="editProductName" value="<?php 
-                                                  echo $result['product_name']
-                                                  ?>"  name="editProductName" autocomplete="off">
-                                          </div>
-                                          <div class="form-group col-md-6">
-                                            <label class="control-label">Quantity</label>
-                                                    <input type="text" class="form-control" id="editQuantity" value="<?php 
-                                                    echo $result['quantity']
-                                                    ?>" name="editQuantity" autocomplete="off">
-                                          </div>
-                                          <div class="form-group col-md-6">
-                                            <label class="control-label">Rate</label>
-                                                    <input type="text" class="form-control" id="editRate" value="<?php 
-                                                    echo $stockResult['purchase_rate']
-                                                    ?>" name="editRate" autocomplete="off">
-                                          </div>
-                                          <div class="form-group col-md-6">
-                                                  <label class="control-label">MRP</label>
-                                                    <input type="text" class="form-control" id="mrp" placeholder="MRP" name="mrp" autocomplete="off" value="<?php 
-                                                    echo $stockResult['mrp']
-                                                    ?>" required="" pattern="^[0-9]+$"/>
-                                          </div>
-                                          <div class="form-group col-md-6">
-                                                  <label class="control-label">Batch No</label>
-                                                    <input type="text" class="form-control" id="Batch_No" placeholder="Batch No" name="bno" autocomplete="off" value="<?php 
-                                                    echo $stockResult['batch_number']
-                                                    ?>" required="" pattern="^[Aa-Zz]+$"/>
-                                          </div>
-                                          <div class="form-group col-md-6">
-                                                  <label class="control-label">Expiry Date</label>
-                                                    <input type="date" class="form-control" id="expdate" placeholder="Expiry Date" name="expdate" value="<?php 
-                                                    echo $stockResult['expiry_date']
-                                                    ?>" autocomplete="off" required="" pattern="^[0-9]+$"/>
-                                          </div>
-                                          <div class="form-group col-md-6">
-                                                  <label class="control-label">Manufacturer Name</label>
-                                                  <select  id="editBrandName" name="editBrandName"  required class="form-control">
-
-                                                  
-
-                                                      <?php
-                                                          $sql = ("SELECT * FROM brands  where brand_status=1 ");
-                                                          //echo $sql;exit;
-                                                          $results = mysqli_query($connect, $sql);
-                                                          //echo "23";exit;
-                                                      while ($row = mysqli_fetch_assoc($results)) {
-                                                        ?>
-                                                        <option value="<?php echo $row['brand_id']; ?>"
-                                                            <?php if ($result['brand_id'] == $row['brand_id']) echo "selected"; ?>>
-                                                            <?php echo $row['brand_name']; ?>
-                                                        </option>
-                                                        <?php
-                                                        }
-
-                                                        ?></select>
-                                          </div>
-                                          <div class="form-group col-md-6">
-                                            <label class="control-label">Category Name</label>
-                                                          <select  id="editCategoryName" name="editCategoryName"  required class="form-control">
-                                                            <?php
-                                              $sql = ("SELECT * FROM categories  where categories_status=1 ");
-                                              //echo $sql;exit;
-                                              $result1 = mysqli_query($connect, $sql);
-                                              //echo "23";exit;
-                                              while ($row = mysqli_fetch_assoc($result1)){
-                                            echo $row['categories_name'];//exit;?>
-                                              <option value="<?php 
-                                              echo $row['categories_id'];
-                                                ?>"<?php 
-                                              if($result['categories_id']==$row['categories_id']){echo "selected";}
-                                              ?>><?php 
-                                              echo $row['categories_name'];
-                                              ?></option>";
-                                            <?php  
-                                            }                    
-                                            ?></select>
-                                          </div>
-                                          
-                                          <div class="form-group col-md-6">
-                                            <label class="control-label">Status</label>
-                                            <select class="form-control" id="editProductStatus" name="editProductStatus">
-                                              <option value="1" <?php 
-                                              if($result['active']=="1") 
-                                                { 
-                                                  echo "selected";
-                                                  }
-                                              ?>>Available</option>
-                                              <option value="2" <?php 
-                                              if($result['active']=="2"){ echo "selected";}
-                                              ?>>Not Available</option>
-                                            </select>
-                                          </div>
-                      
-                                          <div class="col-md-12 mx-auto text-center">
-                                            <button type="submit" name="create" id="createCategoriesBtn" class="btn btn-primary btn-flat m-b-30 m-t-30">Update</button>
-                                          </div>
-
-                                        </div>
-                                      
-                                        
-                                      </fieldset>
-
-
-                                      
-                                    </form>
-                                </div>
-                              </div>
-                            </div>
-                    </div>
-                    
-                  </div>
-                  
-                  
-                  
-                  
-                  
-                  <?php include('./constant/layout/footer.php');?>
-                  
-                  
-                  <script src="custom/js/product.js"></script>
-               
+<?php include('./constant/layout/footer.php'); ?>

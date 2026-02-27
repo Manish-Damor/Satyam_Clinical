@@ -448,6 +448,13 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
         z-index: 9999 !important;
         min-width: 100%;
     }
+    .fefo-explain {
+        margin-top: 4px;
+        font-size: 11px;
+        color: #64748b;
+        line-height: 1.3;
+        display: block;
+    }
     
     @media (max-width: 768px) {
         .table-responsive { font-size: 0.85rem; }
@@ -711,6 +718,7 @@ $(document).ready(function() {
         const availableQty = parseFloat(row.find('.available-qty').text()) || 0;
 
         console.log('Quantity entered:', qty, 'Available:', availableQty, 'Product:', productId);
+    renderFefoExplain(row);
 
         // If quantity exceeds available batch quantity, trigger multi-batch allocation
         if (productId && batchId && qty > availableQty && availableQty > 0) {
@@ -772,6 +780,8 @@ $(document).ready(function() {
                             });
                             alert(warningMsg);
                         }
+
+                        renderFefoExplainFromPlan(row, response.data.allocation_plan, qty);
                     }
                     
                     calculateLineTotalRow(row);
@@ -811,6 +821,8 @@ $(document).ready(function() {
         if (!row.find('.rate-input').data('from-allocation')) {
             row.find('.allocation-plan-input').val('');
         }
+
+        renderFefoExplain(row);
 
         calculateLineTotalRow(row);
     });
@@ -954,6 +966,7 @@ function fetchProductDetails(productId, row) {
             if (response.success) {
                 const batches = response.data.batches || [];
                 const batchSelect = row.find('.batch-select');
+                row.data('fefoBatches', batches);
                 batchSelect.empty();
                 batchSelect.append('<option value="">--Select Batch--</option>');
 
@@ -980,17 +993,75 @@ function fetchProductDetails(productId, row) {
                         console.log('Auto-selected batch:', batches[0].batch_id);
                     }
                 }
+                renderFefoExplain(row);
             } else {
                 console.error('fetchProductInvoice failed:', response.message);
                 row.find('.batch-select').empty().append('<option value="">Error loading batches</option>');
+                row.find('.fefo-explain').text('FEFO preview unavailable.');
             }
         },
         error: function(xhr, status, error) {
             console.error('AJAX error fetching product details:', {status: status, error: error, xhr: xhr});
             row.find('.batch-select').empty().append('<option value="">Error loading batches</option>');
+            row.find('.fefo-explain').text('FEFO preview unavailable.');
         }
     });
     }
+
+function renderFefoExplainFromPlan(row, plan, requestedQty) {
+    const explainEl = row.find('.fefo-explain');
+    if (!explainEl.length) return;
+
+    if (!Array.isArray(plan) || plan.length === 0) {
+        explainEl.text('FEFO preview unavailable.');
+        return;
+    }
+
+    const parts = plan.map(p => `${p.batch_number || ('#' + p.batch_id)}: ${parseFloat(p.allocated_quantity || 0).toFixed(2)}`);
+    const allocated = plan.reduce((sum, p) => sum + (parseFloat(p.allocated_quantity || 0)), 0);
+    explainEl.text(`FEFO plan (${allocated.toFixed(2)} / ${(parseFloat(requestedQty || 0)).toFixed(2)}): ${parts.join(' + ')}`);
+}
+
+function renderFefoExplain(row) {
+    const explainEl = row.find('.fefo-explain');
+    if (!explainEl.length) return;
+
+    const qty = parseFloat(row.find('.quantity-input').val()) || 0;
+    const batches = row.data('fefoBatches') || [];
+
+    if (qty <= 0) {
+        explainEl.text('FEFO preview will appear after qty entry.');
+        return;
+    }
+
+    if (!Array.isArray(batches) || batches.length === 0) {
+        explainEl.text('FEFO: no active batch available.');
+        return;
+    }
+
+    let remaining = qty;
+    const parts = [];
+    for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        const available = parseFloat(batch.available_quantity || 0);
+        if (available <= 0) continue;
+
+        const take = Math.min(remaining, available);
+        if (take > 0) {
+            parts.push(`${batch.batch_number}: ${take.toFixed(2)}`);
+            remaining -= take;
+        }
+
+        if (remaining <= 0) break;
+    }
+
+    if (remaining > 0) {
+        explainEl.text(`FEFO shortfall: ${remaining.toFixed(2)} unit(s) not available.`);
+        return;
+    }
+
+    explainEl.text(`FEFO plan: ${parts.join(' + ')}`);
+}
 
 
 function calculateLineTotalRow(row) {
@@ -1096,11 +1167,13 @@ function getBlankRowHTML(rowNum) {
             <td>
                 <input type="text" class="form-control form-control-sm hsn-code text-center" readonly data-row="${rowNum}" />
                 <input type="hidden" class="hsn-value" name="hsn_code[]" />
+                                                <small class="fefo-explain">FEFO preview will appear after qty entry.</small>
             </td>
             <td>
                 <select class="form-control form-control-sm batch-select" name="batch_id[]" data-row="${rowNum}">
                     <option value="">--Select--</option>
                 </select>
+                <small class="fefo-explain">FEFO preview will appear after qty entry.</small>
             </td>
             <td>
                 <span class="available-qty text-center text-info font-weight-bold" style="display:block;">-</span>

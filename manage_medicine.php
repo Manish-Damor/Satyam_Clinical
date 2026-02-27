@@ -12,6 +12,8 @@
 $filter_brand = isset($_GET['brand']) ? intval($_GET['brand']) : 0;
 $filter_category = isset($_GET['category']) ? intval($_GET['category']) : 0;
 $filter_status = isset($_GET['stock_status']) ? $_GET['stock_status'] : '';
+$filter_expiry = isset($_GET['expiry_status']) ? $_GET['expiry_status'] : '';
+$filter_expired_qty = isset($_GET['expired_qty']) ? (int) $_GET['expired_qty'] : 0;
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 
 // Build WHERE clause
@@ -34,52 +36,79 @@ if ($filter_category > 0) {
 
 // Get inventory summary with batch information
 $sql = "
-SELECT 
-  p.product_id,
-  p.product_name,
-  p.content,
-  p.product_type,
-  p.unit_type,
-  p.pack_size,
-  p.hsn_code,
-  p.gst_rate,
-  p.reorder_level,
-  p.status,
-  
-  b.brand_name,
-  c.categories_name,
-  
-  COALESCE(SUM(pb.available_quantity), 0) AS total_stock,
-  COALESCE(SUM(CASE WHEN pb.status = 'Active' THEN pb.available_quantity ELSE 0 END), 0) AS active_stock,
-  COALESCE(SUM(CASE WHEN pb.status = 'Expired' THEN pb.available_quantity ELSE 0 END), 0) AS expired_stock,
-  
-  COUNT(DISTINCT CASE WHEN pb.status = 'Active' THEN pb.batch_id END) AS batch_count,
-  
-  MIN(CASE WHEN pb.status = 'Active' THEN pb.expiry_date END) AS nearest_expiry,
-  MAX(CASE WHEN pb.status = 'Active' THEN pb.mrp END) AS current_mrp,
-  
-  CASE 
-    WHEN COALESCE(SUM(pb.available_quantity), 0) = 0 THEN 'OUT_OF_STOCK'
-    WHEN COALESCE(SUM(pb.available_quantity), 0) <= p.reorder_level THEN 'LOW_STOCK'
-    ELSE 'IN_STOCK'
-  END AS stock_status,
-  
-  CASE 
-    WHEN MIN(CASE WHEN pb.status = 'Active' THEN pb.expiry_date END) IS NULL THEN 'NO_BATCH'
-    WHEN MIN(CASE WHEN pb.status = 'Active' THEN pb.expiry_date END) < CURDATE() THEN 'EXPIRED'
-    WHEN DATEDIFF(MIN(CASE WHEN pb.status = 'Active' THEN pb.expiry_date END), CURDATE()) <= 30 THEN 'CRITICAL'
-    WHEN DATEDIFF(MIN(CASE WHEN pb.status = 'Active' THEN pb.expiry_date END), CURDATE()) <= 90 THEN 'WARNING'
-    ELSE 'OK'
-  END AS expiry_status
+SELECT *
+FROM (
+  SELECT 
+    p.product_id,
+    p.product_name,
+    p.content,
+    p.product_type,
+    p.unit_type,
+    p.pack_size,
+    p.hsn_code,
+    p.gst_rate,
+    p.reorder_level,
+    p.status,
+    
+    b.brand_name,
+    c.categories_name,
+    
+    COALESCE(SUM(pb.available_quantity), 0) AS total_stock,
+    COALESCE(SUM(CASE WHEN pb.status = 'Active' THEN pb.available_quantity ELSE 0 END), 0) AS active_stock,
+    COALESCE(SUM(CASE WHEN pb.status = 'Expired' THEN pb.available_quantity ELSE 0 END), 0) AS expired_stock,
+    
+    COUNT(DISTINCT CASE WHEN pb.status = 'Active' THEN pb.batch_id END) AS batch_count,
+    
+    MIN(CASE WHEN pb.status = 'Active' THEN pb.expiry_date END) AS nearest_expiry,
+    MAX(CASE WHEN pb.status = 'Active' THEN pb.mrp END) AS current_mrp,
+    
+    CASE 
+      WHEN COALESCE(SUM(CASE WHEN pb.status = 'Active' THEN pb.available_quantity ELSE 0 END), 0) = 0 THEN 'OUT_OF_STOCK'
+      WHEN COALESCE(SUM(CASE WHEN pb.status = 'Active' THEN pb.available_quantity ELSE 0 END), 0) <= p.reorder_level THEN 'LOW_STOCK'
+      ELSE 'IN_STOCK'
+    END AS stock_status,
+    
+    CASE 
+      WHEN MIN(CASE WHEN pb.status = 'Active' THEN pb.expiry_date END) IS NULL THEN 'NO_BATCH'
+      WHEN MIN(CASE WHEN pb.status = 'Active' THEN pb.expiry_date END) < CURDATE() THEN 'EXPIRED'
+      WHEN DATEDIFF(MIN(CASE WHEN pb.status = 'Active' THEN pb.expiry_date END), CURDATE()) <= 30 THEN 'CRITICAL'
+      WHEN DATEDIFF(MIN(CASE WHEN pb.status = 'Active' THEN pb.expiry_date END), CURDATE()) <= 90 THEN 'WARNING'
+      ELSE 'OK'
+    END AS expiry_status
 
-FROM product p
-LEFT JOIN brands b ON b.brand_id = p.brand_id
-LEFT JOIN categories c ON c.categories_id = p.categories_id
-LEFT JOIN product_batches pb ON pb.product_id = p.product_id
-{$where}
-GROUP BY p.product_id
-ORDER BY p.product_name ASC
+  FROM product p
+  LEFT JOIN brands b ON b.brand_id = p.brand_id
+  LEFT JOIN categories c ON c.categories_id = p.categories_id
+  LEFT JOIN product_batches pb ON pb.product_id = p.product_id
+  {$where}
+  GROUP BY p.product_id
+) inv
 ";
+
+$hasOuterFilter = false;
+
+if (in_array($filter_status, ['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'], true)) {
+    $filter_status_escaped = $connect->real_escape_string($filter_status);
+    $sql .= " WHERE inv.stock_status = '{$filter_status_escaped}'";
+    $hasOuterFilter = true;
+}
+
+if (in_array($filter_expiry, ['NO_BATCH', 'EXPIRED', 'CRITICAL', 'WARNING', 'OK'], true)) {
+  $filter_expiry_escaped = $connect->real_escape_string($filter_expiry);
+  $sql .= $hasOuterFilter
+    ? " AND inv.expiry_status = '{$filter_expiry_escaped}'"
+    : " WHERE inv.expiry_status = '{$filter_expiry_escaped}'";
+  $hasOuterFilter = true;
+}
+
+if ($filter_expired_qty === 1) {
+  $sql .= $hasOuterFilter
+    ? " AND inv.expired_stock > 0"
+    : " WHERE inv.expired_stock > 0";
+  $hasOuterFilter = true;
+}
+
+$sql .= " ORDER BY inv.product_name ASC";
 
 $result = $connect->query($sql);
 
@@ -89,18 +118,105 @@ if (!$result) {
 
 // Get statistics
 $stats_sql = "
-SELECT 
-  COUNT(DISTINCT p.product_id) AS total_medicines,
-  COALESCE(SUM(COALESCE(pb.available_quantity, 0)), 0) AS total_stock_units,
-  COUNT(DISTINCT CASE WHEN COALESCE(SUM(pb.available_quantity), 0) = 0 THEN p.product_id END) AS out_of_stock_items,
-  COUNT(DISTINCT CASE WHEN COALESCE(SUM(pb.available_quantity), 0) <= p.reorder_level THEN p.product_id END) AS low_stock_items
-FROM product p
-LEFT JOIN product_batches pb ON pb.product_id = p.product_id AND pb.status = 'Active'
-WHERE p.status = 1
+SELECT
+  COUNT(*) AS total_medicines,
+  COALESCE(SUM(ps.active_stock), 0) AS total_stock_units,
+  SUM(CASE WHEN ps.active_stock = 0 THEN 1 ELSE 0 END) AS out_of_stock_items,
+  SUM(CASE WHEN ps.active_stock > 0 AND ps.active_stock <= ps.reorder_level THEN 1 ELSE 0 END) AS low_stock_items
+FROM (
+  SELECT
+    p.product_id,
+    p.reorder_level,
+    COALESCE(SUM(CASE WHEN pb.status = 'Active' THEN pb.available_quantity ELSE 0 END), 0) AS active_stock
+  FROM product p
+  LEFT JOIN product_batches pb ON pb.product_id = p.product_id
+  WHERE p.status = 1
+  GROUP BY p.product_id, p.reorder_level
+) ps
 ";
 
 $stats_result = $connect->query($stats_sql);
 $stats = $stats_result->fetch_assoc();
+
+$isQuickLowStock = ($filter_status === 'LOW_STOCK' && $filter_expiry === '');
+$isQuickCriticalExpiry = ($filter_expiry === 'CRITICAL');
+$isQuickOutOfStock = ($filter_status === 'OUT_OF_STOCK' && $filter_expiry === '');
+$isQuickExpiredQty = ($filter_expired_qty === 1);
+
+$contextParams = [];
+if ($search !== '') {
+  $contextParams['search'] = $search;
+}
+if ($filter_brand > 0) {
+  $contextParams['brand'] = $filter_brand;
+}
+if ($filter_category > 0) {
+  $contextParams['category'] = $filter_category;
+}
+
+$buildManageMedicineUrl = function (array $override) use ($contextParams) {
+  $params = array_merge($contextParams, $override);
+
+  if (isset($params['stock_status']) && $params['stock_status'] === '') {
+    unset($params['stock_status']);
+  }
+  if (isset($params['expiry_status']) && $params['expiry_status'] === '') {
+    unset($params['expiry_status']);
+  }
+  if (isset($params['expired_qty']) && (int) $params['expired_qty'] !== 1) {
+    unset($params['expired_qty']);
+  }
+
+  $query = http_build_query($params);
+  return 'manage_medicine.php' . ($query !== '' ? ('?' . $query) : '');
+};
+
+$urlLowStock = $buildManageMedicineUrl([
+  'stock_status' => 'LOW_STOCK',
+  'expiry_status' => '',
+  'expired_qty' => 0
+]);
+
+$urlOutOfStock = $buildManageMedicineUrl([
+  'stock_status' => 'OUT_OF_STOCK',
+  'expiry_status' => '',
+  'expired_qty' => 0
+]);
+
+$urlCriticalExpiry = $buildManageMedicineUrl([
+  'stock_status' => '',
+  'expiry_status' => 'CRITICAL',
+  'expired_qty' => 0
+]);
+
+$urlExpiredQty = $buildManageMedicineUrl([
+  'stock_status' => '',
+  'expiry_status' => '',
+  'expired_qty' => 1
+]);
+
+$urlClearQuickFilters = $buildManageMedicineUrl([
+  'stock_status' => '',
+  'expiry_status' => '',
+  'expired_qty' => 0
+]);
+
+$value_sql = "
+SELECT
+  COALESCE(SUM(CASE WHEN status = 'Active' THEN available_quantity * purchase_rate ELSE 0 END), 0) AS stock_cost_value,
+  COALESCE(SUM(CASE WHEN status = 'Active' THEN available_quantity * mrp ELSE 0 END), 0) AS stock_mrp_value,
+  SUM(CASE WHEN status = 'Active' AND expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS expiring_batches_30,
+  SUM(CASE WHEN status = 'Expired' AND available_quantity > 0 THEN 1 ELSE 0 END) AS expired_batches_with_stock
+FROM product_batches
+";
+
+$value_result = $connect->query($value_sql);
+$value_stats = $value_result ? $value_result->fetch_assoc() : [
+  'stock_cost_value' => 0,
+  'stock_mrp_value' => 0,
+  'expiring_batches_30' => 0,
+  'expired_batches_with_stock' => 0
+];
 ?>
 
 
@@ -121,57 +237,138 @@ $stats = $stats_result->fetch_assoc();
 
   <div class="container-fluid">
 
+    <div class="alert alert-info mb-3">
+      <strong>Process Control:</strong> This page is <strong>read-only</strong> for inventory. Stock increases only via <a href="purchase_invoice.php">Purchase Invoice</a> and decreases only via <a href="sales_invoice_form.php">Sales Invoice</a>.
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body py-2">
+        <div class="d-flex align-items-center flex-wrap quick-filter-wrap">
+          <span class="mr-2 font-weight-bold text-muted">Quick Filters:</span>
+          <a href="<?php echo htmlspecialchars($urlLowStock); ?>" class="btn btn-sm mr-2 mb-1 <?php echo $isQuickLowStock ? 'btn-warning' : 'btn-outline-warning'; ?>">Low Stock</a>
+          <a href="<?php echo htmlspecialchars($urlCriticalExpiry); ?>" class="btn btn-sm mr-2 mb-1 <?php echo $isQuickCriticalExpiry ? 'btn-danger' : 'btn-outline-danger'; ?>">Critical Expiry (≤30D)</a>
+          <a href="<?php echo htmlspecialchars($urlOutOfStock); ?>" class="btn btn-sm mr-2 mb-1 <?php echo $isQuickOutOfStock ? 'btn-danger' : 'btn-outline-danger'; ?>">Out of Stock</a>
+          <a href="<?php echo htmlspecialchars($urlExpiredQty); ?>" class="btn btn-sm mr-2 mb-1 <?php echo $isQuickExpiredQty ? 'btn-danger' : 'btn-outline-danger'; ?>">Expired Batches With Qty</a>
+          <a href="<?php echo htmlspecialchars($urlClearQuickFilters); ?>" class="btn btn-sm btn-outline-secondary mb-1">Clear Quick Filters</a>
+        </div>
+      </div>
+    </div>
+
     <!-- ============================================================
          STATISTICS DASHBOARD
          ============================================================ -->
-    <div class="row">
-      <div class="col-lg-3 col-md-6">
+    <div class="row kpi-grid">
+      <div class="col-lg-3 col-md-6 mb-3">
         <div class="card border-left-primary shadow">
-          <div class="card-body">
-            <div class="text-primary font-weight-bold text-uppercase mb-1">
+          <div class="card-body d-flex flex-column justify-content-between">
+            <div class="kpi-label text-dark font-weight-bold text-uppercase mb-1">
               Total Medicines
             </div>
-            <div class="h3 mb-0">
+            <div class="h3 mb-0 kpi-number">
               <strong><?php echo intval($stats['total_medicines']); ?></strong>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="col-lg-3 col-md-6">
+      <div class="col-lg-3 col-md-6 mb-3">
         <div class="card border-left-success shadow">
-          <div class="card-body">
-            <div class="text-success font-weight-bold text-uppercase mb-1">
+          <div class="card-body d-flex flex-column justify-content-between">
+            <div class="kpi-label text-dark font-weight-bold text-uppercase mb-1">
               Total Stock Units
             </div>
-            <div class="h3 mb-0">
+            <div class="h3 mb-0 kpi-number">
               <strong><?php echo intval($stats['total_stock_units']); ?></strong>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="col-lg-3 col-md-6">
+      <div class="col-lg-3 col-md-6 mb-3">
         <div class="card border-left-warning shadow">
-          <div class="card-body">
-            <div class="text-warning font-weight-bold text-uppercase mb-1">
+          <div class="card-body d-flex flex-column justify-content-between">
+            <div class="kpi-label text-dark font-weight-bold text-uppercase mb-1">
               Low Stock Items
             </div>
-            <div class="h3 mb-0">
+            <div class="h3 mb-0 kpi-number">
               <strong><?php echo intval($stats['low_stock_items']); ?></strong>
+            </div>
+            <div class="mt-2">
+              <a href="<?php echo htmlspecialchars($urlLowStock); ?>" class="btn btn-sm btn-outline-warning">View</a>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="col-lg-3 col-md-6">
+      <div class="col-lg-3 col-md-6 mb-3">
         <div class="card border-left-danger shadow">
-          <div class="card-body">
-            <div class="text-danger font-weight-bold text-uppercase mb-1">
+          <div class="card-body d-flex flex-column justify-content-between">
+            <div class="kpi-label text-dark font-weight-bold text-uppercase mb-1">
               Out of Stock
             </div>
-            <div class="h3 mb-0">
+            <div class="h3 mb-0 kpi-number">
               <strong><?php echo intval($stats['out_of_stock_items']); ?></strong>
+            </div>
+            <div class="mt-2">
+              <a href="<?php echo htmlspecialchars($urlOutOfStock); ?>" class="btn btn-sm btn-outline-danger">View</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-info shadow">
+          <div class="card-body d-flex flex-column justify-content-between">
+            <div class="kpi-label text-dark font-weight-bold text-uppercase mb-1">
+              Stock @ Cost Value
+            </div>
+            <div class="h3 mb-0 kpi-number">
+              <strong>₹<?php echo number_format((float)$value_stats['stock_cost_value'], 2); ?></strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-secondary shadow">
+          <div class="card-body d-flex flex-column justify-content-between">
+            <div class="kpi-label text-dark font-weight-bold text-uppercase mb-1">
+              Stock @ MRP Value
+            </div>
+            <div class="h3 mb-0 kpi-number">
+              <strong>₹<?php echo number_format((float)$value_stats['stock_mrp_value'], 2); ?></strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-warning shadow">
+          <div class="card-body d-flex flex-column justify-content-between">
+            <div class="kpi-label text-dark font-weight-bold text-uppercase mb-1">
+              Batches Expiring ≤30D
+            </div>
+            <div class="h3 mb-0 kpi-number">
+              <strong><?php echo intval($value_stats['expiring_batches_30']); ?></strong>
+            </div>
+            <div class="mt-2">
+              <a href="<?php echo htmlspecialchars($urlCriticalExpiry); ?>" class="btn btn-sm btn-outline-warning">View</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-danger shadow">
+          <div class="card-body d-flex flex-column justify-content-between">
+            <div class="kpi-label text-dark font-weight-bold text-uppercase mb-1">
+              Expired Batches With Qty
+            </div>
+            <div class="h3 mb-0 kpi-number">
+              <strong><?php echo intval($value_stats['expired_batches_with_stock']); ?></strong>
+            </div>
+            <div class="mt-2">
+              <a href="<?php echo htmlspecialchars($urlExpiredQty); ?>" class="btn btn-sm <?php echo $isQuickExpiredQty ? 'btn-danger' : 'btn-outline-danger'; ?>">View</a>
             </div>
           </div>
         </div>
@@ -186,7 +383,8 @@ $stats = $stats_result->fetch_assoc();
         <h5 class="mb-0">Filters & Search</h5>
       </div>
       <div class="card-body">
-        <form method="GET" class="form-inline">
+        <form method="GET" class="form-inline filters-form">
+          <input type="hidden" name="expired_qty" value="<?php echo $filter_expired_qty === 1 ? 1 : 0; ?>">
           
           <!-- Search -->
           <div class="form-group mr-3 mb-2">
@@ -240,6 +438,19 @@ $stats = $stats_result->fetch_assoc();
             </select>
           </div>
 
+          <!-- Expiry Status Filter -->
+          <div class="form-group mr-3 mb-2">
+            <label for="expiry_status" class="mr-2">Expiry:</label>
+            <select id="expiry_status" name="expiry_status" class="form-control">
+              <option value="">All</option>
+              <option value="CRITICAL" <?php echo ($filter_expiry == 'CRITICAL') ? 'selected' : ''; ?>>Critical (≤30D)</option>
+              <option value="WARNING" <?php echo ($filter_expiry == 'WARNING') ? 'selected' : ''; ?>>Warning (31-90D)</option>
+              <option value="EXPIRED" <?php echo ($filter_expiry == 'EXPIRED') ? 'selected' : ''; ?>>Expired</option>
+              <option value="OK" <?php echo ($filter_expiry == 'OK') ? 'selected' : ''; ?>>OK</option>
+              <option value="NO_BATCH" <?php echo ($filter_expiry == 'NO_BATCH') ? 'selected' : ''; ?>>No Batch</option>
+            </select>
+          </div>
+
           <!-- Buttons -->
           <button type="submit" class="btn btn-primary mr-2">
             <i class="fa fa-search"></i> Search
@@ -269,19 +480,35 @@ $stats = $stats_result->fetch_assoc();
       </div>
 
       <div class="card-body">
+        <div class="mb-2 filter-chip-wrap">
+          <?php if ($filter_status !== ''): ?>
+            <span class="badge badge-primary mr-1">Stock: <?php echo htmlspecialchars(str_replace('_', ' ', $filter_status)); ?></span>
+          <?php endif; ?>
+          <?php if ($filter_expiry !== ''): ?>
+            <span class="badge badge-danger mr-1">Expiry: <?php echo htmlspecialchars($filter_expiry); ?></span>
+          <?php endif; ?>
+          <?php if ($search !== ''): ?>
+            <span class="badge badge-info mr-1">Search: <?php echo htmlspecialchars($search); ?></span>
+          <?php endif; ?>
+          <?php if ($filter_expired_qty === 1): ?>
+            <span class="badge badge-danger mr-1">Expired Stock: Yes</span>
+          <?php endif; ?>
+        </div>
         <div class="table-responsive">
           <table id="medicinesTable" class="table table-bordered table-striped table-hover">
-            <thead class="table-dark">
+            <thead class="medicine-table-head">
               <tr>
                 <th style="width: 5%;">#</th>
-                <th style="width: 20%;">Medicine Name</th>
+                <th style="width: 18%;">Medicine Name</th>
                 <th style="width: 12%;">Composition</th>
                 <th style="width: 10%;">Type</th>
                 <th style="width: 10%;">Stock</th>
                 <th style="width: 10%;">Batches</th>
-                <th style="width: 12%;">Nearest Expiry</th>
+                <th style="width: 8%;">Reorder</th>
+                <th style="width: 8%;">MRP</th>
+                <th style="width: 10%;">Nearest Expiry</th>
                 <th style="width: 8%;">Status</th>
-                <th style="width: 13%;">Actions</th>
+                <th style="width: 11%;">Actions</th>
               </tr>
             </thead>
 
@@ -289,8 +516,16 @@ $stats = $stats_result->fetch_assoc();
               <?php 
               if ($result->num_rows > 0) {
                 while ($row = $result->fetch_assoc()) {
+                  $isHighRisk = (
+                    in_array($row['stock_status'], ['LOW_STOCK', 'OUT_OF_STOCK'], true)
+                    && in_array($row['expiry_status'], ['CRITICAL', 'EXPIRED'], true)
+                  );
+
                   // Determine status badge
-                  if ($row['stock_status'] == 'OUT_OF_STOCK') {
+                  if ($isHighRisk) {
+                    $stock_badge = '<span class="badge badge-danger">HIGH RISK</span>';
+                    $row_class = 'row-risk-high';
+                  } elseif ($row['stock_status'] == 'OUT_OF_STOCK') {
                     $stock_badge = '<span class="badge badge-danger">OUT OF STOCK</span>';
                     $row_class = 'table-danger';
                   } elseif ($row['stock_status'] == 'LOW_STOCK') {
@@ -315,10 +550,13 @@ $stats = $stats_result->fetch_assoc();
                   }
               ?>
               <tr class="<?php echo $row_class; ?>">
-                <td class="text-center"><strong><?php echo $row['product_id']; ?></strong></td>
+                <td class="text-center number-cell"><strong><?php echo $row['product_id']; ?></strong></td>
                 
                 <td>
                   <strong><?php echo htmlspecialchars($row['product_name']); ?></strong>
+                  <?php if ($isHighRisk): ?>
+                    <span class="badge badge-danger ml-1">Priority</span>
+                  <?php endif; ?>
                   <br>
                   <small class="text-muted"><?php echo htmlspecialchars($row['brand_name']) . ' | ' . htmlspecialchars($row['categories_name']); ?></small>
                 </td>
@@ -328,10 +566,10 @@ $stats = $stats_result->fetch_assoc();
                 </td>
 
                 <td>
-                  <small><?php echo $row['product_type'] . '<br>' . $row['unit_type'] . '<br>' . $row['pack_size']; ?></small>
+                  <small><?php echo htmlspecialchars($row['product_type']) . '<br>' . htmlspecialchars($row['unit_type']) . '<br>' . htmlspecialchars($row['pack_size']); ?></small>
                 </td>
 
-                <td class="text-center">
+                <td class="text-center number-cell">
                   <strong><?php echo number_format($row['total_stock']); ?></strong>
                   <br>
                   <small class="text-muted">Active: <?php echo number_format($row['active_stock']); ?></small>
@@ -345,6 +583,18 @@ $stats = $stats_result->fetch_assoc();
                   <span class="badge badge-info"><?php echo $row['batch_count']; ?> Active</span>
                 </td>
 
+                <td class="text-center number-cell">
+                  <strong><?php echo intval($row['reorder_level']); ?></strong>
+                </td>
+
+                <td class="text-right number-cell">
+                  <?php if (!empty($row['current_mrp']) && (float)$row['current_mrp'] > 0): ?>
+                    ₹<?php echo number_format((float)$row['current_mrp'], 2); ?>
+                  <?php else: ?>
+                    <span class="text-muted">-</span>
+                  <?php endif; ?>
+                </td>
+
                 <td class="text-center">
                   <?php echo $expiry_display; ?>
                 </td>
@@ -355,33 +605,11 @@ $stats = $stats_result->fetch_assoc();
 
                 <td class="text-center">
                   <div class="btn-group" role="group">
-                    <a href="editproduct.php?id=<?php echo $row['product_id']; ?>"
-                       class="btn btn-sm btn-primary"
-                       title="Edit Medicine"
-                       data-toggle="tooltip">
-                      <i class="fa fa-pencil"></i>
-                    </a>
-
                     <a href="viewStock.php?id=<?php echo $row['product_id']; ?>"
                        class="btn btn-sm btn-info"
                        title="View Batches"
                        data-toggle="tooltip">
                       <i class="fa fa-cubes"></i>
-                    </a>
-
-                    <a href="php_action/manageBatch.php?product_id=<?php echo $row['product_id']; ?>"
-                       class="btn btn-sm btn-warning"
-                       title="Manage Batches"
-                       data-toggle="tooltip">
-                      <i class="fa fa-boxes"></i>
-                    </a>
-
-                    <a href="php_action/deleteProduct.php?id=<?php echo $row['product_id']; ?>"
-                       class="btn btn-sm btn-danger"
-                       onclick="return confirm('Are you sure?');"
-                       title="Delete Medicine"
-                       data-toggle="tooltip">
-                      <i class="fa fa-trash"></i>
                     </a>
                   </div>
                 </td>
@@ -391,7 +619,7 @@ $stats = $stats_result->fetch_assoc();
               } else {
               ?>
               <tr>
-                <td colspan="9" class="text-center text-muted py-4">
+                <td colspan="11" class="text-center text-muted py-4">
                   <i class="fa fa-inbox fa-3x mb-3"></i>
                   <p>No medicines found</p>
                 </td>
@@ -421,8 +649,70 @@ $stats = $stats_result->fetch_assoc();
   .border-left-danger {
     border-left: 4px solid #dc3545;
   }
+  .border-left-info {
+    border-left: 4px solid #17a2b8;
+  }
+  .border-left-secondary {
+    border-left: 4px solid #6c757d;
+  }
+  .kpi-grid .card {
+    min-height: 120px;
+  }
+  .kpi-label {
+    font-size: 12px;
+    letter-spacing: .4px;
+  }
+  .kpi-number {
+    color: #212529;
+    font-size: 1.85rem;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .filters-form {
+    align-items: flex-end;
+  }
+  .filters-form .form-group {
+    margin-bottom: .6rem;
+  }
+  #medicinesTable th {
+    vertical-align: middle;
+    text-align: center;
+  }
+  #medicinesTable.medicine-table,
+  #medicinesTable {
+    border-color: #d9e2ec;
+  }
+  .medicine-table-head th {
+    background: linear-gradient(180deg, #2f3d4a 0%, #26323d 100%);
+    color: #ffffff;
+    border-color: #3b4a59;
+    font-weight: 600;
+    letter-spacing: .2px;
+  }
+  #medicinesTable.table-striped tbody tr:nth-of-type(odd) {
+    background-color: #fafbfd;
+  }
+  .number-cell {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .row-risk-high td {
+    background: #fff1f1 !important;
+    border-top: 1px solid #f3b3b3;
+    border-bottom: 1px solid #f3b3b3;
+  }
+  .row-risk-high td:first-child {
+    border-left: 4px solid #dc3545;
+  }
   .table-hover tbody tr:hover {
     background-color: #f5f5f5;
+  }
+  .quick-filter-wrap .btn {
+    min-width: 140px;
+  }
+  .filter-chip-wrap .badge {
+    font-size: 12px;
+    padding: .45em .65em;
   }
 </style>
 
@@ -432,7 +722,7 @@ $stats = $stats_result->fetch_assoc();
       "pageLength": 25,
       "order": [[1, "asc"]],
       "columnDefs": [
-        {"orderable": false, "targets": [8]}
+        {"orderable": false, "targets": [10]}
       ]
     });
 

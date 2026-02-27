@@ -3,6 +3,11 @@
 <?php include('./constant/layout/sidebar.php');?>
 <?php include('./constant/connect.php');?>
 
+<?php
+header('Location: purchase_invoice.php?error=manual_stock_entry_disabled');
+exit;
+?>
+
 <div class="page-wrapper">
   <div class="row page-titles">
     <div class="col-md-5 align-self-center">
@@ -35,7 +40,7 @@
                   <?php
                   $sql = "SELECT product_id, product_name 
                           FROM product 
-                          WHERE active = 1";
+                      WHERE status = 1";
                   $result = $connect->query($sql);
                   while ($row = $result->fetch_assoc()) {
                     echo "<option value='{$row['product_id']}'>

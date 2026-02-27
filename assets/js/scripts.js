@@ -53,7 +53,21 @@ $(function() {
         }),
 
         $(function() {
-            $("#sidebarnav").metisMenu();
+            var $sidebarnav = $("#sidebarnav");
+            $sidebarnav.find("ul.collapse").each(function() {
+                var $submenu = $(this);
+                var isOpen = $submenu.hasClass("in") || $submenu.attr("aria-expanded") === "true";
+
+                $submenu.removeClass("show");
+
+                if (isOpen) {
+                    $submenu.addClass("in").attr("aria-expanded", "true");
+                } else {
+                    $submenu.removeClass("in").attr("aria-expanded", "false");
+                }
+            });
+
+            $sidebarnav.metisMenu();
         }),
 
         $(".scroll-sidebar").slimScroll({

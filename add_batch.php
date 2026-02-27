@@ -4,6 +4,11 @@
 <?php include('./constant/connect.php'); ?>
 
 <?php
+header('Location: purchase_invoice.php?error=manual_batch_entry_disabled');
+exit;
+?>
+
+<?php
 $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
 
 if ($product_id <= 0) {
