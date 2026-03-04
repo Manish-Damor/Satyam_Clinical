@@ -83,15 +83,15 @@ if (!$invoice) {
         <div class="row page-titles mb-3">
             <div class="col-md-8 align-self-center">
                 <h3 class="text-primary"><i class="fa fa-file-invoice"></i> Invoice Details</h3>
-                <small class="text-muted">Invoice #<?=htmlspecialchars($invoice['invoice_no'])?></small>
+                <small class="text-muted">Entry Ref <?=htmlspecialchars($invoice['invoice_no'])?></small>
             </div>
             <div class="col-md-4 align-self-center text-end">
                 <a href="invoice_list.php" class="btn btn-secondary btn-sm">
                     <i class="fa fa-chevron-left"></i> Back to List
                 </a>
-                <button class="btn btn-primary btn-sm" onclick="window.print()">
+                <a href="purchase_invoice_print.php?id=<?=$invoiceId?>&print=1" target="_blank" class="btn btn-primary btn-sm">
                     <i class="fa fa-print"></i> Print
-                </button>
+                </a>
             </div>
         </div>
 
@@ -103,12 +103,20 @@ if (!$invoice) {
                     <div class="card-body">
                         <table class="table table-sm table-borderless compact-info">
                             <tr>
-                                <td><strong>Invoice #:</strong></td>
+                                <td><strong>Entry Ref:</strong></td>
                                 <td><?=htmlspecialchars($invoice['invoice_no'])?></td>
                             </tr>
                             <tr>
                                 <td><strong>Invoice Date:</strong></td>
                                 <td><?=date('d M Y', strtotime($invoice['invoice_date']))?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Supplier Bill No.:</strong></td>
+                                <td><?=htmlspecialchars($invoice['supplier_invoice_no'] ?? '-')?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Supplier Bill Date:</strong></td>
+                                <td><?=!empty($invoice['supplier_invoice_date']) ? date('d M Y', strtotime($invoice['supplier_invoice_date'])) : 'N/A'?></td>
                             </tr>
                             <tr>
                                 <td><strong>Due Date:</strong></td>
@@ -121,6 +129,35 @@ if (!$invoice) {
                             <tr>
                                 <td><strong>GRN Reference:</strong></td>
                                 <td><?=htmlspecialchars($invoice['grn_reference'] ?? '-')?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>L.R. No.:</strong></td>
+                                <td><?=htmlspecialchars($invoice['lr_no'] ?? '-')?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>L.R. Date:</strong></td>
+                                <td><?=!empty($invoice['lr_date']) ? date('d M Y', strtotime($invoice['lr_date'])) : 'N/A'?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Carrier:</strong></td>
+                                <td><?=htmlspecialchars($invoice['carrier_name'] ?? '-')?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Vehicle No.:</strong></td>
+                                <td><?=htmlspecialchars($invoice['vehicle_no'] ?? '-')?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>F. Slip No.:</strong></td>
+                                <td><?=htmlspecialchars($invoice['f_slip_no'] ?? '-')?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>E-Way Bill:</strong></td>
+                                <td>
+                                    <?=htmlspecialchars($invoice['eway_bill_no'] ?? '-')?>
+                                    <?php if (!empty($invoice['eway_bill_date'])): ?>
+                                        (<?=date('d M Y', strtotime($invoice['eway_bill_date']))?>)
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                             <tr>
                                 <td><strong>Status:</strong></td>
@@ -176,6 +213,10 @@ if (!$invoice) {
                                 <td><strong>Payment Mode:</strong></td>
                                 <td><?=htmlspecialchars($invoice['payment_mode'] ?? '-')?></td>
                             </tr>
+                            <tr>
+                                <td><strong>Payment Status:</strong></td>
+                                <td><?=htmlspecialchars($invoice['payment_status'] ?? '-')?></td>
+                            </tr>
                         </table>
                     </div>
                 </div>
@@ -192,13 +233,14 @@ if (!$invoice) {
                     <table class="table table-bordered table-hover table-sm">
                         <thead class="table-light">
                             <tr>
-                                <th style="width:20%">Product Name</th>
+                                <th style="width:20%">Medicine</th>
+                                <th style="width:8%">Pack</th>
+                                <th style="width:10%">Mfg.</th>
                                 <th style="width:8%">HSN</th>
                                 <th style="width:8%">Batch</th>
                                 <th style="width:8%">Qty</th>
-                                <th style="width:10%">Unit Cost</th>
+                                <th style="width:10%">Purchase Rate</th>
                                 <th style="width:10%">MRP</th>
-                                <th style="width:8%">Margin%</th>
                                 <th style="width:10%">Tax</th>
                                 <th style="width:12%">Line Total</th>
                             </tr>
@@ -207,12 +249,13 @@ if (!$invoice) {
                             <?php foreach ($invoice['items'] as $item): ?>
                                 <tr>
                                     <td><strong><?=htmlspecialchars($item['product_name'])?></strong></td>
+                                    <td><?=htmlspecialchars($item['pack_size_snapshot'] ?? '-')?></td>
+                                    <td><?=htmlspecialchars($item['manufacturer_snapshot'] ?? '-')?></td>
                                     <td><?=htmlspecialchars($item['hsn_code'] ?? '-')?></td>
                                     <td><?=htmlspecialchars($item['batch_no'])?></td>
                                     <td class="text-end"><?=number_format($item['qty'], 3)?></td>
                                     <td class="text-end">₹ <?=number_format($item['unit_cost'], 2)?></td>
                                     <td class="text-end">₹ <?=number_format($item['mrp'], 2)?></td>
-                                    <td class="text-end"><?=number_format($item['margin_percent'] ?? 0, 2)?>%</td>
                                     <td class="text-end">
                                         <?php
                                             $tax = $item['tax_amount'] ?? 0;
@@ -314,9 +357,9 @@ if (!$invoice) {
                     </a>
                 <?php endif; ?>
                 
-                <button class="btn btn-info" onclick="window.print()">
+                <a href="purchase_invoice_print.php?id=<?=$invoiceId?>&print=1" target="_blank" class="btn btn-info">
                     <i class="fa fa-print"></i> Print Invoice
-                </button>
+                </a>
                 
                 <?php if ($invoice['status'] !== 'Deleted'): ?>
                     <button class="btn btn-danger btn-delete" data-id="<?=$invoiceId?>">

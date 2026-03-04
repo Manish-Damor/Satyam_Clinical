@@ -46,7 +46,8 @@ if ($filterToDate) {
 }
 
 if ($searchInvoice) {
-    $where[] = "(pi.invoice_no LIKE ? OR s.supplier_name LIKE ?)";
+    $where[] = "(pi.invoice_no LIKE ? OR pi.supplier_invoice_no LIKE ? OR s.supplier_name LIKE ?)";
+    $params[] = "%$searchInvoice%";
     $params[] = "%$searchInvoice%";
     $params[] = "%$searchInvoice%";
 }
@@ -56,9 +57,9 @@ $whereClause = implode(' AND ', $where);
 // Fetch invoices
 $query = "
     SELECT 
-        pi.id, pi.supplier_id, pi.invoice_no, pi.invoice_date, 
+        pi.id, pi.supplier_id, pi.invoice_no, pi.supplier_invoice_no, pi.supplier_invoice_date, pi.invoice_date,
         pi.grand_total, pi.paid_amount, pi.outstanding_amount,
-        pi.status, pi.gst_determination_type,
+        pi.status, pi.payment_status, pi.gst_determination_type,
         s.supplier_name,
         COUNT(pii.id) as item_count
     FROM purchase_invoices pi
@@ -168,7 +169,7 @@ if ($res) while ($r = $res->fetch_assoc()) $suppliers[] = $r;
 
                 <div class="row g-2">
                     <div class="col-md-6">
-                        <input type="text" id="searchBox" placeholder="Search by Invoice # or Supplier..." class="form-control form-control-sm">
+                        <input type="text" id="searchBox" placeholder="Search by Entry Ref, Bill No or Supplier..." class="form-control form-control-sm">
                     </div>
                     <div class="col-md-6">
                         <button type="button" class="btn btn-secondary btn-sm" onclick="location.href='invoice_list.php'">
@@ -237,15 +238,16 @@ if ($res) while ($r = $res->fetch_assoc()) $suppliers[] = $r;
                         <table class="table table-hover table-bordered table-sm">
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width:10%">Invoice #</th>
-                                    <th style="width:15%">Supplier</th>
-                                    <th style="width:10%">Date</th>
+                                    <th style="width:11%">Entry Ref</th>
+                                    <th style="width:20%">Supplier / Bill No</th>
+                                    <th style="width:10%">Bill Date</th>
                                     <th style="width:8%">Items</th>
-                                    <th style="width:10%">GST Type</th>
+                                    <th style="width:9%">GST Type</th>
                                     <th style="width:12%">Grand Total</th>
                                     <th style="width:12%">Outstanding</th>
-                                    <th style="width:10%">Status</th>
-                                    <th style="width:12%">Actions</th>
+                                    <th style="width:8%">Pay</th>
+                                    <th style="width:8%">Status</th>
+                                    <th style="width:10%">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -258,8 +260,13 @@ if ($res) while ($r = $res->fetch_assoc()) $suppliers[] = $r;
                                                 </a>
                                             </strong>
                                         </td>
-                                        <td><?=htmlspecialchars($inv['supplier_name'])?></td>
-                                        <td><?=date('d M Y', strtotime($inv['invoice_date']))?></td>
+                                        <td>
+                                            <div><?=htmlspecialchars($inv['supplier_name'])?></div>
+                                            <small class="text-muted">Bill: <?=htmlspecialchars($inv['supplier_invoice_no'] ?? '-')?></small>
+                                        </td>
+                                        <td>
+                                            <?=!empty($inv['supplier_invoice_date']) ? date('d M Y', strtotime($inv['supplier_invoice_date'])) : date('d M Y', strtotime($inv['invoice_date']))?>
+                                        </td>
                                         <td class="text-center">
                                             <span class="badge bg-secondary"><?=$inv['item_count']?></span>
                                         </td>
@@ -273,6 +280,28 @@ if ($res) while ($r = $res->fetch_assoc()) $suppliers[] = $r;
                                         </td>
                                         <td class="text-end <?=$inv['outstanding_amount']>0?'text-warning':'text-success'?>">
                                             <?=number_format($inv['outstanding_amount'], 2)?>
+                                        </td>
+                                        <td>
+                                            <?php
+                                                $paymentStatus = strtoupper(trim((string)($inv['payment_status'] ?? '')));
+                                                if ($paymentStatus === '') {
+                                                    $paid = floatval($inv['paid_amount'] ?? 0);
+                                                    $grand = floatval($inv['grand_total'] ?? 0);
+                                                    if ($paid <= 0.00001) {
+                                                        $paymentStatus = 'UNPAID';
+                                                    } elseif (abs($paid - $grand) <= 0.01) {
+                                                        $paymentStatus = 'PAID';
+                                                    } else {
+                                                        $paymentStatus = 'PARTIAL';
+                                                    }
+                                                }
+                                                $paymentClass = match($paymentStatus) {
+                                                    'PAID' => 'success',
+                                                    'PARTIAL' => 'warning',
+                                                    default => 'secondary'
+                                                };
+                                            ?>
+                                            <span class="badge bg-<?=$paymentClass?>"><?=$paymentStatus?></span>
                                         </td>
                                         <td>
                                             <?php 
@@ -293,7 +322,7 @@ if ($res) while ($r = $res->fetch_assoc()) $suppliers[] = $r;
                                                 <a href="invoice_view.php?id=<?=$inv['id']?>" class="btn btn-info" title="View">
                                                     <i class="fa fa-eye"></i>
                                                 </a>
-                                                <a href="invoice_view.php?id=<?=$inv['id']?>&print=1" target="_blank" class="btn btn-secondary" title="Print">
+                                                <a href="purchase_invoice_print.php?id=<?=$inv['id']?>&print=1" target="_blank" class="btn btn-secondary" title="Print">
                                                     <i class="fa fa-print"></i>
                                                 </a>
                                                 <?php if ($inv['status'] === 'Draft'): ?>

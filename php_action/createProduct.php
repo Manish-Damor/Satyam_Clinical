@@ -11,8 +11,29 @@ function isAjaxRequest()
         && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
 }
 
+function getSafeReturnPath()
+{
+    $returnTo = isset($_POST['return_to']) ? trim((string) $_POST['return_to']) : '';
+    if ($returnTo === '') {
+        return '';
+    }
+    if (!preg_match('/^[a-zA-Z0-9_\/-]+\.php$/', $returnTo)) {
+        return '';
+    }
+    return ltrim($returnTo, '/');
+}
+
+function getSafeReturnSupplierId()
+{
+    $supplierId = isset($_POST['supplier_id']) ? intval($_POST['supplier_id']) : 0;
+    return ($supplierId > 0) ? $supplierId : 0;
+}
+
 function finishResponse($valid)
 {
+    $returnTo = getSafeReturnPath();
+    $supplierId = getSafeReturnSupplierId();
+
     if (isAjaxRequest()) {
         header('Content-Type: application/json');
         echo json_encode($valid);
@@ -20,9 +41,30 @@ function finishResponse($valid)
     }
 
     if (!empty($valid['success'])) {
-        header('Location: ../manage_medicine.php?success=created');
+        if ($returnTo !== '') {
+            $target = '../' . $returnTo . '?success=medicine_created';
+            if (isset($_POST['productName']) && trim((string) $_POST['productName']) !== '') {
+                $target .= '&created_name=' . urlencode(trim((string) $_POST['productName']));
+            }
+            if ($supplierId > 0) {
+                $target .= '&supplier_id=' . $supplierId;
+            }
+            header('Location: ' . $target);
+        } else {
+            header('Location: ../manage_medicine.php?success=created');
+        }
     } else {
-        header('Location: ../add_medicine.php?error=' . urlencode((string) ($valid['messages'] ?? 'create_failed')));
+        $target = '../add_medicine.php?error=' . urlencode((string) ($valid['messages'] ?? 'create_failed'));
+        if ($returnTo !== '') {
+            $target .= '&return_to=' . urlencode($returnTo);
+        }
+        if ($supplierId > 0) {
+            $target .= '&supplier_id=' . $supplierId;
+        }
+        if (isset($_POST['productName']) && trim((string) $_POST['productName']) !== '') {
+            $target .= '&prefill_name=' . urlencode(trim((string) $_POST['productName']));
+        }
+        header('Location: ' . $target);
     }
     exit;
 }

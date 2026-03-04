@@ -11,7 +11,7 @@ try {
         exit;
     }
 
-    $query = "SELECT supplier_id, company_name, contact_person, email, phone, address, city, state, gst_number, credit_days, payment_terms, supplier_status 
+    $query = "SELECT supplier_id, supplier_name, company_name, contact_person, email, phone, address, city, state, gst_number, credit_days, payment_terms, supplier_status 
               FROM suppliers WHERE supplier_id = ?";
     
     $stmt = $connect->prepare($query);
@@ -34,6 +34,7 @@ try {
     echo json_encode([
         'success' => true,
         'data' => [
+            'supplier_name' => $data['supplier_name'] ?? '',
             'company_name' => $data['company_name'] ?? '',
             'contact_person' => $data['contact_person'] ?? '',
             'email' => $data['email'] ?? '',

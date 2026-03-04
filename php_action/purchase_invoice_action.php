@@ -16,6 +16,9 @@ class PurchaseInvoiceAction {
         global $connect;
         if (!$connect) return ['success' => false, 'error' => 'Database connection missing'];
 
+        $referenceDate = $data['invoice_date'] ?? date('Y-m-d');
+        $data['invoice_no'] = self::generateEntryReference($referenceDate);
+
         // ===== VALIDATION PHASE =====
         
         // 1. Validate header data
@@ -34,15 +37,25 @@ class PurchaseInvoiceAction {
             return ['success' => false, 'error' => $itemsValidation['error']];
         }
 
-        // 3. Check invoice number uniqueness
+        // 3. Generate globally unique entry reference
         $supplier_id = intval($data['supplier_id']);
-        $invoice_no = $data['invoice_no'];
+        $invoice_no = '';
         $supplier_invoice_no = $data['supplier_invoice_no'] ?? '';
         
-        $uniqueCheck = $connect->query("SELECT id FROM purchase_invoices WHERE supplier_id = $supplier_id AND invoice_no = '$invoice_no'");
-        if ($uniqueCheck && $uniqueCheck->num_rows > 0) {
-            return ['success' => false, 'error' => "Invoice number '$invoice_no' already exists for this supplier"];
+        $maxAttempts = 10;
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            $candidate = self::generateEntryReference($referenceDate, $attempt);
+            if (!self::entryReferenceExists($candidate)) {
+                $invoice_no = $candidate;
+                break;
+            }
         }
+
+        if ($invoice_no === '') {
+            return ['success' => false, 'error' => 'Unable to generate unique entry reference'];
+        }
+
+        $data['invoice_no'] = $invoice_no;
 
         // 3b. Check supplier invoice number uniqueness (prevent duplicates from same supplier)
         if (!empty($supplier_invoice_no)) {
@@ -72,6 +85,11 @@ class PurchaseInvoiceAction {
         
         $gst_type = $data['gst_type'] ?? 'intrastate';
         $calculations = self::recalculateInvoice($items, $data, $gst_type);
+
+        $paymentValidation = self::validatePaymentData($data, $calculations['grand_total'], $calculations['paid_amount']);
+        if (!$paymentValidation['valid']) {
+            return ['success' => false, 'error' => $paymentValidation['error']];
+        }
         
         // ===== TRANSACTION PHASE =====
         
@@ -168,6 +186,51 @@ class PurchaseInvoiceAction {
             $invoice_id = $connect->insert_id;
             $stmt->close();
 
+            if (self::hasColumn('purchase_invoices', 'lr_no')) {
+                $v_lr_no = trim((string)($data['lr_no'] ?? ''));
+                $v_lr_no = ($v_lr_no === '') ? null : $v_lr_no;
+                $v_lr_date = !empty($data['lr_date']) ? $data['lr_date'] : null;
+                $v_carrier_name = trim((string)($data['carrier_name'] ?? ''));
+                $v_carrier_name = ($v_carrier_name === '') ? null : $v_carrier_name;
+                $v_vehicle_no = trim((string)($data['vehicle_no'] ?? ''));
+                $v_vehicle_no = ($v_vehicle_no === '') ? null : $v_vehicle_no;
+                $v_f_slip_no = trim((string)($data['f_slip_no'] ?? ''));
+                $v_f_slip_no = ($v_f_slip_no === '') ? null : $v_f_slip_no;
+                $v_eway_bill_no = trim((string)($data['eway_bill_no'] ?? ''));
+                $v_eway_bill_no = ($v_eway_bill_no === '') ? null : $v_eway_bill_no;
+                $v_eway_bill_date = !empty($data['eway_bill_date']) ? $data['eway_bill_date'] : null;
+                $v_header_id = intval($invoice_id);
+
+                $transportStmt = $connect->prepare("UPDATE purchase_invoices
+                    SET lr_no = ?, lr_date = ?, carrier_name = ?, vehicle_no = ?, f_slip_no = ?, eway_bill_no = ?, eway_bill_date = ?
+                    WHERE id = ?");
+                if ($transportStmt) {
+                    $transportStmt->bind_param(
+                        'sssssssi',
+                        $v_lr_no,
+                        $v_lr_date,
+                        $v_carrier_name,
+                        $v_vehicle_no,
+                        $v_f_slip_no,
+                        $v_eway_bill_no,
+                        $v_eway_bill_date,
+                        $v_header_id
+                    );
+                    $transportStmt->execute();
+                    $transportStmt->close();
+                }
+            }
+
+            if (self::hasColumn('purchase_invoices', 'payment_status')) {
+                $paymentStatus = self::derivePaymentStatus($data, $calculations['grand_total'], $calculations['paid_amount']);
+                $paymentStmt = $connect->prepare("UPDATE purchase_invoices SET payment_status = ? WHERE id = ?");
+                if ($paymentStmt) {
+                    $paymentStmt->bind_param('si', $paymentStatus, $invoice_id);
+                    $paymentStmt->execute();
+                    $paymentStmt->close();
+                }
+            }
+
             // Insert invoice items with GST split (including effective_rate)
             $itemSql = "INSERT INTO purchase_invoice_items (
                 invoice_id, product_id, product_name, hsn_code, batch_no, 
@@ -180,6 +243,9 @@ class PurchaseInvoiceAction {
 
             $itemStmt = $connect->prepare($itemSql);
             if (!$itemStmt) throw new Exception('Prepare items failed: ' . $connect->error);
+
+            $hasPackSnapshot = self::hasColumn('purchase_invoice_items', 'pack_size_snapshot');
+            $hasManufacturerSnapshot = self::hasColumn('purchase_invoice_items', 'manufacturer_snapshot');
 
             foreach ($calculations['items'] as $item) {
                 // Extract item fields to local vars for bind_param
@@ -240,6 +306,37 @@ class PurchaseInvoiceAction {
                 if (!$itemStmt->execute()) {
                     throw new Exception('Item execute failed: ' . $itemStmt->error);
                 }
+
+                $itemRowId = intval($connect->insert_id);
+                if ($itemRowId > 0 && ($hasPackSnapshot || $hasManufacturerSnapshot)) {
+                    $packSnapshot = trim((string)($item['pack_size_snapshot'] ?? ''));
+                    $manufacturerSnapshot = trim((string)($item['manufacturer_snapshot'] ?? ''));
+                    $packSnapshot = ($packSnapshot === '') ? null : $packSnapshot;
+                    $manufacturerSnapshot = ($manufacturerSnapshot === '') ? null : $manufacturerSnapshot;
+
+                    if ($hasPackSnapshot && $hasManufacturerSnapshot) {
+                        $snapStmt = $connect->prepare("UPDATE purchase_invoice_items SET pack_size_snapshot = ?, manufacturer_snapshot = ? WHERE id = ?");
+                        if ($snapStmt) {
+                            $snapStmt->bind_param('ssi', $packSnapshot, $manufacturerSnapshot, $itemRowId);
+                            $snapStmt->execute();
+                            $snapStmt->close();
+                        }
+                    } elseif ($hasPackSnapshot) {
+                        $snapStmt = $connect->prepare("UPDATE purchase_invoice_items SET pack_size_snapshot = ? WHERE id = ?");
+                        if ($snapStmt) {
+                            $snapStmt->bind_param('si', $packSnapshot, $itemRowId);
+                            $snapStmt->execute();
+                            $snapStmt->close();
+                        }
+                    } elseif ($hasManufacturerSnapshot) {
+                        $snapStmt = $connect->prepare("UPDATE purchase_invoice_items SET manufacturer_snapshot = ? WHERE id = ?");
+                        if ($snapStmt) {
+                            $snapStmt->bind_param('si', $manufacturerSnapshot, $itemRowId);
+                            $snapStmt->execute();
+                            $snapStmt->close();
+                        }
+                    }
+                }
             }
             $itemStmt->close();
 
@@ -290,6 +387,26 @@ class PurchaseInvoiceAction {
         if ($suppInvDate > $invDate) {
             return ['valid' => false, 'error' => 'Supplier invoice date cannot be after our invoice date'];
         }
+
+        if (!empty($data['due_date'])) {
+            $dueDate = new DateTime($data['due_date']);
+            if ($dueDate < $invDate) {
+                return ['valid' => false, 'error' => 'Due date cannot be before invoice date'];
+            }
+        }
+
+        $ewayBillNo = trim((string)($data['eway_bill_no'] ?? ''));
+        $ewayBillDateRaw = $data['eway_bill_date'] ?? null;
+        if ($ewayBillNo !== '' && empty($ewayBillDateRaw)) {
+            return ['valid' => false, 'error' => 'E-Way bill date is required when E-Way bill number is provided'];
+        }
+        if (!empty($ewayBillDateRaw)) {
+            $ewayBillDate = new DateTime($ewayBillDateRaw);
+            if ($ewayBillDate < $invDate) {
+                return ['valid' => false, 'error' => 'E-Way bill date cannot be before invoice date'];
+            }
+        }
+
         return ['valid' => true];
     }
 
@@ -300,9 +417,15 @@ class PurchaseInvoiceAction {
         global $connect;
         
         $invoiceDate = new DateTime($invoiceData['invoice_date']);
+        $seenItems = [];
         
         foreach ($items as $idx => $item) {
             // Required fields
+            $productId = intval($item['product_id'] ?? 0);
+            if ($productId <= 0) {
+                return ['valid' => false, 'error' => "Item " . ($idx + 1) . ": Please select medicine from suggestions (variant ID missing)"];
+            }
+
             if (empty($item['product_name'])) {
                 return ['valid' => false, 'error' => "Item " . ($idx + 1) . ": Product name is required"];
             }
@@ -319,6 +442,16 @@ class PurchaseInvoiceAction {
                 return ['valid' => false, 'error' => "Item " . ($idx + 1) . ": Quantity must be greater than 0"];
             }
 
+            $freeQty = floatval($item['free_qty'] ?? 0);
+            if ($freeQty < 0) {
+                return ['valid' => false, 'error' => "Item " . ($idx + 1) . ": Free quantity cannot be negative"];
+            }
+
+            $unitCost = floatval($item['unit_cost'] ?? 0);
+            if ($unitCost <= 0) {
+                return ['valid' => false, 'error' => "Item " . ($idx + 1) . ": Purchase rate must be greater than 0"];
+            }
+
             // Expiry date validation
             $expiryDate = new DateTime($item['expiry_date']);
             if ($expiryDate <= $invoiceDate) {
@@ -330,15 +463,149 @@ class PurchaseInvoiceAction {
             if ($mrp <= 0) {
                 return ['valid' => false, 'error' => "Item " . ($idx + 1) . ": MRP must be provided and greater than 0"];
             }
+            if ($unitCost > $mrp) {
+                return ['valid' => false, 'error' => "Item " . ($idx + 1) . ": Purchase rate cannot be greater than MRP"];
+            }
+
+            $discountPercent = floatval($item['discount_percent'] ?? 0);
+            if ($discountPercent < 0 || $discountPercent > 100) {
+                return ['valid' => false, 'error' => "Item " . ($idx + 1) . ": Discount must be between 0 and 100"];
+            }
 
             // GST percent validation
             $gstPercent = floatval($item['tax_rate'] ?? 0);
             if ($gstPercent < 0 || $gstPercent > 100) {
                 return ['valid' => false, 'error' => "Item " . ($idx + 1) . ": Invalid GST percentage"];
             }
+
+            $batchNo = strtoupper(trim((string)($item['batch_no'] ?? '')));
+            $duplicateKey = $productId . '|' . $batchNo;
+            if (isset($seenItems[$duplicateKey])) {
+                return ['valid' => false, 'error' => "Duplicate item found for same medicine and batch number"];
+            }
+            $seenItems[$duplicateKey] = true;
+
+            $productCheckStmt = $connect->prepare("SELECT product_id FROM product WHERE product_id = ? AND status = 1 LIMIT 1");
+            if ($productCheckStmt) {
+                $productCheckStmt->bind_param('i', $productId);
+                $productCheckStmt->execute();
+                $productRes = $productCheckStmt->get_result();
+                if (!$productRes || $productRes->num_rows === 0) {
+                    $productCheckStmt->close();
+                    return ['valid' => false, 'error' => "Item " . ($idx + 1) . ": Selected medicine variant not found or inactive"];
+                }
+                $productCheckStmt->close();
+            }
         }
 
         return ['valid' => true];
+    }
+
+    private static function validatePaymentData($data, $grandTotal, $paidAmount) {
+        $status = self::derivePaymentStatus($data, $grandTotal, $paidAmount);
+
+        if (!in_array($status, ['UNPAID', 'PAID', 'PARTIAL'], true)) {
+            return ['valid' => false, 'error' => 'Invalid payment status'];
+        }
+
+        $paymentMode = trim((string)($data['payment_mode'] ?? ''));
+
+        if ($status === 'UNPAID') {
+            if (abs($paidAmount) > 0.01) {
+                return ['valid' => false, 'error' => 'For Unpaid/Credit payment status, paid amount must be 0'];
+            }
+            return ['valid' => true];
+        }
+
+        if ($status === 'PAID') {
+            if (abs($paidAmount - $grandTotal) > 0.01) {
+                return ['valid' => false, 'error' => 'For Fully Paid status, paid amount must equal grand total'];
+            }
+            if ($paymentMode === '' || strtolower($paymentMode) === 'credit') {
+                return ['valid' => false, 'error' => 'Payment mode is required for fully paid invoices'];
+            }
+            return ['valid' => true];
+        }
+
+        if ($paidAmount <= 0.00001 || $paidAmount >= $grandTotal) {
+            return ['valid' => false, 'error' => 'For Partially Paid status, paid amount must be greater than 0 and less than grand total'];
+        }
+        if ($paymentMode === '' || strtolower($paymentMode) === 'credit') {
+            return ['valid' => false, 'error' => 'Payment mode is required for partially paid invoices'];
+        }
+
+        return ['valid' => true];
+    }
+
+    private static function derivePaymentStatus($data, $grandTotal, $paidAmount) {
+        $statusRaw = trim((string)($data['payment_status'] ?? ''));
+        if ($statusRaw !== '') {
+            $status = strtoupper($statusRaw);
+            if (in_array($status, ['UNPAID', 'PAID', 'PARTIAL'], true)) {
+                return $status;
+            }
+        }
+
+        if ($paidAmount <= 0.00001) {
+            return 'UNPAID';
+        }
+        if (abs($paidAmount - $grandTotal) <= 0.01) {
+            return 'PAID';
+        }
+        return 'PARTIAL';
+    }
+
+    private static function hasColumn($tableName, $columnName) {
+        global $connect;
+        $safeTable = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$tableName);
+        $safeColumn = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$columnName);
+        if ($safeTable === '' || $safeColumn === '') {
+            return false;
+        }
+        $check = $connect->query("SHOW COLUMNS FROM {$safeTable} LIKE '{$safeColumn}'");
+        return ($check && $check->num_rows > 0);
+    }
+
+    private static function entryReferenceExists($invoiceNo) {
+        global $connect;
+        $stmt = $connect->prepare("SELECT id FROM purchase_invoices WHERE invoice_no = ? LIMIT 1");
+        if (!$stmt) {
+            return true;
+        }
+        $stmt->bind_param('s', $invoiceNo);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $exists = ($res && $res->num_rows > 0);
+        $stmt->close();
+        return $exists;
+    }
+
+    private static function generateEntryReference($invoiceDate = null, $offset = 0) {
+        global $connect;
+
+        $dateObj = DateTime::createFromFormat('Y-m-d', (string)$invoiceDate);
+        if (!$dateObj) {
+            $dateObj = new DateTime();
+        }
+
+        $prefix = 'PIE-' . $dateObj->format('y') . '-' . $dateObj->format('m') . '-';
+        $like = $prefix . '%';
+        $maxSeq = 0;
+
+        $stmt = $connect->prepare("SELECT MAX(CAST(SUBSTRING(invoice_no, 11, 5) AS UNSIGNED)) AS max_seq FROM purchase_invoices WHERE invoice_no LIKE ?");
+        if ($stmt) {
+            $stmt->bind_param('s', $like);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res) {
+                $row = $res->fetch_assoc();
+                $maxSeq = intval($row['max_seq'] ?? 0);
+            }
+            $stmt->close();
+        }
+
+        $next = max(1, $maxSeq + 1 + max(0, intval($offset)));
+        return $prefix . str_pad((string)$next, 5, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -400,6 +667,8 @@ class PurchaseInvoiceAction {
             $calculatedItems[] = [
                 'product_id' => intval($item['product_id'] ?? 0),
                 'product_name' => $item['product_name'],
+                'pack_size_snapshot' => $item['pack_size_snapshot'] ?? null,
+                'manufacturer_snapshot' => $item['manufacturer_snapshot'] ?? null,
                 'hsn_code' => $item['hsn_code'] ?? null,
                 'batch_no' => $item['batch_no'],
                 'manufacture_date' => $item['manufacture_date'] ?? null,
@@ -543,9 +812,19 @@ class PurchaseInvoiceAction {
     public static function getInvoice($invoice_id) {
         global $connect;
         $id = intval($invoice_id);
-        $invRes = $connect->query("SELECT * FROM purchase_invoices WHERE id = $id");
+        $invRes = $connect->query("SELECT pi.*, s.supplier_name, s.company_name, s.phone, s.email, s.address
+                                   FROM purchase_invoices pi
+                                   LEFT JOIN suppliers s ON s.supplier_id = pi.supplier_id
+                                   WHERE pi.id = $id");
         $inv = $invRes ? $invRes->fetch_assoc() : null;
         if (!$inv) return null;
+
+        if (!isset($inv['payment_status']) || $inv['payment_status'] === null || $inv['payment_status'] === '') {
+            $paidAmount = floatval($inv['paid_amount'] ?? 0);
+            $grandTotal = floatval($inv['grand_total'] ?? 0);
+            $inv['payment_status'] = self::derivePaymentStatus($inv, $grandTotal, $paidAmount);
+        }
+
         $inv['items'] = [];
         $res = $connect->query("SELECT * FROM purchase_invoice_items WHERE invoice_id = $id");
         while ($row = $res->fetch_assoc()) $inv['items'][] = $row;

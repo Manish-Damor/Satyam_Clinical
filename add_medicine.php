@@ -3,6 +3,13 @@
 <?php include('./constant/layout/sidebar.php');?>
 
 <?php
+$prefillName = isset($_GET['prefill_name']) ? trim((string) $_GET['prefill_name']) : '';
+$returnTo = isset($_GET['return_to']) ? trim((string) $_GET['return_to']) : '';
+$returnSupplierId = isset($_GET['supplier_id']) ? intval($_GET['supplier_id']) : 0;
+if ($returnTo !== '' && !preg_match('/^[a-zA-Z0-9_\/-]+\.php$/', $returnTo)) {
+  $returnTo = '';
+}
+
 $productTypeOptions = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment', 'Drops', 'Others'];
 $unitTypeOptions = ['Strip', 'Box', 'Bottle', 'Vial', 'Tube', 'Piece', 'Sachet'];
 $gstRateOptions = ['0.00', '5.00', '12.00', '18.00', '28.00'];
@@ -65,6 +72,14 @@ if ($checkTable && $checkTable->num_rows > 0) {
                   action="php_action/createProduct.php"
                   class="row">
 
+              <?php if ($returnTo !== ''): ?>
+                <input type="hidden" name="return_to" value="<?php echo htmlspecialchars($returnTo, ENT_QUOTES); ?>">
+              <?php endif; ?>
+
+              <?php if ($returnSupplierId > 0): ?>
+                <input type="hidden" name="supplier_id" value="<?php echo (int) $returnSupplierId; ?>">
+              <?php endif; ?>
+
               <!-- ================= BASIC INFORMATION ================= -->
               <div class="col-md-12">
                 <h5 class="mb-3 text-primary">Basic Information</h5>
@@ -76,6 +91,7 @@ if ($checkTable && $checkTable->num_rows > 0) {
                 <input type="text"
                        class="form-control"
                        name="productName"
+                    value="<?php echo htmlspecialchars($prefillName, ENT_QUOTES); ?>"
                        placeholder="Enter Brand Name (e.g. Crocin 500)"
                        required>
               </div>

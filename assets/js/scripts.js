@@ -67,6 +67,11 @@ $(function() {
                 }
             });
 
+            var metisInstance = $sidebarnav.data("metisMenu");
+            if (metisInstance && typeof metisInstance.dispose === "function") {
+                metisInstance.dispose();
+            }
+
             $sidebarnav.metisMenu();
         }),
 
