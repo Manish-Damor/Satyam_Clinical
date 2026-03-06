@@ -69,6 +69,7 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
                     <?php if ($editMode): ?>
                         <input type="hidden" name="invoice_id" value="<?php echo $invoiceData['invoice_id']; ?>" />
                     <?php endif; ?>
+                    <input type="hidden" name="invoice_status" id="invoiceStatus" value="<?php echo $invoiceData['invoice_status'] ?? 'FINAL'; ?>" />
 
                     <!-- ============ SECTION 1: INVOICE HEADER ============ -->
                     <div class="card border-primary mb-3">
@@ -200,21 +201,24 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
                             <button type="button" class="btn btn-sm btn-light" id="addRowBtn"><i class="fa fa-plus"></i> Add Item</button>
                         </div>
                         <div class="card-body">
-                            <div class="table-responsive">
+                            <div class="table-responsive invoice-items-scroll">
                                 <table class="table table-bordered table-sm invoice-items-table" id="invoiceItemsTable">
                                     <thead class="thead-dark">
                                         <tr>
-                                            <th style="width: 18%;">Medicine Name</th>
-                                            <th style="width: 7%;">HSN</th>
-                                            <th style="width: 12%;">Batch (Expiry)</th>
-                                            <th style="width: 8%;">Avail</th>
-                                            <th style="width: 8%;">Qty</th>
-                                            <th style="width: 8%;">MRP</th>
-                                            <th style="width: 8%; background-color: #fff3e0; color: #000;"><strong>PTR</strong></th>
-                                            <th style="width: 8%;">Rate</th>
-                                            <th style="width: 7%;">Disc %</th>
-                                            <th style="width: 7%;">GST %</th>
-                                            <th style="width: 12%;">Line Total</th>
+                                            <th style="width: 16%;">Medicine Name</th>
+                                            <th style="width: 9%;">Mfr.</th>
+                                            <th style="width: 7%;">Pack</th>
+                                            <th style="width: 6%;">HSN</th>
+                                            <th style="width: 11%;">B.No.</th>
+                                            <th style="width: 7%;">Exp.</th>
+                                            <th style="width: 6%;">Avail</th>
+                                            <th style="width: 6%;">Qty</th>
+                                            <th style="width: 7%;">MRP</th>
+                                            <th style="width: 7%; background-color: #fff3e0; color: #000;"><strong>PTR</strong></th>
+                                            <th style="width: 7%;">Rate</th>
+                                            <th style="width: 6%;">Disc %</th>
+                                            <th style="width: 6%;">GST %</th>
+                                            <th style="width: 10%;">Line Total</th>
                                             <th style="width: 4%;">Action</th>
                                         </tr>
                                     </thead>
@@ -225,8 +229,16 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
                                                     <input type="text" class="form-control form-control-sm product-search" 
                                                         placeholder="Type medicine name..." data-row="1" autocomplete="off" />
                                                     <input type="hidden" class="product-id" name="product_id[]" />
-                                                    <div class="search-results" style="position: absolute; background: white; border: 1px solid #999; max-height: 300px; overflow-y: auto; display: none; width: 100%; z-index: 1000; border-radius: 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.15); top: 100%; left: 0;"></div>
+                                                    <div class="search-results"></div>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm manufacturer-display" readonly />
+                                                <input type="hidden" class="manufacturer-value" name="manufacturer_snapshot[]" />
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm pack-display text-center" readonly />
+                                                <input type="hidden" class="pack-value" name="pack_size_snapshot[]" />
                                             </td>
                                             <td>
                                                 <input type="text" class="form-control form-control-sm hsn-code text-center" readonly data-row="1" />
@@ -236,6 +248,12 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
                                                 <select class="form-control form-control-sm batch-select" name="batch_id[]" data-row="1">
                                                     <option value="">--Select--</option>
                                                 </select>
+                                                <input type="hidden" class="batch-number-value" name="batch_number[]" />
+                                                <small class="fefo-explain">FEFO preview will appear after qty entry.</small>
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm expiry-display text-center" readonly />
+                                                <input type="hidden" class="expiry-value" name="expiry_date[]" />
                                             </td>
                                             <td>
                                                 <span class="available-qty text-center text-info font-weight-bold" style="display:block;">-</span>
@@ -248,7 +266,7 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
                                                 <input type="text" class="form-control form-control-sm mrp-display text-center" readonly data-row="1" />
                                                 <input type="hidden" class="mrp-value" name="mrp[]" />
                                             </td>
-                                            <td style="background-color: #fff3e0;">
+                                            <td class="ptr-column" style="background-color: #fff3e0;">
                                                 <input type="text" class="form-control form-control-sm ptr-display text-center" readonly data-row="1" style="background-color: #ffe082; font-weight: bold; color: #000;" />
                                                 <input type="hidden" class="ptr-value" name="ptr[]" />
                                             </td>
@@ -424,6 +442,47 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="invoicePreviewModal" tabindex="-1" role="dialog" aria-labelledby="invoicePreviewLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="invoicePreviewLabel"><i class="fa fa-eye"></i> Invoice Preview</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="invoicePreviewContent">
+                    <div class="text-center text-muted py-3">Preview will appear here.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="invoiceAlertModal" tabindex="-1" role="dialog" aria-labelledby="invoiceAlertTitleText" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white" id="invoiceAlertHeader">
+                    <h5 class="modal-title" id="invoiceAlertTitle">
+                        <i id="invoiceAlertIcon" class="fa fa-info-circle mr-2"></i>
+                        <span id="invoiceAlertTitleText">Notification</span>
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="invoiceAlertText" class="invoice-alert-text">-</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-info" id="invoiceAlertOkBtn" data-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <?php include('./constant/layout/footer.php');?>
@@ -433,21 +492,375 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
 
 <style>
-    .invoice-form { font-size: 0.95rem; }
-    .invoice-items-table thead th { background-color: #2c3e50; color: white; font-weight: bold; padding: 10px 5px; }
-    .form-control-lg { height: 38px; padding: 0.5rem 0.75rem; font-size: 0.95rem; }
-    .card { margin-bottom: 20px; }
-    .card-header { font-weight: bold; }
+    :root {
+        --si-bg: #f2f6fb;
+        --si-surface: #ffffff;
+        --si-border: #c7d4e5;
+        --si-text: #172b4d;
+        --si-muted: #4f6280;
+        --si-primary: #1f4e8c;
+        --si-success: #0f6b52;
+        --si-info: #145f86;
+        --si-warning: #b87407;
+        --si-danger: #8c1f39;
+        --si-focus: #2563eb;
+    }
+
+    .page-wrapper {
+        background: linear-gradient(180deg, #edf3fb 0%, #f7fbff 45%, #f0f6ff 100%);
+        color: var(--si-text);
+    }
+
+    .page-wrapper .page-titles h2,
+    .page-wrapper .page-titles h3,
+    .page-wrapper .page-titles p {
+        color: var(--si-text) !important;
+    }
+
+    .page-wrapper .text-muted {
+        color: var(--si-muted) !important;
+    }
+
+    .breadcrumb-item a {
+        color: #275f9d;
+        font-weight: 600;
+    }
+
+    .breadcrumb-item.active {
+        color: #314a71;
+        font-weight: 600;
+    }
+
+    .invoice-form {
+        font-size: 0.95rem;
+        color: var(--si-text);
+    }
+
+    .form-control-lg {
+        height: 38px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.95rem;
+    }
+
+    label.font-weight-bold {
+        color: #1f365a;
+        letter-spacing: 0.1px;
+    }
+
+    .card {
+        margin-bottom: 20px;
+        border: 1px solid var(--si-border);
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 8px 18px rgba(19, 38, 68, 0.06);
+        background: var(--si-surface);
+    }
+
+    .card-header {
+        font-weight: 700;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .card.border-primary { border-color: #2f66a8 !important; }
+    .card.border-success { border-color: #208164 !important; }
+    .card.border-info { border-color: #2b7ba5 !important; }
+    .card.border-warning { border-color: #d1902e !important; }
+    .card.border-danger { border-color: #b73f5a !important; }
+
+    .card-header.bg-primary {
+        background: linear-gradient(135deg, #2c6bae, #1b4f88) !important;
+        color: #ffffff !important;
+    }
+
+    .card-header.bg-success {
+        background: linear-gradient(135deg, #198065, #0f694f) !important;
+        color: #ffffff !important;
+    }
+
+    .card-header.bg-info {
+        background: linear-gradient(135deg, #2f7ea8, #185f87) !important;
+        color: #ffffff !important;
+    }
+
+    .card-header.bg-warning {
+        background: linear-gradient(135deg, #efbb67, #de9a33) !important;
+        color: #3f2b00 !important;
+    }
+
+    .card-header.bg-danger {
+        background: linear-gradient(135deg, #be4a63, #972d47) !important;
+        color: #ffffff !important;
+    }
+
+    .invoice-items-table thead th {
+        background-color: #1e426f;
+        color: #ffffff;
+        font-weight: 700;
+        padding: 10px 5px;
+        border-color: #2b547f !important;
+    }
+
+    .table td,
+    .table th {
+        border-color: #d4deec;
+    }
+
+    .table-sm td,
+    .table-sm th {
+        color: #243e60;
+    }
+
+    .form-control,
+    .form-control-sm,
+    .form-control-lg,
+    .batch-select {
+        border: 1px solid #b8c8da;
+        color: #122946;
+        background-color: #ffffff;
+    }
+
+    .form-control::placeholder,
+    .form-control-sm::placeholder,
+    .form-control-lg::placeholder {
+        color: #7d90ad;
+    }
+
+    .form-control:focus,
+    .form-control-sm:focus,
+    .form-control-lg:focus,
+    .batch-select:focus {
+        border-color: var(--si-focus);
+        box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+    }
+
+    input[readonly],
+    textarea[readonly],
+    .form-control[readonly] {
+        background-color: #f3f7fc !important;
+        color: #203a5d;
+    }
+
+    #clientDetailsPanel .card.bg-light {
+        background: #f2f7fd !important;
+        border: 1px solid #d7e3f2;
+    }
+
+    #clientDetailsPanel .card.bg-light .card-title {
+        color: #0f345f;
+        font-size: 1rem;
+        letter-spacing: 0.2px;
+    }
+
+    #clientDetailsPanel #billingAddr {
+        color: #15365e;
+        font-size: 0.95rem;
+        line-height: 1.45;
+        font-weight: 500;
+    }
+
+    #clientDetailsPanel #billingAddr em,
+    #clientDetailsPanel .text-sm,
+    #clientDetailsPanel .table td,
+    #clientDetailsPanel .table th {
+        color: #1c3e67 !important;
+    }
+
+    #clientDetailsPanel .table td strong,
+    #clientDetailsPanel .table td span,
+    #clientDetailsPanel #outstanding,
+    #clientDetailsPanel #availableCredit {
+        color: #102f54 !important;
+        font-weight: 600;
+    }
+
+    #clientDetailsPanel .badge-info {
+        background-color: #1e5f99;
+        color: #ffffff;
+    }
+
+    #clientDetailsPanel .badge-success {
+        background-color: #157a5c;
+        color: #ffffff;
+    }
+
+    #clientDetailsPanel tr[style*="background-color: #e8f5e9"] {
+        background-color: #dff4e9 !important;
+    }
+
+    #clientDetailsPanel tr[style*="background-color: #e8f5e9"] td {
+        color: #0e4b35 !important;
+        font-weight: 700;
+    }
+
+    #successMessage {
+        border-left: 5px solid #1f8a6a;
+    }
+
+    #errorMessage {
+        border-left: 5px solid #c03553;
+    }
+
+    #creditWarningAlert {
+        border-left: 5px solid #d28a16;
+    }
+
+    .select2-container--default .select2-selection--single {
+        height: 38px;
+        border: 1px solid #b8c8da;
+        border-radius: 4px;
+        background: #ffffff;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 36px;
+        color: #15304f;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: var(--si-focus);
+        box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.12);
+    }
+
+    .select2-container--default .select2-results__option {
+        color: #1a3355;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #2f6daa;
+        color: #ffffff;
+    }
+
     #invoiceItemsTable tbody tr:hover { background-color: #f9f9f9; }
-    .ptr-display { background-color: #ffe082 !important; font-weight: bold; }
+
+    /* Keep all invoice item fields visible with horizontal scroll */
+    .invoice-items-scroll {
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        max-width: 100%;
+        padding-bottom: 6px;
+        border: 1px solid #d7dde5;
+        border-radius: 6px;
+        background: #fff;
+    }
+
+    .invoice-items-scroll .table {
+        margin-bottom: 0;
+    }
+
+    #invoiceItemsTable {
+        min-width: 1900px;
+        width: max-content;
+    }
+
+    #invoiceItemsTable th,
+    #invoiceItemsTable td {
+        white-space: nowrap;
+        vertical-align: top;
+    }
+
+    #invoiceItemsTable .form-control-sm,
+    #invoiceItemsTable .form-control,
+    #invoiceItemsTable .batch-select {
+        min-width: 90px;
+    }
+
+    #invoiceItemsTable .product-search {
+        min-width: 250px;
+    }
+
+    #invoiceItemsTable th:nth-child(1), #invoiceItemsTable td:nth-child(1) { min-width: 270px; }
+    #invoiceItemsTable th:nth-child(2), #invoiceItemsTable td:nth-child(2) { min-width: 145px; }
+    #invoiceItemsTable th:nth-child(3), #invoiceItemsTable td:nth-child(3) { min-width: 90px; }
+    #invoiceItemsTable th:nth-child(4), #invoiceItemsTable td:nth-child(4) { min-width: 95px; }
+    #invoiceItemsTable th:nth-child(5), #invoiceItemsTable td:nth-child(5) { min-width: 185px; }
+    #invoiceItemsTable th:nth-child(6), #invoiceItemsTable td:nth-child(6) { min-width: 95px; }
+    #invoiceItemsTable th:nth-child(7), #invoiceItemsTable td:nth-child(7) { min-width: 80px; }
+    #invoiceItemsTable th:nth-child(8), #invoiceItemsTable td:nth-child(8) { min-width: 90px; }
+    #invoiceItemsTable th:nth-child(9), #invoiceItemsTable td:nth-child(9) { min-width: 100px; }
+    #invoiceItemsTable th:nth-child(10), #invoiceItemsTable td:nth-child(10) { min-width: 100px; }
+    #invoiceItemsTable th:nth-child(11), #invoiceItemsTable td:nth-child(11) { min-width: 100px; }
+    #invoiceItemsTable th:nth-child(12), #invoiceItemsTable td:nth-child(12) { min-width: 90px; }
+    #invoiceItemsTable th:nth-child(13), #invoiceItemsTable td:nth-child(13) { min-width: 90px; }
+    #invoiceItemsTable th:nth-child(14), #invoiceItemsTable td:nth-child(14) { min-width: 125px; }
+    #invoiceItemsTable th:nth-child(15), #invoiceItemsTable td:nth-child(15) { min-width: 72px; }
+
+    .manufacturer-display,
+    .pack-display,
+    .expiry-display { background-color: #f8f9fa !important; }
+    .ptr-display { background-color: #ffe082 !important; font-weight: bold; color: #000 !important; }
 
     /* dropdown visibility fix */
-    .table-responsive { overflow: visible !important; }
     .product-search { width: 100%; }
     .search-results {
-        z-index: 9999 !important;
-        min-width: 100%;
+        position: fixed !important;
+        z-index: 12000 !important;
+        min-width: 220px;
+        max-height: 260px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        border: 1px solid #9aa4b2;
+        border-radius: 6px;
+        background: #fff;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+        font-size: 12px;
+        line-height: 1.2;
+        display: none;
     }
+
+    .search-results .product-item {
+        font-size: 12px;
+        line-height: 1.25;
+        padding: 8px 10px !important;
+        color: #133152;
+    }
+
+    .search-results .product-item:hover,
+    .search-results .product-item.active-product-option {
+        background: #eaf3ff !important;
+    }
+
+    .search-results .product-item small {
+        font-size: 11px;
+    }
+
+    .invoice-preview-header {
+        border-bottom: 2px solid #d7dde5;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+    }
+
+    .invoice-preview-meta {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    #invoicePreviewContent .table th,
+    #invoicePreviewContent .table td {
+        font-size: 12px;
+        vertical-align: middle;
+    }
+
+    #invoicePreviewContent .preview-summary td {
+        padding: 6px 8px;
+    }
+
+    #invoiceAlertModal .modal-content {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .invoice-alert-text {
+        white-space: pre-line;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #1f2937;
+    }
+
     .fefo-explain {
         margin-top: 4px;
         font-size: 11px;
@@ -457,7 +870,7 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
     }
     
     @media (max-width: 768px) {
-        .table-responsive { font-size: 0.85rem; }
+        .invoice-items-scroll { font-size: 0.85rem; }
         .form-control-sm { height: 28px; }
     }
 
@@ -468,7 +881,7 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
         .card { border: none; page-break-inside: avoid; }
         
         /* Hide internal info on print */
-        .ptr-display, [style*="background-color: #ffe082"], 
+        .ptr-column, .ptr-display,
         #billingAddr, #clientDetailsPanel { display: none !important; }
         
         /* FORCE BLACK TEXT ONLY */
@@ -485,6 +898,9 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
         h1, h2, h3, h4, h5, h6, p, span, a, strong, b { color: #000 !important; }
         .badge { color: #000 !important; background-color: #f0f0f0 !important; }
         .alert { color: #000 !important; background-color: white !important; }
+
+        .invoice-items-scroll { overflow: visible !important; border: none !important; }
+        #invoiceItemsTable { min-width: 100% !important; width: 100% !important; }
         
         /* Page break handling */
         .page-break { page-break-after: always; }
@@ -494,6 +910,494 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
 <script>
 let rowCount = 1;
 let allClients = [];
+let clientSearchTerm = '';
+const isEditMode = <?php echo $editMode ? 'true' : 'false'; ?>;
+
+function escapeHtml(value) {
+    return (value || '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function formatMoney(value) {
+    const num = parseFloat(value);
+    if (!Number.isFinite(num)) return '0.00';
+    return num.toFixed(2);
+}
+
+function safePreviewText(value, fallback) {
+    const text = (value || '').toString().trim();
+    return text !== '' ? escapeHtml(text) : (fallback || '-');
+}
+
+function showInvoicePopup(type, message, title) {
+    const configMap = {
+        success: {
+            title: 'Success',
+            icon: 'fa fa-check-circle',
+            headerClass: 'bg-success text-white',
+            buttonClass: 'btn btn-success'
+        },
+        error: {
+            title: 'Error',
+            icon: 'fa fa-exclamation-circle',
+            headerClass: 'bg-danger text-white',
+            buttonClass: 'btn btn-danger'
+        },
+        warning: {
+            title: 'Warning',
+            icon: 'fa fa-exclamation-triangle',
+            headerClass: 'bg-warning text-dark',
+            buttonClass: 'btn btn-warning'
+        },
+        info: {
+            title: 'Notification',
+            icon: 'fa fa-info-circle',
+            headerClass: 'bg-info text-white',
+            buttonClass: 'btn btn-info'
+        }
+    };
+
+    const safeType = configMap[type] ? type : 'info';
+    const cfg = configMap[safeType];
+    const modal = $('#invoiceAlertModal');
+
+    if (!modal.length || typeof modal.modal !== 'function') {
+        alert((title || cfg.title) + ': ' + (message || ''));
+        return;
+    }
+
+    const header = $('#invoiceAlertHeader');
+    const icon = $('#invoiceAlertIcon');
+    const titleText = $('#invoiceAlertTitleText');
+    const messageText = $('#invoiceAlertText');
+    const okBtn = $('#invoiceAlertOkBtn');
+
+    header.removeClass('bg-success bg-danger bg-warning bg-info text-white text-dark');
+    header.addClass(cfg.headerClass);
+
+    icon.attr('class', cfg.icon + ' mr-2');
+    titleText.text(title || cfg.title);
+    messageText.text(message || '');
+
+    okBtn.removeClass('btn-success btn-danger btn-warning btn-info');
+    okBtn.addClass(cfg.buttonClass);
+
+    modal.modal('show');
+}
+
+function normalizeText(value) {
+    return (value || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function acronymFromText(value) {
+    return (value || '')
+        .toString()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(word => word.charAt(0))
+        .join('');
+}
+
+function isSubsequence(query, target) {
+    if (!query) return true;
+    let pointer = 0;
+    for (let index = 0; index < target.length && pointer < query.length; index++) {
+        if (target[index] === query[pointer]) pointer++;
+    }
+    return pointer === query.length;
+}
+
+function fuzzyScoreMedicine(term, product) {
+    const query = normalizeText(term);
+    if (!query) return 0;
+
+    const name = normalizeText(product.product_name || '');
+    const brand = normalizeText(product.brand_name || '');
+    const content = normalizeText(product.content || '');
+    const hsn = normalizeText(product.hsn_code || '');
+    const idText = (product.id || product.product_id || '').toString();
+    const acronym = normalizeText(acronymFromText((product.product_name || '') + ' ' + (product.brand_name || '')));
+
+    if (name === query) return 1200;
+    if (idText === term) return 1100;
+    if (name.startsWith(query)) return 950;
+    if (brand.startsWith(query)) return 870;
+    if (name.includes(query)) return 760;
+    if (brand.includes(query)) return 700;
+    if (content.includes(query)) return 620;
+    if (acronym.startsWith(query)) return 580;
+    if (isSubsequence(query, name)) return 520;
+    if (isSubsequence(query, brand)) return 500;
+    if (hsn.includes(query)) return 460;
+    return 0;
+}
+
+function fuzzyScoreClient(term, haystack) {
+    const query = normalizeText(term);
+    if (!query) return 0;
+
+    const text = normalizeText(haystack || '');
+    const acronym = normalizeText(acronymFromText(haystack || ''));
+
+    if (text === query) return 1000;
+    if (text.startsWith(query)) return 900;
+    if (text.includes(query)) return 760;
+    if (acronym.startsWith(query)) return 640;
+    if (isSubsequence(query, text)) return 540;
+    return 0;
+}
+
+function focusFirstClientResultOption() {
+    const openContainer = $('.select2-container--open');
+    if (!openContainer.length) return;
+
+    const options = openContainer
+        .find('.select2-results__option[aria-selected]')
+        .not('.select2-results__option--loading')
+        .not('.select2-results__option--disabled');
+
+    if (!options.length) return;
+
+    const first = options.first();
+    options.removeClass('select2-results__option--highlighted');
+    first.addClass('select2-results__option--highlighted').trigger('mouseenter');
+}
+
+function setActiveProductResult(resultsDiv, index) {
+    const options = resultsDiv.find('.product-item');
+    if (!options.length) {
+        resultsDiv.data('active-index', -1);
+        return;
+    }
+
+    const safeIndex = Math.max(0, Math.min(index, options.length - 1));
+    options.removeClass('active-product-option').css({ backgroundColor: '#fff' });
+
+    const active = options.eq(safeIndex);
+    active.addClass('active-product-option').css({ backgroundColor: '#eef6ff' });
+    resultsDiv.data('active-index', safeIndex);
+
+    const activeTop = active.position().top;
+    const activeBottom = activeTop + active.outerHeight();
+    const currentScroll = resultsDiv.scrollTop();
+    const visibleHeight = resultsDiv.innerHeight();
+
+    if (activeBottom > visibleHeight) {
+        resultsDiv.scrollTop(currentScroll + (activeBottom - visibleHeight));
+    } else if (activeTop < 0) {
+        resultsDiv.scrollTop(currentScroll + activeTop);
+    }
+}
+
+function positionSearchDropdown(searchInput, resultsDiv) {
+    if (!searchInput || !searchInput.length || !resultsDiv || !resultsDiv.length) {
+        return;
+    }
+
+    const inputEl = searchInput[0];
+    const rect = inputEl.getBoundingClientRect();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const desiredMaxHeight = 260;
+    const minDropdownHeight = 100;
+    const spaceBelow = viewportHeight - rect.bottom - 8;
+    const top = rect.bottom + 2;
+    const width = Math.max(220, rect.width);
+
+    // Always render below the input and let the results list scroll when space is limited.
+    let maxHeight = Math.min(desiredMaxHeight, Math.max(minDropdownHeight, spaceBelow));
+    if (spaceBelow < 70) {
+        maxHeight = 70;
+    }
+
+    let left = Math.max(8, rect.left);
+    if ((left + width) > (viewportWidth - 8)) {
+        left = Math.max(8, viewportWidth - width - 8);
+    }
+
+    resultsDiv.css({
+        left: left + 'px',
+        top: Math.max(8, top) + 'px',
+        width: width + 'px',
+        maxHeight: maxHeight + 'px'
+    });
+
+    resultsDiv.data('anchor-input', inputEl);
+}
+
+function repositionVisibleProductDropdowns() {
+    $('.search-results:visible').each(function() {
+        const resultsDiv = $(this);
+        const anchorInput = resultsDiv.data('anchor-input');
+
+        if (!anchorInput || !document.body.contains(anchorInput)) {
+            resultsDiv.hide().data('active-index', -1).removeData('anchor-input');
+            return;
+        }
+
+        positionSearchDropdown($(anchorInput), resultsDiv);
+    });
+}
+
+function renderProductResults(resultsDiv, products) {
+    if (!Array.isArray(products) || products.length === 0) {
+        resultsDiv.html('<div style="padding:10px;color:#999;background:#fff;">No products found</div>').show();
+        const anchorInput = resultsDiv.data('anchor-input');
+        if (anchorInput && document.body.contains(anchorInput)) {
+            positionSearchDropdown($(anchorInput), resultsDiv);
+        }
+        return;
+    }
+
+    const html = products.map(product => `
+        <div class="product-item" style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;background:#fff;" 
+            data-id="${product.id || product.product_id}"
+            data-name="${escapeHtml(product.product_name || '')}"
+            data-hsn="${escapeHtml(product.hsn_code || '')}"
+            data-gst="${product.gst_rate || 0}"
+            data-mfr="${escapeHtml(product.brand_name || '')}"
+            data-pack="${escapeHtml(product.pack_size || '')}">
+            <strong>${escapeHtml(product.product_name || '')}</strong> ${product.content ? '(' + escapeHtml(product.content) + ')' : ''}<br>
+            <small class="text-muted">Mfr: ${escapeHtml(product.brand_name || '-')} | Pack: ${escapeHtml(product.pack_size || '-')} | HSN: ${escapeHtml(product.hsn_code || 'N/A')} | GST: ${product.gst_rate || 0}% | MRP: ₹${product.expected_mrp || '0'}</small>
+        </div>
+    `).join('');
+
+    resultsDiv.html(html).show();
+    const anchorInput = resultsDiv.data('anchor-input');
+    if (anchorInput && document.body.contains(anchorInput)) {
+        positionSearchDropdown($(anchorInput), resultsDiv);
+    }
+    setActiveProductResult(resultsDiv, 0);
+}
+
+function fetchFallbackMedicineResults(searchTerm, onDone) {
+    $.ajax({
+        url: 'php_action/searchMedicines.php',
+        type: 'GET',
+        data: { q: searchTerm },
+        dataType: 'json',
+        timeout: 5000,
+        success: function(results) {
+            const rows = Array.isArray(results) ? results.map(function(item) {
+                return {
+                    id: item.product_id || item.id,
+                    product_id: item.product_id || item.id,
+                    product_name: item.product_name,
+                    content: item.content,
+                    pack_size: item.pack_size,
+                    hsn_code: item.hsn_code,
+                    expected_mrp: item.expected_mrp || 0,
+                    gst_rate: item.gst_rate || 0,
+                    brand_name: item.brand_name || ''
+                };
+            }) : [];
+            onDone(rows);
+        },
+        error: function() {
+            onDone([]);
+        }
+    });
+}
+
+function selectProductOption(option) {
+    const productId = option.data('id');
+    const productName = option.data('name');
+    const hsn = option.data('hsn');
+    const gst = option.data('gst');
+    const manufacturer = option.data('mfr') || '';
+    const packSize = option.data('pack') || '';
+
+    const row = option.closest('tr');
+    const searchInput = row.find('.product-search');
+
+    searchInput.val(productName);
+    row.find('.product-id').val(productId);
+    row.find('.manufacturer-display').val(manufacturer);
+    row.find('.manufacturer-value').val(manufacturer);
+    row.find('.pack-display').val(packSize);
+    row.find('.pack-value').val(packSize);
+    row.find('.hsn-code').val(hsn || '');
+    row.find('.hsn-value').val(hsn || '');
+    row.find('.gst-input').val(gst || 0);
+
+    // Reset dependent values before fresh batch fetch
+    row.find('.batch-select').empty().append('<option value="">--Select Batch--</option>');
+    row.find('.batch-number-value').val('');
+    row.find('.expiry-display').val('');
+    row.find('.expiry-value').val('');
+    row.find('.available-qty').text('-');
+    row.find('.mrp-display').val('');
+    row.find('.mrp-value').val('');
+    row.find('.ptr-display').val('');
+    row.find('.ptr-value').val('');
+    row.find('.rate-input').val('').attr('max', '');
+    row.find('.allocation-plan-input').val('');
+
+    searchInput.closest('div').find('.search-results').hide().data('active-index', -1).removeData('anchor-input');
+
+    fetchProductDetails(productId, row);
+}
+
+function buildPreviewItemsRowsHtml() {
+    let rowsHtml = '';
+
+    $('#itemsBody tr.item-row').each(function(index) {
+        const row = $(this);
+        const productId = row.find('.product-id').val();
+        const productName = row.find('.product-search').val();
+        const qty = parseFloat(row.find('.quantity-input').val()) || 0;
+        const rate = parseFloat(row.find('.rate-input').val()) || 0;
+
+        if (!productId || qty <= 0 || rate <= 0) {
+            return;
+        }
+
+        const manufacturer = row.find('.manufacturer-display').val();
+        const pack = row.find('.pack-display').val();
+        const batchNumber = row.find('.batch-number-value').val();
+        const expiry = row.find('.expiry-display').val();
+        const mrp = row.find('.mrp-value').val();
+        const discount = row.find('.discount-input').val();
+        const gst = row.find('.gst-input').val();
+        const lineTotal = row.find('.total-value').val() || row.find('.total-display').val();
+
+        rowsHtml += `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${safePreviewText(productName, '-')}</td>
+                <td>${safePreviewText(manufacturer, '-')}</td>
+                <td class="text-center">${safePreviewText(pack, '-')}</td>
+                <td>${safePreviewText(batchNumber, '-')}</td>
+                <td class="text-center">${safePreviewText(expiry, '-')}</td>
+                <td class="text-right">${formatMoney(qty)}</td>
+                <td class="text-right">${formatMoney(mrp)}</td>
+                <td class="text-right">${formatMoney(rate)}</td>
+                <td class="text-right">${formatMoney(discount)}</td>
+                <td class="text-right">${formatMoney(gst)}</td>
+                <td class="text-right"><strong>${formatMoney(lineTotal)}</strong></td>
+            </tr>
+        `;
+    });
+
+    if (rowsHtml === '') {
+        rowsHtml = '<tr><td colspan="12" class="text-center text-muted">No valid invoice items to preview.</td></tr>';
+    }
+
+    return rowsHtml;
+}
+
+function openInvoicePreviewModal() {
+    calculateTotals();
+
+    const selectedClient = $('#clientSelect').find('option:selected');
+    const clientName = selectedClient.data('name') || selectedClient.text();
+    const clientPhone = selectedClient.data('contact');
+    const clientEmail = selectedClient.data('email');
+    const clientGST = selectedClient.data('gstin');
+    const clientPAN = selectedClient.data('pan');
+    const clientDL = selectedClient.data('dl');
+    const billingAddress = selectedClient.data('billing') || $('#billingAddr').text();
+    const deliveryAddress = $('textarea[name="delivery_address"]').val();
+
+    const invoiceNumber = $('#invoiceNumber').val();
+    const invoiceDate = $('input[name="invoice_date"]').val();
+    const dueDate = $('#dueDate').val();
+    const paymentTerms = $('#paymentTerms').val();
+    const paymentType = $('#paymentTypeSelect').val();
+    const paymentMethod = $('#paymentMethodSelect').val();
+    const paymentStatus = $('#paymentStatusValue').val() || $('#paymentStatus').val();
+    const paymentNotes = $('textarea[name="payment_notes"]').val();
+
+    const subtotal = $('#subtotalValue').val();
+    const discountAmount = $('#discountAmountValue').val();
+    const gstAmount = $('#gstAmountValue').val();
+    const grandTotal = $('#grandTotalValue').val();
+    const paidAmount = $('#paidAmount').val();
+    const dueAmount = $('#dueAmountValue').val();
+
+    const previewHtml = `
+        <div class="invoice-preview-header">
+            <h4 class="mb-1 text-dark">TROIKAA LIFE CARE</h4>
+            <div class="text-muted">HOUSE NO.3196/9, SHOP NO 12, HARIOM COMPLEX, SADAK PALIYA, DUNGRA, PIN 396195</div>
+            <div class="text-muted">Phone: 9925455205 | D.L. No.: 20B-193927, 21B-193928</div>
+        </div>
+
+        <div class="row invoice-preview-meta mb-3">
+            <div class="col-md-6">
+                <div><strong>Invoice No:</strong> ${safePreviewText(invoiceNumber, '-')}</div>
+                <div><strong>Invoice Date:</strong> ${safePreviewText(invoiceDate, '-')}</div>
+                <div><strong>Due Date:</strong> ${safePreviewText(dueDate, '-')}</div>
+                <div><strong>Payment Terms:</strong> ${safePreviewText(paymentTerms, '0')} day(s)</div>
+            </div>
+            <div class="col-md-6">
+                <div><strong>Client:</strong> ${safePreviewText(clientName, '-')}</div>
+                <div><strong>Phone:</strong> ${safePreviewText(clientPhone, '-')}</div>
+                <div><strong>Email:</strong> ${safePreviewText(clientEmail, '-')}</div>
+                <div><strong>GSTIN:</strong> ${safePreviewText(clientGST, '-')} | <strong>PAN:</strong> ${safePreviewText(clientPAN, '-')}</div>
+                <div><strong>D.L. No:</strong> ${safePreviewText(clientDL, '-')}</div>
+            </div>
+        </div>
+
+        <div class="mb-2"><strong>Billing Address:</strong> ${safePreviewText(billingAddress, '-')}</div>
+        <div class="mb-3"><strong>Delivery Address:</strong> ${safePreviewText(deliveryAddress, safePreviewText(billingAddress, '-'))}</div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm">
+                <thead class="thead-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Medicine</th>
+                        <th>Mfr</th>
+                        <th>Pack</th>
+                        <th>Batch</th>
+                        <th>Exp</th>
+                        <th class="text-right">Qty</th>
+                        <th class="text-right">MRP</th>
+                        <th class="text-right">Rate</th>
+                        <th class="text-right">Disc %</th>
+                        <th class="text-right">GST %</th>
+                        <th class="text-right">Line Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${buildPreviewItemsRowsHtml()}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-6 invoice-preview-meta">
+                <div><strong>Payment Type:</strong> ${safePreviewText(paymentType, '-')}</div>
+                <div><strong>Payment Method:</strong> ${safePreviewText(paymentMethod, '-')}</div>
+                <div><strong>Payment Status:</strong> ${safePreviewText(paymentStatus, '-')}</div>
+                <div><strong>Notes:</strong> ${safePreviewText(paymentNotes, '-')}</div>
+            </div>
+            <div class="col-md-6">
+                <table class="table table-bordered table-sm preview-summary mb-0">
+                    <tr><td><strong>Subtotal</strong></td><td class="text-right">${formatMoney(subtotal)}</td></tr>
+                    <tr><td><strong>Discount</strong></td><td class="text-right">${formatMoney(discountAmount)}</td></tr>
+                    <tr><td><strong>GST</strong></td><td class="text-right">${formatMoney(gstAmount)}</td></tr>
+                    <tr><td><strong>Grand Total</strong></td><td class="text-right"><strong>${formatMoney(grandTotal)}</strong></td></tr>
+                    <tr><td><strong>Paid</strong></td><td class="text-right">${formatMoney(paidAmount)}</td></tr>
+                    <tr><td><strong>Due</strong></td><td class="text-right"><strong>${formatMoney(dueAmount)}</strong></td></tr>
+                </table>
+            </div>
+        </div>
+    `;
+
+    $('#invoicePreviewContent').html(previewHtml);
+
+    if ($.fn.modal) {
+        $('#invoicePreviewModal').modal('show');
+    } else {
+        showInvoicePopup('warning', 'Preview is currently unavailable.', 'Preview Unavailable');
+    }
+}
 
 $(document).ready(function() {
     loadClients();
@@ -599,32 +1503,58 @@ $(document).ready(function() {
         addInvoiceRow();
     });
 
+    $('#submitBtn').on('click', function() {
+        $('#invoiceStatus').val('FINAL');
+        $('#invoiceForm').data('submit-intent', 'FINAL');
+    });
+
     // Reset button
     $('#resetBtn').on('click', function() {
         if (confirm('Are you sure? This will clear all data.')) {
             $('#invoiceForm')[0].reset();
             $('#itemsBody').html(getBlankRowHTML(1));
             rowCount = 1;
+            $('#invoiceStatus').val('FINAL');
+            $('#invoiceForm').removeData('submit-intent');
+            $('#successMessage, #errorMessage, #creditWarningAlert').hide();
             $('#clientDetailsPanel').hide();
+
+            if ($('#clientSelect').hasClass('select2-hidden-accessible')) {
+                $('#clientSelect').val('').trigger('change');
+            }
+
+            if (!isEditMode) {
+                getNextInvoiceNumber();
+            }
+
+            $('#paymentMethodColumn').hide();
             calculateTotals();
         }
     });
 
     // Save as draft
     $('#saveDraftBtn').on('click', function() {
-        $('input[name="invoice_status"]').val('DRAFT');
-        $('#invoiceForm').submit();
+        $('#invoiceStatus').val('DRAFT');
+        $('#invoiceForm').data('submit-intent', 'DRAFT');
+        $('#invoiceForm').trigger('submit');
     });
 
     // Submit form
     $('#invoiceForm').on('submit', function(e) {
         e.preventDefault();
+        const submitIntent = $(this).data('submit-intent');
+        if (submitIntent === 'DRAFT') {
+            $('#invoiceStatus').val('DRAFT');
+        } else {
+            $('#invoiceStatus').val('FINAL');
+        }
+        $(this).removeData('submit-intent');
         submitInvoice();
     });
 
     // Preview button
     $('#previewBtn').on('click', function() {
-        window.print();
+        openInvoicePreviewModal();
     });
 
     // Product search with dropdown
@@ -633,80 +1563,140 @@ $(document).ready(function() {
         const searchInput = $(this);
         const parentDiv = searchInput.closest('div');
         const resultsDiv = parentDiv.find('.search-results');
+        const timerRef = searchInput.data('searchTimer');
 
-        console.log('Search triggered:', searchTerm);
+        if (timerRef) {
+            clearTimeout(timerRef);
+        }
 
         if (searchTerm.length < 2) {
-            resultsDiv.empty().hide();
+            resultsDiv.empty().hide().data('active-index', -1).removeData('anchor-input');
             return;
         }
 
-        // Show loading state
+        resultsDiv.data('anchor-input', searchInput.get(0));
         resultsDiv.html('<div style="padding:10px;color:#666;background:#fff;">Searching...</div>').show();
+        positionSearchDropdown(searchInput, resultsDiv);
 
-        $.ajax({
-            url: 'php_action/searchProductsInvoice.php',
-            type: 'GET',
-            data: { q: searchTerm },
-            dataType: 'json',
-            timeout: 5000,
-            success: function(products) {
-                console.log('Products received:', products);
-                resultsDiv.empty();
-                
-                if (!products || products.length === 0) {
-                    resultsDiv.html('<div style="padding:10px;color:#999;background:#fff;">No products found</div>');
-                } else {
-                    const html = products.map(product => `
-                        <div class="product-item" style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;background:#fff;hover:background:#f0f0f0;" 
-                            data-id="${product.id}" data-name="${product.product_name}" data-hsn="${product.hsn_code}" data-gst="${product.gst_rate}">
-                            <strong>${product.product_name}</strong> ${product.content ? '(' + product.content + ')' : ''}<br>
-                            <small class="text-muted">HSN: ${product.hsn_code || 'N/A'} | GST: ${product.gst_rate}% | MRP: ₹${product.expected_mrp || '0'}</small>
-                        </div>
-                    `).join('');
-                    resultsDiv.html(html);
-                    console.log('Results shown:', products.length, 'items');
+        const nextTimer = setTimeout(function() {
+            $.ajax({
+                url: 'php_action/searchProductsInvoice.php',
+                type: 'GET',
+                data: { q: searchTerm },
+                dataType: 'json',
+                timeout: 5000,
+                success: function(products) {
+                    const rows = Array.isArray(products) ? products : [];
+                    const ranked = rows
+                        .map(product => ({ product, score: fuzzyScoreMedicine(searchTerm, product) }))
+                        .filter(entry => entry.score > 0)
+                        .sort((left, right) => {
+                            if (right.score !== left.score) return right.score - left.score;
+                            return (left.product.product_name || '').localeCompare(right.product.product_name || '');
+                        })
+                        .map(entry => entry.product)
+                        .slice(0, 15);
+
+                    if (ranked.length > 0) {
+                        renderProductResults(resultsDiv, ranked);
+                    } else {
+                        fetchFallbackMedicineResults(searchTerm, function(fallbackRows) {
+                            const fallbackRanked = fallbackRows
+                                .map(product => ({ product, score: fuzzyScoreMedicine(searchTerm, product) }))
+                                .filter(entry => entry.score > 0)
+                                .sort((left, right) => {
+                                    if (right.score !== left.score) return right.score - left.score;
+                                    return (left.product.product_name || '').localeCompare(right.product.product_name || '');
+                                })
+                                .map(entry => entry.product)
+                                .slice(0, 15);
+                            renderProductResults(resultsDiv, fallbackRanked);
+                        });
+                    }
+                },
+                error: function() {
+                    fetchFallbackMedicineResults(searchTerm, function(fallbackRows) {
+                        const fallbackRanked = fallbackRows
+                            .map(product => ({ product, score: fuzzyScoreMedicine(searchTerm, product) }))
+                            .filter(entry => entry.score > 0)
+                            .sort((left, right) => {
+                                if (right.score !== left.score) return right.score - left.score;
+                                return (left.product.product_name || '').localeCompare(right.product.product_name || '');
+                            })
+                            .map(entry => entry.product)
+                            .slice(0, 15);
+
+                        if (fallbackRanked.length > 0) {
+                            renderProductResults(resultsDiv, fallbackRanked);
+                        } else {
+                            resultsDiv.html('<div style="padding:10px;color:#d9534f;background:#fff;">Search error</div>').show();
+                        }
+                    });
                 }
-                resultsDiv.show();
-            },
-            error: function(xhr, status, error) {
-                console.log('AJAX Error:', status, error);
-                resultsDiv.html('<div style="padding:10px;color:#d9534f;background:#fff;">Error: ' + error + '</div>').show();
-            }
-        });
+            });
+        }, 180);
+
+        searchInput.data('searchTimer', nextTimer);
     });
 
     // Select product from dropdown
-    $(document).on('click', '.product-item', function() {
-        const productId = $(this).data('id');
-        const productName = $(this).data('name');
-        const hsn = $(this).data('hsn');
-        const gst = $(this).data('gst');
+    $(document).on('mousedown', '.product-item', function(e) {
+        e.preventDefault();
+        selectProductOption($(this));
+    });
 
-        const row = $(this).closest('tr');
-        const searchInput = row.find('.product-search');
-        
-        searchInput.val(productName);
-        row.find('.product-id').val(productId);
-        row.find('.hsn-code').val(hsn || '');
-        row.find('.hsn-value').val(hsn || '');
-        row.find('.gst-input').val(gst || 0);
-        
-        // Hide dropdown
-        const parentDiv = searchInput.closest('div');
-        parentDiv.find('.search-results').hide();
+    // Hover highlight
+    $(document).on('mouseenter', '.product-item', function() {
+        const resultsDiv = $(this).closest('.search-results');
+        const index = resultsDiv.find('.product-item').index(this);
+        setActiveProductResult(resultsDiv, index);
+    });
 
-        console.log('Product selected:', productId, productName);
-        
-        // Fetch product details (batches, etc)
-        fetchProductDetails(productId, row);
+    // Keyboard navigation for product dropdown
+    $(document).on('keydown', '.product-search', function(e) {
+        const input = $(this);
+        const resultsDiv = input.closest('div').find('.search-results');
+        const options = resultsDiv.find('.product-item');
+
+        if (!resultsDiv.is(':visible') || !options.length) {
+            return;
+        }
+
+        let currentIndex = parseInt(resultsDiv.data('active-index'), 10);
+        if (isNaN(currentIndex) || currentIndex < 0) {
+            currentIndex = 0;
+        }
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setActiveProductResult(resultsDiv, currentIndex + 1);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActiveProductResult(resultsDiv, currentIndex - 1);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const active = options.eq(currentIndex);
+            if (active.length) {
+                selectProductOption(active);
+            }
+        } else if (e.key === 'Escape') {
+            resultsDiv.hide().data('active-index', -1);
+        }
     });
 
     // Hide search results when clicking outside
     $(document).on('click', function(e) {
         if (!$(e.target).closest('.product-search, .search-results, .product-item').length) {
-            $('.search-results').hide();
+            $('.search-results').hide().data('active-index', -1).removeData('anchor-input');
         }
+    });
+
+    $(window).on('scroll resize', function() {
+        repositionVisibleProductDropdowns();
+    });
+
+    $('.invoice-items-scroll').on('scroll', function() {
+        repositionVisibleProductDropdowns();
     });
 
     // Quantity change - auto-allocate if exceeds batch quantity
@@ -739,12 +1729,16 @@ $(document).ready(function() {
                         // Fill batches from allocation plan starting from current row
                         const plan = response.data.allocation_plan;
                         let currentRow = row;
+                        const chosenRate = parseFloat(row.find('.rate-input').val()) || 0;
                         
                         plan.forEach((allocation, index) => {
                             if (index === 0) {
                                 // Update first row with first batch from plan
                                 currentRow.find('.batch-select').val(allocation.batch_id).change();
                                 currentRow.find('.quantity-input').val(allocation.allocated_quantity);
+                                if (chosenRate > 0) {
+                                    currentRow.find('.rate-input').val(chosenRate.toFixed(2));
+                                }
                                 currentRow.find('.rate-input').data('from-allocation', true);
                                 // store plan only once (first row)
                                 currentRow.find('.allocation-plan-input').val(JSON.stringify(plan));
@@ -756,8 +1750,16 @@ $(document).ready(function() {
                                 // Copy product details from current row
                                 newRow.find('.product-search').val(row.find('.product-search').val());
                                 newRow.find('.product-id').val(productId);
+                                newRow.find('.manufacturer-display').val(row.find('.manufacturer-display').val());
+                                newRow.find('.manufacturer-value').val(row.find('.manufacturer-value').val());
+                                newRow.find('.pack-display').val(row.find('.pack-display').val());
+                                newRow.find('.pack-value').val(row.find('.pack-value').val());
                                 newRow.find('.hsn-code').val(row.find('.hsn-code').val());
+                                newRow.find('.hsn-value').val(row.find('.hsn-value').val());
                                 newRow.find('.gst-input').val(row.find('.gst-input').val());
+                                if (chosenRate > 0) {
+                                    newRow.find('.rate-input').val(chosenRate.toFixed(2));
+                                }
                                 
                                 // Fetch batches for this product in the new row (populates dropdown)
                                 fetchProductDetails(productId, newRow);
@@ -778,7 +1780,7 @@ $(document).ready(function() {
                             response.warnings.forEach(w => {
                                 warningMsg += '• ' + w.message + '\\n';
                             });
-                            alert(warningMsg);
+                            showInvoicePopup('warning', warningMsg, 'Stock Allocation Warning');
                         }
 
                         renderFefoExplainFromPlan(row, response.data.allocation_plan, qty);
@@ -803,19 +1805,19 @@ $(document).ready(function() {
         const avail = parseFloat(sel.data('available')) || 0;
         const batchMrp = sel.data('mrp');
         const batchPtr = sel.data('ptr');
+        const batchNumber = sel.data('batch-number') || '';
         const expiry = sel.data('expiry');
-        const batchId = $(this).val();
+        const expiryValue = expiry ? String(expiry).substring(0, 10) : '';
 
         row.find('.available-qty').text(avail.toFixed(2));
         row.find('.mrp-display').val(batchMrp ? parseFloat(batchMrp).toFixed(2) : '0.00');
         row.find('.mrp-value').val(batchMrp || 0);
+        row.find('.batch-number-value').val(batchNumber);
+        row.find('.expiry-display').val(formatExpiryShort(expiryValue));
+        row.find('.expiry-value').val(expiryValue);
         row.find('.ptr-display').val(batchPtr ? parseFloat(batchPtr).toFixed(2) : '0.00');
         row.find('.ptr-value').val(batchPtr || 0);
-
-        // Initialize line total with MRP as default rate if rate is empty
-        if (!row.find('.rate-input').val()) {
-            row.find('.rate-input').val(batchMrp || 0);
-        }
+        enforceRateLimit(row, true);
 
         // Reset allocation plan when batch changes (unless auto-filled from allocation)
         if (!row.find('.rate-input').data('from-allocation')) {
@@ -830,6 +1832,7 @@ $(document).ready(function() {
     // Rate change
     $(document).on('change input', '.rate-input', function() {
         const row = $(this).closest('tr');
+        enforceRateLimit(row, false);
         calculateLineTotalRow(row);
     });
 
@@ -858,27 +1861,151 @@ function loadClients() {
                 select.empty();
                 select.append('<option value="">-- Select Client --</option>');
                 response.data.forEach(client => {
+                    const clientSearchText = [
+                        client.name || '',
+                        client.client_code || '',
+                        client.contact_phone || '',
+                        client.email || '',
+                        client.city || '',
+                        client.state || '',
+                        client.gstin || '',
+                        client.pan || ''
+                    ].join(' ');
+
+                    const name = escapeHtml(client.name || '');
+                    const code = escapeHtml(client.client_code || '');
+                    const contact = escapeHtml(client.contact_phone || '');
+                    const email = escapeHtml(client.email || '');
+                    const billing = escapeHtml(client.billing_address || '');
+                    const shipping = escapeHtml(client.shipping_address || '');
+                    const city = escapeHtml(client.city || '');
+                    const state = escapeHtml(client.state || '');
+                    const postal = escapeHtml(client.postal_code || '');
+                    const gstin = escapeHtml(client.gstin || '');
+                    const pan = escapeHtml(client.pan || '');
+                    const dl = escapeHtml(client.drug_licence_no || '');
+                    const business = escapeHtml(client.business_type || '');
+
                     select.append(`
                         <option value="${client.client_id}" 
-                            data-name="${client.name}"
-                            data-contact="${client.contact_phone || ''}"
-                            data-email="${client.email || ''}"
-                            data-billing="${client.billing_address || ''}"
-                            data-shipping="${client.shipping_address || ''}"
-                            data-city="${client.city || ''}"
-                            data-state="${client.state || ''}"
-                            data-postal="${client.postal_code || ''}"
-                            data-gstin="${client.gstin || ''}"
-                            data-pan="${client.pan || ''}"
-                            data-dl="${client.drug_licence_no || ''}"
-                            data-business="${client.business_type || ''}"
+                            data-name="${name}"
+                            data-code="${code}"
+                            data-contact="${contact}"
+                            data-email="${email}"
+                            data-billing="${billing}"
+                            data-shipping="${shipping}"
+                            data-city="${city}"
+                            data-state="${state}"
+                            data-postal="${postal}"
+                            data-gstin="${gstin}"
+                            data-pan="${pan}"
+                            data-dl="${dl}"
+                            data-business="${business}"
                             data-credit="${client.credit_limit || 0}"
-                            data-outstanding="${client.outstanding_balance || 0}">
-                            ${client.name} (${client.client_code})
+                            data-outstanding="${client.outstanding_balance || 0}"
+                            data-search="${escapeHtml(clientSearchText)}">
+                            ${name} (${code})
                         </option>
                     `);
                 });
-                select.select2({ width: '100%', allowClear: false });
+
+                select.select2({
+                    width: '100%',
+                    allowClear: false,
+                    matcher: function(params, data) {
+                        const term = $.trim(params.term || '');
+                        if (term === '') return data;
+                        if (!data.element) return data;
+
+                        const elem = $(data.element);
+                        const haystack = [
+                            elem.data('name') || '',
+                            elem.data('code') || '',
+                            elem.data('contact') || '',
+                            elem.data('email') || '',
+                            elem.data('city') || '',
+                            elem.data('state') || '',
+                            elem.data('gstin') || '',
+                            elem.data('pan') || ''
+                        ].join(' ');
+
+                        return fuzzyScoreClient(term, haystack) > 0 ? data : null;
+                    },
+                    sorter: function(data) {
+                        if (!clientSearchTerm) return data;
+                        return data.slice().sort(function(a, b) {
+                            const aElem = a.element ? $(a.element) : null;
+                            const bElem = b.element ? $(b.element) : null;
+
+                            const aHaystack = aElem ? [
+                                aElem.data('name') || '',
+                                aElem.data('code') || '',
+                                aElem.data('contact') || '',
+                                aElem.data('email') || '',
+                                aElem.data('city') || '',
+                                aElem.data('state') || '',
+                                aElem.data('gstin') || '',
+                                aElem.data('pan') || ''
+                            ].join(' ') : (a.text || '');
+
+                            const bHaystack = bElem ? [
+                                bElem.data('name') || '',
+                                bElem.data('code') || '',
+                                bElem.data('contact') || '',
+                                bElem.data('email') || '',
+                                bElem.data('city') || '',
+                                bElem.data('state') || '',
+                                bElem.data('gstin') || '',
+                                bElem.data('pan') || ''
+                            ].join(' ') : (b.text || '');
+
+                            const bScore = fuzzyScoreClient(clientSearchTerm, bHaystack);
+                            const aScore = fuzzyScoreClient(clientSearchTerm, aHaystack);
+                            if (bScore !== aScore) return bScore - aScore;
+                            return (a.text || '').localeCompare(b.text || '');
+                        });
+                    }
+                });
+
+                select.on('select2:open', function() {
+                    setTimeout(function() {
+                        const searchField = document.querySelector('.select2-container--open .select2-search__field');
+                        if (searchField) searchField.focus();
+                        focusFirstClientResultOption();
+                    }, 0);
+                });
+
+                select.on('select2:close', function() {
+                    clientSearchTerm = '';
+                });
+
+                $(document).off('input.salesClientSearch').on('input.salesClientSearch', '.select2-container--open .select2-search__field', function() {
+                    clientSearchTerm = $(this).val() || '';
+                    setTimeout(function() {
+                        focusFirstClientResultOption();
+                    }, 0);
+                });
+
+                $(document).off('keydown.salesClientSearchEnter').on('keydown.salesClientSearchEnter', '.select2-container--open .select2-search__field', function(e) {
+                    if (e.key !== 'Enter') return;
+
+                    const openContainer = $('.select2-container--open');
+                    if (!openContainer.length) return;
+
+                    let target = openContainer.find('.select2-results__option--highlighted').first();
+                    if (!target.length) {
+                        target = openContainer
+                            .find('.select2-results__option[aria-selected]')
+                            .not('.select2-results__option--loading')
+                            .not('.select2-results__option--disabled')
+                            .first();
+                    }
+
+                    if (target.length) {
+                        e.preventDefault();
+                        target.trigger('mouseup');
+                    }
+                });
             }
         }
     });
@@ -952,6 +2079,42 @@ function checkCreditLimit() {
     }
 }
 
+function formatExpiryShort(dateValue) {
+    if (!dateValue) return '';
+    const d = new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+}
+
+function enforceRateLimit(row, shouldReport) {
+    const rateInput = row.find('.rate-input');
+    if (!rateInput.length) return true;
+
+    const mrpValue = parseFloat(row.find('.mrp-value').val()) || 0;
+    const rateValue = parseFloat(rateInput.val()) || 0;
+
+    if (mrpValue > 0) {
+        rateInput.attr('max', mrpValue.toFixed(2));
+    } else {
+        rateInput.attr('max', '');
+    }
+
+    if (mrpValue > 0 && rateValue > mrpValue) {
+        rateInput.val(mrpValue.toFixed(2));
+        rateInput[0].setCustomValidity('Rate cannot exceed MRP');
+        if (shouldReport) {
+            rateInput[0].reportValidity();
+        }
+        setTimeout(function() {
+            rateInput[0].setCustomValidity('');
+        }, 1200);
+        return false;
+    }
+
+    rateInput[0].setCustomValidity('');
+    return true;
+}
+
 function fetchProductDetails(productId, row) {
     console.log('fetchProductDetails called with productId:', productId);
 
@@ -964,8 +2127,13 @@ function fetchProductDetails(productId, row) {
             console.log('fetchProductInvoice response:', response);
 
             if (response.success) {
+                const product = response.data.product || {};
                 const batches = response.data.batches || [];
                 const batchSelect = row.find('.batch-select');
+                row.find('.manufacturer-display').val(product.brand_name || row.find('.manufacturer-display').val() || '');
+                row.find('.manufacturer-value').val(product.brand_name || row.find('.manufacturer-value').val() || '');
+                row.find('.pack-display').val(product.pack_size || row.find('.pack-display').val() || '');
+                row.find('.pack-value').val(product.pack_size || row.find('.pack-value').val() || '');
                 row.data('fefoBatches', batches);
                 batchSelect.empty();
                 batchSelect.append('<option value="">--Select Batch--</option>');
@@ -975,12 +2143,13 @@ function fetchProductDetails(productId, row) {
                     batchSelect.append('<option disabled>No stock available</option>');
                 } else {
                     batches.forEach(batch => {
-                        const expiry = new Date(batch.expiry_date).toLocaleDateString('en-IN');
+                        const expiry = formatExpiryShort(batch.expiry_date);
                         batchSelect.append(`
                             <option value="${batch.batch_id}" 
                                 data-available="${batch.available_quantity}" 
                                 data-mrp="${batch.mrp}" 
                                 data-ptr="${batch.purchase_rate}"
+                                data-batch-number="${batch.batch_number || ''}"
                                 data-expiry="${batch.expiry_date}">
                                 ${batch.batch_number} (Exp: ${expiry}, Qty: ${batch.available_quantity})
                             </option>
@@ -1065,6 +2234,8 @@ function renderFefoExplain(row) {
 
 
 function calculateLineTotalRow(row) {
+    enforceRateLimit(row, false);
+
     const qty = parseFloat(row.find('.quantity-input').val()) || 0;
     const rate = parseFloat(row.find('.rate-input').val()) || 0;
     const discount = parseFloat(row.find('.discount-input').val()) || 0;
@@ -1161,19 +2332,31 @@ function getBlankRowHTML(rowNum) {
                     <input type="text" class="form-control form-control-sm product-search" 
                         placeholder="Type medicine name..." data-row="${rowNum}" autocomplete="off" />
                     <input type="hidden" class="product-id" name="product_id[]" />
-                    <div class="search-results" style="position: absolute; background: white; border: 1px solid #999; max-height: 300px; overflow-y: auto; display: none; width: 100%; z-index: 1000; border-radius: 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.15); top: 100%; left: 0;"></div>
+                    <div class="search-results"></div>
                 </div>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm manufacturer-display" readonly />
+                <input type="hidden" class="manufacturer-value" name="manufacturer_snapshot[]" />
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm pack-display text-center" readonly />
+                <input type="hidden" class="pack-value" name="pack_size_snapshot[]" />
             </td>
             <td>
                 <input type="text" class="form-control form-control-sm hsn-code text-center" readonly data-row="${rowNum}" />
                 <input type="hidden" class="hsn-value" name="hsn_code[]" />
-                                                <small class="fefo-explain">FEFO preview will appear after qty entry.</small>
             </td>
             <td>
                 <select class="form-control form-control-sm batch-select" name="batch_id[]" data-row="${rowNum}">
                     <option value="">--Select--</option>
                 </select>
+                <input type="hidden" class="batch-number-value" name="batch_number[]" />
                 <small class="fefo-explain">FEFO preview will appear after qty entry.</small>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm expiry-display text-center" readonly />
+                <input type="hidden" class="expiry-value" name="expiry_date[]" />
             </td>
             <td>
                 <span class="available-qty text-center text-info font-weight-bold" style="display:block;">-</span>
@@ -1186,7 +2369,7 @@ function getBlankRowHTML(rowNum) {
                 <input type="text" class="form-control form-control-sm mrp-display text-center" readonly data-row="${rowNum}" />
                 <input type="hidden" class="mrp-value" name="mrp[]" />
             </td>
-            <td style="background-color: #fff3e0;">
+            <td class="ptr-column" style="background-color: #fff3e0;">
                 <input type="text" class="form-control form-control-sm ptr-display text-center" readonly data-row="${rowNum}" style="background-color: #ffe082; font-weight: bold; color: #000;" />
                 <input type="hidden" class="ptr-value" name="ptr[]" />
             </td>
@@ -1263,31 +2446,62 @@ $(document).ready(function(){ runDebugChecks(); });
 
 function submitInvoice() {
     // Validation
+    const submitMode = (String($('#invoiceStatus').val() || 'FINAL')).toUpperCase();
+    const isDraftSubmit = (submitMode === 'DRAFT');
+
     const clientId = $('#clientSelect').val();
     if (!clientId) {
-        alert('Please select a client');
+        showInvoicePopup('warning', 'Please select a client.', 'Validation');
         return;
     }
 
     const itemCount = $('.item-row').length;
-    if (itemCount === 0) {
-        alert('Please add at least one item');
+    if (!isDraftSubmit && itemCount === 0) {
+        showInvoicePopup('warning', 'Please add at least one item.', 'Validation');
         return;
     }
 
     let hasValidItems = false;
+    let hasInvalidRate = false;
+    let hasMissingBatch = false;
     $('.item-row').each(function() {
-        const productId = $(this).find('.product-id').val();
-        const qty = parseFloat($(this).find('.quantity-input').val()) || 0;
-        const rate = parseFloat($(this).find('.rate-input').val()) || 0;
+        const row = $(this);
+        const productId = row.find('.product-id').val();
+        const batchId = parseInt(row.find('.batch-select').val() || '0', 10);
+        const qty = parseFloat(row.find('.quantity-input').val()) || 0;
+        const rate = parseFloat(row.find('.rate-input').val()) || 0;
+        const mrp = parseFloat(row.find('.mrp-value').val()) || 0;
 
         if (productId && qty > 0 && rate > 0) {
             hasValidItems = true;
         }
+
+        if (!isDraftSubmit && productId && qty > 0 && batchId <= 0) {
+            hasMissingBatch = true;
+            row.find('.batch-select').focus();
+            return false;
+        }
+
+        if (!isDraftSubmit && productId && qty > 0 && mrp > 0 && rate > mrp) {
+            hasInvalidRate = true;
+            enforceRateLimit(row, true);
+            row.find('.rate-input').focus();
+            return false;
+        }
     });
 
-    if (!hasValidItems) {
-        alert('Please add at least one item with product, quantity, and rate');
+    if (!isDraftSubmit && !hasValidItems) {
+        showInvoicePopup('warning', 'Please add at least one item with product, quantity, and rate.', 'Validation');
+        return;
+    }
+
+    if (!isDraftSubmit && hasMissingBatch) {
+        showInvoicePopup('warning', 'Please select a batch for each item before creating the invoice.', 'Validation');
+        return;
+    }
+
+    if (!isDraftSubmit && hasInvalidRate) {
+        showInvoicePopup('warning', 'Rate cannot exceed MRP. Please correct the highlighted row.', 'Validation');
         return;
     }
 
@@ -1301,17 +2515,15 @@ function submitInvoice() {
         dataType: 'json',
         success: function(response) {
             if (response.success) {
-                $('#successText').text(response.message);
-                $('#successMessage').show();
-                $('#errorMessage').hide();
+                $('#successMessage, #errorMessage').hide();
+                showInvoicePopup('success', response.message || 'Invoice saved successfully.', 'Invoice Saved');
 
                 setTimeout(function() {
                     window.location.href = 'sales_invoice_list.php';
                 }, 1500);
             } else {
-                $('#errorText').text(response.message);
-                $('#errorMessage').show();
-                $('#successMessage').hide();
+                $('#successMessage, #errorMessage').hide();
+                showInvoicePopup('error', response.message || 'Unable to save invoice.', 'Invoice Not Saved');
             }
         },
         error: function(xhr, status, error) {
@@ -1319,8 +2531,8 @@ function submitInvoice() {
             if (xhr.responseText) {
                 msg += '\n' + xhr.responseText;
             }
-            $('#errorText').text(msg);
-            $('#errorMessage').show();
+            $('#successMessage, #errorMessage').hide();
+            showInvoicePopup('error', msg, 'Request Failed');
         }
     });
 }

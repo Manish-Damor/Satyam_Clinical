@@ -1,21 +1,14 @@
-<?php 
+<?php
 // DB credentials.
 $localhost = "localhost";
 $username = "root";
 $password = "";
 $dbname = "satyam_clinical_new";
-//$store_url = "http://localhost/phpinventory/";
-// db connection
+
+// DB connection.
 $connect = new mysqli($localhost, $username, $password, $dbname);
-// check connection
-if($connect->connect_error) {
-  die("Connection Failed : " . $connect->connect_error);
-} else {
-  // echo "Successfully connected";
+
+// Check connection.
+if ($connect->connect_error) {
+    die("Connection Failed : " . $connect->connect_error);
 }
-?>
-
-
-
-
-

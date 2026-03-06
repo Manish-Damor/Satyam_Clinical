@@ -6,6 +6,9 @@
 
 header('Content-Type: application/json');
 require '../constant/connect.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 $response = [
     'success' => false,
@@ -27,9 +30,9 @@ try {
     $invoiceDate = $_POST['invoice_date'];
     $dueDate = $_POST['due_date'] ?? null;
     $deliveryAddress = $_POST['delivery_address'] ?? null;
-    $invoiceStatus = $_POST['invoice_status'] ?? 'DRAFT';
     $paymentType = $_POST['payment_type'] ?? null;
-    $paymentPlace = $_POST['payment_place'] ?? null;
+    $paymentMethod = $_POST['payment_method'] ?? null;
+    $paymentNotes = $_POST['payment_notes'] ?? null;
     $paymentStatus = $_POST['payment_status'] ?? 'UNPAID';
     
     // Financial data
@@ -42,7 +45,10 @@ try {
     $dueAmount = floatval($_POST['due_amount'] ?? 0);
     
     // Audit
-    $userId = $_SESSION['userId'] ?? null;
+    $sessionUserId = $_SESSION['userId'] ?? null;
+    $userId = (is_numeric($sessionUserId) && intval($sessionUserId) > 0)
+        ? intval($sessionUserId)
+        : null;
     
     // Begin transaction
     $connect->begin_transaction();
@@ -54,13 +60,13 @@ try {
             SET client_id = ?, invoice_date = ?, due_date = ?, delivery_address = ?,
                 subtotal = ?, discount_amount = ?, discount_percent = ?, 
                 gst_amount = ?, grand_total = ?, paid_amount = ?, due_amount = ?,
-                payment_type = ?, payment_place = ?,
-                invoice_status = ?, payment_status = ?, updated_by = ?, updated_at = NOW()
+                payment_type = ?, payment_method = ?, payment_notes = ?,
+                payment_status = ?, updated_by = ?, updated_at = NOW()
             WHERE invoice_id = ?
         ");
         
         $updateInvoice->bind_param(
-            'issddddddddsssii',
+            'isssdddddddssssii',
             $clientId,
             $invoiceDate,
             $dueDate,
@@ -73,8 +79,8 @@ try {
             $paidAmount,
             $dueAmount,
             $paymentType,
-            $paymentPlace,
-            $invoiceStatus,
+            $paymentMethod,
+            $paymentNotes,
             $paymentStatus,
             $userId,
             $invoiceId
@@ -94,9 +100,13 @@ try {
             $insertItem = $connect->prepare("
                 INSERT INTO sales_invoice_items
                 (invoice_id, product_id, batch_id, quantity, unit_rate, purchase_rate,
-                 line_subtotal, gst_rate, gst_amount, line_total, added_date)
+                 line_subtotal, gst_rate, gst_amount, line_total, batch_number, expiry_date, added_date)
                 VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ");
+
+            $fetchBatchMrp = $connect->prepare("
+                SELECT mrp FROM product_batches WHERE batch_id = ? AND product_id = ? LIMIT 1
             ");
             
             $productIds = $_POST['product_id'];
@@ -106,6 +116,8 @@ try {
             $ptrs = $_POST['ptr'];
             $gstRates = $_POST['gst_rate'];
             $lineTotals = $_POST['line_total'];
+            $batchNumbers = $_POST['batch_number'] ?? [];
+            $expiryDates = $_POST['expiry_date'] ?? [];
             
             for ($i = 0; $i < count($productIds); $i++) {
                 $productId = intval($productIds[$i]);
@@ -115,13 +127,45 @@ try {
                 $ptr = floatval($ptrs[$i]) ?: null;
                 $gstRate = floatval($gstRates[$i]);
                 $lineTotal = floatval($lineTotals[$i]);
+                $batchNumber = trim((string)($batchNumbers[$i] ?? ''));
+                $expiryDate = trim((string)($expiryDates[$i] ?? ''));
+                $expiryDate = ($expiryDate === '') ? null : $expiryDate;
+
+                if ($productId <= 0 && $quantity <= 0 && $rate <= 0) {
+                    continue;
+                }
+
+                if ($productId <= 0 || $quantity <= 0) {
+                    throw new Exception('Product and quantity are required for each invoice row');
+                }
+
+                if ($rate <= 0) {
+                    throw new Exception('Rate is required for product #' . $productId);
+                }
+
+                if ($batchId === null || $batchId <= 0) {
+                    throw new Exception('Batch selection is required for product #' . $productId);
+                }
+
+                $fetchBatchMrp->bind_param('ii', $batchId, $productId);
+                $fetchBatchMrp->execute();
+                $batchMrpRow = $fetchBatchMrp->get_result()->fetch_assoc();
+
+                if (!$batchMrpRow) {
+                    throw new Exception('Invalid batch selected for product #' . $productId);
+                }
+
+                $batchMrp = (float)$batchMrpRow['mrp'];
+                if ($batchMrp > 0 && $rate > ($batchMrp + 0.0001)) {
+                    throw new Exception('Rate cannot exceed MRP for product #' . $productId);
+                }
                 
                 // Calculate line subtotal (before GST)
                 $lineSubtotal = $quantity * $rate;
                 $lineGstAmount = $lineSubtotal * ($gstRate / 100);
                 
                 $insertItem->bind_param(
-                    'iidddrddd',
+                    'iiidddddddss',
                     $invoiceId,
                     $productId,
                     $batchId,
@@ -130,7 +174,10 @@ try {
                     $ptr,
                     $lineSubtotal,
                     $gstRate,
-                    $lineGstAmount
+                    $lineGstAmount,
+                    $lineTotal,
+                    $batchNumber,
+                    $expiryDate
                 );
                 
                 if (!$insertItem->execute()) {

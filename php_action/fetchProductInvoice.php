@@ -24,18 +24,20 @@ try {
     // Fetch product with all pricing info
     $stmt = $connect->prepare("
         SELECT 
-            product_id,
-            product_name,
-            content,
-            pack_size,
-            hsn_code,
-            expected_mrp as selling_price,
-            purchase_rate as ptr,
-            gst_rate,
-            reorder_level,
-            status
-        FROM product
-        WHERE product_id = ? AND status = 1
+            p.product_id,
+            p.product_name,
+            p.content,
+            p.pack_size,
+            p.hsn_code,
+            p.expected_mrp as selling_price,
+            p.purchase_rate as ptr,
+            p.gst_rate,
+            p.reorder_level,
+            p.status,
+            COALESCE(b.brand_name, '') AS brand_name
+        FROM product p
+        LEFT JOIN brands b ON b.brand_id = p.brand_id
+        WHERE p.product_id = ? AND p.status = 1
     ");
     
     if (!$stmt) {
@@ -65,6 +67,7 @@ try {
         WHERE b.product_id = ? 
         AND LOWER(b.status) = 'active'
         AND COALESCE(b.available_quantity, 0) > 0
+        AND b.expiry_date >= CURDATE()
         ORDER BY b.expiry_date ASC
     ");
     

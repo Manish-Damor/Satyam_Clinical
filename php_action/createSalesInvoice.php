@@ -42,6 +42,8 @@ try {
     $invoiceDate = $_POST['invoice_date'];
     $dueDate = $_POST['due_date'] ?? null;
     $deliveryAddress = $_POST['delivery_address'] ?? null;
+    $invoiceStatus = strtoupper(trim((string)($_POST['invoice_status'] ?? 'FINAL')));
+    $isDraft = ($invoiceStatus === 'DRAFT');
     $paymentType = $_POST['payment_type'] ?? 'Cash';
     $paymentMethod = $_POST['payment_method'] ?? null;
     $paymentNotes = $_POST['payment_notes'] ?? null;
@@ -61,7 +63,10 @@ try {
     $dueAmount = floatval($_POST['due_amount'] ?? 0);
     
     // Audit
-    $userId = $_SESSION['userId'] ?? null;
+    $sessionUserId = $_SESSION['userId'] ?? null;
+    $userId = (is_numeric($sessionUserId) && intval($sessionUserId) > 0)
+        ? intval($sessionUserId)
+        : null;
     
     // Fetch client details including addresses and tax info
     $clientFetch = $connect->prepare("SELECT client_id, name, state, billing_address, shipping_address, gstin, pan, drug_licence_no, credit_limit, outstanding_balance FROM clients WHERE client_id = ?");
@@ -107,7 +112,7 @@ try {
     
     // CREDIT SYSTEM LOGIC
     // For Credit payments, update the client's outstanding balance
-    if (strtolower($paymentType) === 'credit') {
+    if (!$isDraft && strtolower($paymentType) === 'credit') {
         $newOutstanding = $outstandingBalance + $grandTotal;
         // Note: We allow credit even if it exceeds limit (with warning shown on frontend)
         // Proceed anyway as per user requirement
@@ -166,9 +171,17 @@ try {
         }
         
         $invoiceId = $connect->insert_id;
+
+        if (!$isDraft) {
+            $markSubmitted = $connect->prepare("\n                UPDATE sales_invoices\n                SET submitted_by = ?, submitted_at = NOW()\n                WHERE invoice_id = ?\n            ");
+            $markSubmitted->bind_param('ii', $userId, $invoiceId);
+            if (!$markSubmitted->execute()) {
+                throw new Exception('Failed to mark invoice as submitted: ' . $markSubmitted->error);
+            }
+        }
         
         // UPDATE CLIENT OUTSTANDING BALANCE IF CREDIT PAYMENT
-        if (strtolower($paymentType) === 'credit') {
+        if (!$isDraft && strtolower($paymentType) === 'credit') {
             $updateBalance = $connect->prepare("
                 UPDATE clients SET outstanding_balance = outstanding_balance + ? WHERE client_id = ?
             ");
@@ -179,13 +192,17 @@ try {
         }
         
         // Insert items and process allocation plan
-        if (!empty($_POST['product_id'])) {
+        if (!$isDraft && empty($_POST['product_id'])) {
+            throw new Exception('At least one item is required to create invoice');
+        }
+
+        if (!$isDraft && !empty($_POST['product_id'])) {
             $insertItem = $connect->prepare("
                 INSERT INTO sales_invoice_items
                 (invoice_id, product_id, batch_id, quantity, unit_rate, purchase_rate,
-                 line_subtotal, gst_rate, gst_amount, line_total, added_date)
+                 line_subtotal, gst_rate, gst_amount, line_total, batch_number, expiry_date, added_date)
                 VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
 
             $insertMovement = $connect->prepare("
@@ -198,85 +215,105 @@ try {
                 UPDATE product_batches SET available_quantity = available_quantity - ? WHERE batch_id = ? AND available_quantity >= ?
             ");
 
-            $fefoBatchFetch = $connect->prepare("\
-                SELECT batch_id, available_quantity, mrp, purchase_rate, expiry_date
+            $selectedBatchFetch = $connect->prepare("
+                SELECT batch_id, batch_number, available_quantity, mrp, purchase_rate, expiry_date
                 FROM product_batches
-                WHERE product_id = ?
+                WHERE batch_id = ?
+                  AND product_id = ?
                   AND status = 'Active'
-                  AND expiry_date > CURDATE()
-                  AND available_quantity > 0
-                ORDER BY expiry_date ASC, batch_id ASC
+                                    AND expiry_date >= CURDATE()
                 FOR UPDATE
             ");
 
             $productIds = $_POST['product_id'];
+            $batchIds = $_POST['batch_id'] ?? [];
             $quantities = $_POST['quantity'];
             $rates = $_POST['rate'];
-            $ptrs = $_POST['ptr'];
             $gstRates = $_POST['gst_rate'];
 
             for ($i = 0; $i < count($productIds); $i++) {
                 $productId = intval($productIds[$i]);
+                $batchId = isset($batchIds[$i]) ? intval($batchIds[$i]) : 0;
                 $quantity = floatval($quantities[$i]);
                 $rate = floatval($rates[$i]);
                 $gstRate = floatval($gstRates[$i]);
 
-                if ($productId <= 0 || $quantity <= 0) {
+                if ($productId <= 0 && $quantity <= 0 && $rate <= 0) {
                     continue;
                 }
 
-                $remainingQty = $quantity;
-                $fefoBatchFetch->bind_param('i', $productId);
-                $fefoBatchFetch->execute();
-                $batchResult = $fefoBatchFetch->get_result();
-
-                while ($remainingQty > 0 && $batch = $batchResult->fetch_assoc()) {
-                    $batchId = (int) $batch['batch_id'];
-                    $availableQty = (float) $batch['available_quantity'];
-                    if ($availableQty <= 0) {
-                        continue;
-                    }
-
-                    $allocQty = min($remainingQty, $availableQty);
-                    $unitRate = $rate > 0 ? $rate : (float) $batch['mrp'];
-                    $batchPtr = (float) $batch['purchase_rate'];
-                    $lineSubtotal = $allocQty * $unitRate;
-                    $lineGstAmount = $lineSubtotal * ($gstRate / 100);
-                    $lineTotal = $lineSubtotal + $lineGstAmount;
-
-                    $insertItem->bind_param(
-                        'iiiddddddd',
-                        $invoiceId,
-                        $productId,
-                        $batchId,
-                        $allocQty,
-                        $unitRate,
-                        $batchPtr,
-                        $lineSubtotal,
-                        $gstRate,
-                        $lineGstAmount,
-                        $lineTotal
-                    );
-                    if (!$insertItem->execute()) {
-                        throw new Exception('Failed to add item: ' . $insertItem->error);
-                    }
-
-                    $updateBatch->bind_param('did', $allocQty, $batchId, $allocQty);
-                    if (!$updateBatch->execute() || $updateBatch->affected_rows === 0) {
-                        throw new Exception('Insufficient stock for batch ' . $batchId);
-                    }
-
-                    $note = 'Sales Invoice #' . $invoiceNumber;
-                    $insertMovement->bind_param('iiidisi', $productId, $batchId, $allocQty, $invoiceId, $note, $userId);
-                    if (!$insertMovement->execute()) {
-                        throw new Exception('Failed to log stock movement: ' . $insertMovement->error);
-                    }
-
-                    $remainingQty -= $allocQty;
+                if ($productId <= 0 || $quantity <= 0) {
+                    throw new Exception('Product and quantity are required for each row');
                 }
 
-                if ($remainingQty > 0) {
-                    throw new Exception('Insufficient FEFO stock for product #' . $productId . ' (short by ' . $remainingQty . ')');
+                if ($batchId <= 0) {
+                    throw new Exception('Batch is required for product #' . $productId);
+                }
+
+                if ($rate <= 0) {
+                    throw new Exception('Rate is required for product #' . $productId);
+                }
+
+                $selectedBatchFetch->bind_param('ii', $batchId, $productId);
+                $selectedBatchFetch->execute();
+                $batch = $selectedBatchFetch->get_result()->fetch_assoc();
+
+                if (!$batch) {
+                    throw new Exception('Selected batch is invalid, inactive, or expired for product #' . $productId);
+                }
+
+                $availableQty = (float) $batch['available_quantity'];
+                if ($quantity > ($availableQty + 0.0001)) {
+                    throw new Exception(
+                        'Insufficient stock for product #' . $productId .
+                        ' (batch ' . ($batch['batch_number'] ?: $batchId) . ')'
+                    );
+                }
+
+                $batchMrp = (float) $batch['mrp'];
+                if ($batchMrp > 0 && $rate > ($batchMrp + 0.0001)) {
+                    throw new Exception(
+                        'Rate cannot exceed MRP for product #' . $productId .
+                        ' (batch ' . ($batch['batch_number'] ?: $batchId) . ')'
+                    );
+                }
+
+                $unitRate = $rate;
+                $batchPtr = (float) $batch['purchase_rate'];
+                $batchNumber = (string)($batch['batch_number'] ?? '');
+                $expiryDate = !empty($batch['expiry_date']) ? (string)$batch['expiry_date'] : null;
+                $lineSubtotal = $quantity * $unitRate;
+                $lineGstAmount = $lineSubtotal * ($gstRate / 100);
+                $lineTotal = $lineSubtotal + $lineGstAmount;
+
+                $insertItem->bind_param(
+                    'iiidddddddss',
+                    $invoiceId,
+                    $productId,
+                    $batchId,
+                    $quantity,
+                    $unitRate,
+                    $batchPtr,
+                    $lineSubtotal,
+                    $gstRate,
+                    $lineGstAmount,
+                    $lineTotal,
+                    $batchNumber,
+                    $expiryDate
+                );
+                if (!$insertItem->execute()) {
+                    throw new Exception('Failed to add item: ' . $insertItem->error);
+                }
+
+                $updateBatch->bind_param('did', $quantity, $batchId, $quantity);
+                if (!$updateBatch->execute() || $updateBatch->affected_rows === 0) {
+                    throw new Exception('Insufficient stock for batch ' . $batchId);
+                }
+
+                $note = 'Sales Invoice #' . $invoiceNumber;
+                $insertMovement->bind_param('iidisi', $productId, $batchId, $quantity, $invoiceId, $note, $userId);
+                if (!$insertMovement->execute()) {
+                    throw new Exception('Failed to log stock movement: ' . $insertMovement->error);
                 }
             }
         }
@@ -292,7 +329,7 @@ try {
         $updateSeq->execute();
         
         // Log initial payment transaction if paid amount > 0
-        if ($paidAmount > 0) {
+        if (!$isDraft && $paidAmount > 0) {
             $insertTxn = $connect->prepare("
                 INSERT INTO invoice_transactions
                 (invoice_id, transaction_type, amount, payment_method, created_by, created_at)
@@ -306,7 +343,9 @@ try {
         $connect->commit();
         
         $response['success'] = true;
-        $response['message'] = "Invoice {$invoiceNumber} created successfully";
+        $response['message'] = $isDraft
+            ? "Draft invoice {$invoiceNumber} saved successfully"
+            : "Invoice {$invoiceNumber} created successfully";
         $response['invoice_id'] = $invoiceId;
         
     } catch (Exception $e) {

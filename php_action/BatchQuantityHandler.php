@@ -46,7 +46,7 @@ class BatchQuantityHandler {
             WHERE product_id = ?
             AND available_quantity > 0
             AND LOWER(status) = 'active'
-            AND expiry_date > CURDATE()
+            AND expiry_date >= CURDATE()
             ORDER BY expiry_date ASC, available_quantity DESC
         ";
 

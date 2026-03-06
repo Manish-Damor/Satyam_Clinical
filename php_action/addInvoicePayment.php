@@ -109,7 +109,7 @@ try {
             // Update invoice with payment_received_date
             $updateInvoice = $connect->prepare("
                 UPDATE sales_invoices 
-                SET paid_amount = ?, due_amount = ?, payment_status = ?, payment_received_date = NOW(), updated_at = NOW()
+                SET paid_amount = ?, due_amount = ?, payment_status = ?, updated_at = NOW()
                 WHERE invoice_id = ?
             ");
             

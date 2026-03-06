@@ -1,390 +1,535 @@
 <?php
 /**
- * PROFESSIONAL SALES INVOICE PRINT TEMPLATE
- * Print-optimized PDF-friendly format
- * 2-column layout with company branding
- * PTR hidden from print view
+ * SALES INVOICE PRINT (PHARMACY FORMAT)
+ * Troikaa-style layout with manufacturer and pack columns.
  */
 
 require './constant/connect.php';
 
-// Get invoice ID from URL
-$invoiceId = isset($_GET['id']) ? intval($_GET['id']) : null;
-
-if (!$invoiceId) {
-    die('Invoice not found');
+$invoiceId = isset($_GET['id']) ? intval($_GET['id']) : 0;
+if ($invoiceId <= 0) {
+    die('Invalid invoice id');
 }
 
-// Fetch invoice details
-$stmt = $connect->prepare("
-    SELECT si.*, c.name as client_name, c.contact_phone, c.email, c.gstin as client_gstin,
-           c.billing_address, c.shipping_address, c.city, c.state, c.postal_code
-    FROM sales_invoices si
-    LEFT JOIN clients c ON si.client_id = c.client_id
-    WHERE si.invoice_id = ? AND si.deleted_at IS NULL
-");
-
-$stmt->bind_param('i', $invoiceId);
-$stmt->execute();
-$invoiceResult = $stmt->get_result();
-
-if ($invoiceResult->num_rows === 0) {
-    die('Invoice not found');
+function safeText($value)
+{
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
 
-$invoice = $invoiceResult->fetch_assoc();
-
-// Fetch invoice items
-$itemStmt = $connect->prepare("
-    SELECT sii.*, p.product_name, p.content, p.pack_size, p.hsn_code
-    FROM sales_invoice_items sii
-    LEFT JOIN product p ON sii.product_id = p.product_id
-    WHERE sii.invoice_id = ?
-    ORDER BY sii.item_id ASC
-");
-
-$itemStmt->bind_param('i', $invoiceId);
-$itemStmt->execute();
-$itemsResult = $itemStmt->get_result();
-$items = [];
-while ($item = $itemsResult->fetch_assoc()) {
-    $items[] = $item;
+function fmtDate($value, $format = 'd.m.Y')
+{
+    if (empty($value)) {
+        return '-';
+    }
+    $ts = strtotime((string)$value);
+    return $ts ? date($format, $ts) : '-';
 }
 
-// Company details (hardcoded - customize as needed)
+function fmtMonthYear($value)
+{
+    if (empty($value)) {
+        return '-';
+    }
+    $ts = strtotime((string)$value);
+    return $ts ? date('M-y', $ts) : '-';
+}
+
+function fmtAmount($value, $decimals = 2)
+{
+    return number_format((float)$value, $decimals, '.', '');
+}
+
+function wordsBelowThousand($number)
+{
+    $number = (int)$number;
+    $ones = [
+        '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+        'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+    ];
+    $tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    $parts = [];
+    if ($number >= 100) {
+        $parts[] = $ones[intdiv($number, 100)] . ' Hundred';
+        $number %= 100;
+    }
+    if ($number >= 20) {
+        $parts[] = $tens[intdiv($number, 10)];
+        $number %= 10;
+    }
+    if ($number > 0) {
+        $parts[] = $ones[$number];
+    }
+
+    return trim(implode(' ', array_filter($parts)));
+}
+
+function numberToWordsIndian($number)
+{
+    $number = (int)$number;
+    if ($number === 0) {
+        return 'Zero';
+    }
+
+    $parts = [];
+
+    $crore = intdiv($number, 10000000);
+    if ($crore > 0) {
+        $parts[] = wordsBelowThousand($crore) . ' Crore';
+        $number %= 10000000;
+    }
+
+    $lakh = intdiv($number, 100000);
+    if ($lakh > 0) {
+        $parts[] = wordsBelowThousand($lakh) . ' Lakh';
+        $number %= 100000;
+    }
+
+    $thousand = intdiv($number, 1000);
+    if ($thousand > 0) {
+        $parts[] = wordsBelowThousand($thousand) . ' Thousand';
+        $number %= 1000;
+    }
+
+    if ($number > 0) {
+        $parts[] = wordsBelowThousand($number);
+    }
+
+    return trim(preg_replace('/\s+/', ' ', implode(' ', $parts)));
+}
+
+function amountInWordsIndian($amount)
+{
+    $amount = round(max(0, (float)$amount), 2);
+    $rupees = (int)floor($amount);
+    $paise = (int)round(($amount - $rupees) * 100);
+
+    $text = numberToWordsIndian($rupees) . ' Only';
+    if ($paise > 0) {
+        $text = numberToWordsIndian($rupees) . ' and ' . numberToWordsIndian($paise) . ' Paise Only';
+    }
+
+    return $text;
+}
+
+function pickSetting($settings, $keys, $default = '')
+{
+    foreach ($keys as $key) {
+        $k = strtolower((string)$key);
+        if (isset($settings[$k]) && trim((string)$settings[$k]) !== '') {
+            return trim((string)$settings[$k]);
+        }
+    }
+    return $default;
+}
+
 $company = [
     'name' => 'Satyam Clinical Pharmacy',
     'address' => 'Nashik, Maharashtra, India',
-    'gstin' => '27XXXXXXX1234K1',
-    'pan' => 'AAAXP1234A',
-    'phone' => '+91-XXXXX-XXXXX',
-    'email' => 'info@satyamclinical.com'
+    'phone' => '-',
+    'email' => '-',
+    'gstin' => '-',
+    'pan' => '-',
+    'lic_no' => '-',
+    'dl_no' => '-',
+    'msme_no' => '-',
+    'bank_name' => 'State Bank Of India',
+    'ifsc' => '-',
+    'account_no' => '-',
+    'branch' => '-',
+    'tagline' => 'We have a Unique Solution to Life'
 ];
 
+$settings = [];
+$settingsCheck = $connect->query("SHOW TABLES LIKE 'company_settings'");
+if ($settingsCheck && $settingsCheck->num_rows > 0) {
+    $settingsRes = $connect->query("SELECT setting_key, setting_value FROM company_settings");
+    if ($settingsRes) {
+        while ($row = $settingsRes->fetch_assoc()) {
+            $key = strtolower(trim((string)($row['setting_key'] ?? '')));
+            if ($key === '') {
+                continue;
+            }
+            $settings[$key] = (string)($row['setting_value'] ?? '');
+        }
+    }
+}
+
+$company['name'] = pickSetting($settings, ['company_name', 'title', 'store_name'], $company['name']);
+$company['address'] = pickSetting($settings, ['company_address', 'address'], $company['address']);
+$company['phone'] = pickSetting($settings, ['company_phone', 'phone', 'mobile'], $company['phone']);
+$company['email'] = pickSetting($settings, ['company_email', 'email'], $company['email']);
+$company['gstin'] = pickSetting($settings, ['company_gstin', 'gstin'], $company['gstin']);
+$company['pan'] = pickSetting($settings, ['company_pan', 'pan'], $company['pan']);
+$company['lic_no'] = pickSetting($settings, ['license_no', 'lic_no'], $company['lic_no']);
+$company['dl_no'] = pickSetting($settings, ['dl_no', 'drug_license_no', 'drug_licence_no'], $company['dl_no']);
+$company['msme_no'] = pickSetting($settings, ['msme_no', 'udyam_no'], $company['msme_no']);
+$company['bank_name'] = pickSetting($settings, ['bank_name'], $company['bank_name']);
+$company['ifsc'] = pickSetting($settings, ['ifsc_code', 'ifsc'], $company['ifsc']);
+$company['account_no'] = pickSetting($settings, ['account_no', 'account_number'], $company['account_no']);
+$company['branch'] = pickSetting($settings, ['branch_name', 'branch'], $company['branch']);
+$company['tagline'] = pickSetting($settings, ['invoice_tagline', 'tagline'], $company['tagline']);
+
+$invoiceStmt = $connect->prepare(
+    "SELECT si.*, 
+            c.name AS client_name,
+            c.contact_phone,
+            c.email AS client_email,
+            c.gstin AS client_gstin,
+            c.drug_licence_no AS client_dl_no,
+            c.billing_address,
+            c.shipping_address,
+            c.city,
+            c.state,
+            c.postal_code,
+            c.outstanding_balance
+     FROM sales_invoices si
+     LEFT JOIN clients c ON c.client_id = si.client_id
+     WHERE si.invoice_id = ? AND si.deleted_at IS NULL"
+);
+$invoiceStmt->bind_param('i', $invoiceId);
+$invoiceStmt->execute();
+$invoiceResult = $invoiceStmt->get_result();
+if ($invoiceResult->num_rows === 0) {
+    die('Invoice not found');
+}
+$invoice = $invoiceResult->fetch_assoc();
+
+$itemStmt = $connect->prepare(
+    "SELECT sii.*, 
+            p.product_name,
+            p.content,
+            p.pack_size,
+            p.hsn_code,
+            COALESCE(b.brand_name, '') AS manufacturer_name,
+            COALESCE(sii.batch_number, pb.batch_number, '') AS batch_number_display,
+            COALESCE(sii.expiry_date, pb.expiry_date) AS expiry_display,
+            COALESCE(pb.mrp, p.expected_mrp, 0) AS mrp_display
+     FROM sales_invoice_items sii
+     LEFT JOIN product p ON p.product_id = sii.product_id
+     LEFT JOIN brands b ON b.brand_id = p.brand_id
+     LEFT JOIN product_batches pb ON pb.batch_id = sii.batch_id
+     WHERE sii.invoice_id = ?
+     ORDER BY sii.item_id ASC"
+);
+$itemStmt->bind_param('i', $invoiceId);
+$itemStmt->execute();
+$itemResult = $itemStmt->get_result();
+
+$items = [];
+while ($row = $itemResult->fetch_assoc()) {
+    $items[] = $row;
+}
+
+$isIntrastate = ((float)($invoice['igst_amount'] ?? 0) <= 0.0001);
+$gstSummary = [];
+foreach ($items as $line) {
+    $gstRate = (float)($line['gst_rate'] ?? 0);
+    $key = number_format($gstRate, 2, '.', '');
+
+    $taxable = (float)($line['line_subtotal'] ?? 0);
+    if ($taxable <= 0) {
+        $lineTotal = (float)($line['line_total'] ?? 0);
+        $taxable = ($gstRate > 0) ? ($lineTotal / (1 + ($gstRate / 100))) : $lineTotal;
+    }
+
+    $gstAmt = (float)($line['gst_amount'] ?? 0);
+    if ($gstAmt <= 0 && $gstRate > 0) {
+        $gstAmt = $taxable * ($gstRate / 100);
+    }
+
+    if (!isset($gstSummary[$key])) {
+        $gstSummary[$key] = [
+            'rate' => $gstRate,
+            'taxable' => 0,
+            'cgst' => 0,
+            'sgst' => 0,
+            'igst' => 0
+        ];
+    }
+
+    $gstSummary[$key]['taxable'] += $taxable;
+    if ($isIntrastate) {
+        $gstSummary[$key]['cgst'] += ($gstAmt / 2);
+        $gstSummary[$key]['sgst'] += ($gstAmt / 2);
+    } else {
+        $gstSummary[$key]['igst'] += $gstAmt;
+    }
+}
+ksort($gstSummary);
+
+$totalTaxableFromSlabs = 0;
+$totalCgstFromSlabs = 0;
+$totalSgstFromSlabs = 0;
+$totalIgstFromSlabs = 0;
+foreach ($gstSummary as $taxRow) {
+    $totalTaxableFromSlabs += (float)$taxRow['taxable'];
+    $totalCgstFromSlabs += (float)$taxRow['cgst'];
+    $totalSgstFromSlabs += (float)$taxRow['sgst'];
+    $totalIgstFromSlabs += (float)$taxRow['igst'];
+}
+
+$amountBeforeTax = (float)($invoice['subtotal'] ?? 0) - (float)($invoice['discount_amount'] ?? 0);
+if ($amountBeforeTax < 0) {
+    $amountBeforeTax = max(0, (float)$totalTaxableFromSlabs);
+}
+
+$transportCharges = (float)($invoice['other_charges'] ?? 0);
+$cgstAmount = (float)($invoice['cgst_amount'] ?? $totalCgstFromSlabs);
+$sgstAmount = (float)($invoice['sgst_amount'] ?? $totalSgstFromSlabs);
+$igstAmount = (float)($invoice['igst_amount'] ?? $totalIgstFromSlabs);
+$gstAmount = (float)($invoice['gst_amount'] ?? ($cgstAmount + $sgstAmount + $igstAmount));
+$grandTotal = (float)($invoice['grand_total'] ?? 0);
+
+$currentOutstanding = (float)($invoice['outstanding_balance'] ?? 0);
+$invoiceDue = (float)($invoice['due_amount'] ?? 0);
+$previousBalance = max(0, $currentOutstanding - $invoiceDue);
+$todayBillAmount = $grandTotal;
+$totalUnpaidBalance = $currentOutstanding;
+
+$buyerAddress = trim((string)($invoice['billing_address'] ?? ''));
+if ($buyerAddress === '') {
+    $buyerAddress = trim((string)($invoice['shipping_address'] ?? ''));
+}
+$placeOfSupply = trim((string)($invoice['state'] ?? ''));
+if ($placeOfSupply === '') {
+    $placeOfSupply = 'Gujarat';
+}
+
+$amountWords = amountInWordsIndian($grandTotal);
+$minRows = 10;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice <?php echo htmlspecialchars($invoice['invoice_number']); ?></title>
+    <title>Sales Invoice - <?php echo safeText($invoice['invoice_number'] ?? ''); ?></title>
     <style>
-        * {
+        * { box-sizing: border-box; }
+
+        body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Courier New', monospace;
-            color: #000;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            color: #111;
             background: #fff;
-            font-size: 12px;
-            line-height: 1.4;
         }
-        
+
+        .no-print {
+            text-align: center;
+            padding: 12px;
+        }
+
+        .no-print button {
+            padding: 8px 14px;
+            margin: 0 4px;
+            border: 1px solid #bbb;
+            background: #f5f5f5;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        .sheet {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 6mm;
+            background: #fff;
+            border: 1px solid #000;
+        }
+
+        .title-row {
+            border-bottom: 1px solid #000;
+            text-align: center;
+            font-weight: bold;
+            padding: 2px 0 3px;
+            letter-spacing: 0.5px;
+            font-size: 12px;
+        }
+
+        .company-box {
+            border-bottom: 1px solid #000;
+            text-align: center;
+            padding: 6px 4px;
+        }
+
+        .company-name {
+            font-size: 42px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            margin: 2px 0;
+        }
+
+        .company-meta {
+            margin-top: 2px;
+            line-height: 1.4;
+            font-size: 11px;
+        }
+
+        .company-meta-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            border-top: 1px solid #000;
+            padding-top: 3px;
+            margin-top: 3px;
+        }
+
+        .party-table,
+        .items-table,
+        .tax-table,
+        .summary-table,
+        .balance-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .party-table td,
+        .party-table th,
+        .items-table td,
+        .items-table th,
+        .tax-table td,
+        .tax-table th,
+        .summary-table td,
+        .summary-table th,
+        .balance-table td,
+        .balance-table th {
+            border: 1px solid #000;
+            padding: 3px 4px;
+            vertical-align: middle;
+        }
+
+        .party-table .label,
+        .summary-table .label {
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .items-table th {
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .items-table td {
+            font-size: 10px;
+        }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        .summary-wrap {
+            display: grid;
+            grid-template-columns: 46% 54%;
+            gap: 0;
+            margin-top: -1px;
+        }
+
+        .summary-table td {
+            font-size: 11px;
+            padding: 4px 6px;
+        }
+
+        .summary-table .bold-row td {
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .amount-words {
+            border: 1px solid #000;
+            border-top: none;
+            padding: 6px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+        .bank-sign-wrap {
+            display: grid;
+            grid-template-columns: 62% 38%;
+            border: 1px solid #000;
+            border-top: none;
+        }
+
+        .bank-block,
+        .sign-block {
+            min-height: 88px;
+            padding: 6px;
+        }
+
+        .bank-block {
+            border-right: 1px solid #000;
+        }
+
+        .bank-title {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .sign-company {
+            font-size: 30px;
+            font-weight: 700;
+            text-align: right;
+            margin-bottom: 26px;
+        }
+
+        .sign-line {
+            text-align: right;
+            font-weight: 700;
+        }
+
+        .balance-table {
+            border-top: none;
+            margin-top: -1px;
+        }
+
+        .balance-table td {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 8px;
+        }
+
+        .box-label-prev { background: #ffd54f; }
+        .box-label-today { background: #a5d6a7; }
+        .box-label-unpaid { background: #fff59d; }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 11px;
+        }
+
+        .muted { color: #333; }
+
         @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+
             body {
-                width: 210mm;
-                height: 297mm;
-                margin: 0;
-                padding: 0;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
-            .page {
-                width: 210mm;
-                height: 297mm;
-                margin: 0;
-                padding: 10mm;
-                page-break-after: always;
-            }
+
             .no-print {
                 display: none !important;
             }
-            body, html {
-                background: white;
-                color: black;
+
+            .sheet {
+                margin: 0;
+                border: 1px solid #000;
+                box-shadow: none;
             }
         }
-        
+
         @media screen {
-            .page {
-                width: 8.5in;
-                height: 11in;
-                margin: 20px auto;
-                padding: 10mm;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                background: white;
-            }
-        }
-        
-        .page {
-            background: white;
-            color: black;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        /* Header Section */
-        .header {
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
-        }
-        
-        .company-info {
-            display: grid;
-            grid-template-columns: 2fr 2fr;
-            gap: 20px;
-            margin-bottom: 10px;
-        }
-        
-        .company-details h3 {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 5px;
-            letter-spacing: 1px;
-        }
-        
-        .company-details p {
-            font-size: 10px;
-            margin: 2px 0;
-        }
-        
-        .invoice-meta {
-            text-align: right;
-        }
-        
-        .invoice-meta table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-        }
-        
-        .invoice-meta td {
-            padding: 3px 5px;
-            border: 1px solid #000;
-        }
-        
-        .invoice-meta .label {
-            font-weight: bold;
-            background: #f0f0f0;
-            width: 40%;
-        }
-        
-        /* Addresses Section */
-        .addresses {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 15px 0;
-            border: 1px solid #000;
-            padding: 10px;
-        }
-        
-        .address-box h4 {
-            font-size: 11px;
-            font-weight: bold;
-            margin-bottom: 5px;
-            border-bottom: 1px solid #000;
-            padding-bottom: 3px;
-        }
-        
-        .address-box p {
-            font-size: 10px;
-            margin: 2px 0;
-            line-height: 1.3;
-        }
-        
-        /* Items Table */
-        .items-section {
-            margin: 20px 0;
-        }
-        
-        .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-            margin-bottom: 5px;
-        }
-        
-        .items-table thead {
-            background: #000;
-            color: #fff;
-            font-weight: bold;
-        }
-        
-        .items-table th {
-            padding: 6px;
-            text-align: left;
-            border: 1px solid #000;
-            font-size: 10px;
-        }
-        
-        .items-table td {
-            padding: 6px;
-            border: 1px solid #000;
-            vertical-align: top;
-        }
-        
-        .items-table tbody tr:nth-child(even) {
-            background: #f9f9f9;
-        }
-        
-        .text-right {
-            text-align: right;
-        }
-        
-        .text-left {
-            text-align: left;
-        }
-        
-        .text-center {
-            text-align: center;
-        }
-        
-        /* Financial Summary */
-        .summary-section {
-            float: right;
-            width: 45%;
-            margin-top: 10px;
-        }
-        
-        .summary-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-            border: 1px solid #000;
-        }
-        
-        .summary-table tr {
-            border-bottom: 1px solid #000;
-        }
-        
-        .summary-table td {
-            padding: 5px;
-        }
-        
-        .summary-table .label {
-            font-weight: bold;
-            width: 50%;
-            text-align: left;
-        }
-        
-        .summary-table .amount {
-            text-align: right;
-            width: 50%;
-        }
-        
-        .summary-table .total-row {
-            background: #000;
-            color: #fff;
-            font-weight: bold;
-        }
-        
-        .summary-table .total-row td {
-            padding: 8px;
-            font-size: 12px;
-        }
-        
-        /* Notes & Terms */
-        .notes-section {
-            clear: both;
-            margin-top: 30px;
-            font-size: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #000;
-        }
-        
-        .notes-section h4 {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .notes-section p {
-            margin: 3px 0;
-            line-height: 1.3;
-        }
-        
-        /* Signature Section */
-        .signatures {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            margin-top: 40px;
-            text-align: center;
-            font-size: 10px;
-        }
-        
-        .sig-line {
-            border-top: 1px solid #000;
-            padding-top: 5px;
-            min-height: 40px;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-        }
-        
-        .sig-label {
-            font-weight: bold;
-            font-size: 9px;
-        }
-        
-        /* Footer */
-        .footer {
-            border-top: 1px solid #000;
-            margin-top: 15px;
-            padding-top: 8px;
-            font-size: 9px;
-            text-align: center;
-        }
-        
-        .footer-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            border-top: 1px solid #000;
-            padding-top: 8px;
-            margin-top: 8px;
-        }
-        
-        .footer-box {
-            text-align: center;
-            font-size: 9px;
-        }
-        
-        .footer-box strong {
-            display: block;
-            margin-bottom: 3px;
-        }
-        
-        /* Hidden from Print */
-        .no-print {
-            margin: 20px;
-            text-align: center;
-        }
-        
-        .no-print button {
-            padding: 10px 20px;
-            margin: 0 5px;
-            font-size: 14px;
-            cursor: pointer;
-            border: 1px solid #ccc;
-            background: #f5f5f5;
-            border-radius: 4px;
-        }
-        
-        .no-print button:hover {
-            background: #e0e0e0;
-        }
-        
-        /* Hide PTR column from print */
-        .ptr-column {
-            display: none;
-        }
-        
-        @media screen {
-            .ptr-column {
-                display: table-cell;
+            body { background: #f3f4f6; }
+            .sheet {
+                margin: 14px auto 22px;
+                box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
             }
         }
     </style>
@@ -392,168 +537,233 @@ $company = [
 <body>
 
 <div class="no-print">
-    <button onclick="window.print()"><i class="fa fa-print"></i> Print Invoice</button>
-    <button onclick="window.history.back()">← Back</button>
+    <button type="button" onclick="window.print()">Print Invoice</button>
+    <button type="button" onclick="window.history.back()">Back</button>
 </div>
 
-<div class="page">
-    <!-- Header Section -->
-    <div class="header">
-        <div class="company-info">
-            <div class="company-details">
-                <h3><?php echo htmlspecialchars($company['name']); ?></h3>
-                <p><?php echo htmlspecialchars($company['address']); ?></p>
-                <p>Phone: <?php echo htmlspecialchars($company['phone']); ?></p>
-                <p>Email: <?php echo htmlspecialchars($company['email']); ?></p>
-            </div>
-            <div class="invoice-meta">
-                <table>
-                    <tr>
-                        <td class="label">Invoice No.</td>
-                        <td><strong><?php echo htmlspecialchars($invoice['invoice_number']); ?></strong></td>
-                    </tr>
-                    <tr>
-                        <td class="label">Date</td>
-                        <td><?php echo date('d-M-Y', strtotime($invoice['invoice_date'])); ?></td>
-                    </tr>
-                    <tr>
-                        <td class="label">Due Date</td>
-                        <td><?php echo $invoice['due_date'] ? date('d-M-Y', strtotime($invoice['due_date'])) : '-'; ?></td>
-                    </tr>
-                    <tr>
-                        <td class="label">Status</td>
-                        <td><?php echo htmlspecialchars($invoice['invoice_status']); ?></td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Addresses Section -->
-    <div class="addresses">
-        <div class="address-box">
-            <h4>BILL TO</h4>
-            <p><strong><?php echo htmlspecialchars($invoice['client_name']); ?></strong></p>
-            <p><?php echo htmlspecialchars($invoice['billing_address']); ?></p>
-            <p><?php 
-                $cityState = [];
-                if ($invoice['city']) $cityState[] = $invoice['city'];
-                if ($invoice['state']) $cityState[] = $invoice['state'];
-                if ($invoice['postal_code']) $cityState[] = $invoice['postal_code'];
-                echo htmlspecialchars(implode(', ', $cityState));
-            ?></p>
-            <p>Phone: <?php echo htmlspecialchars($invoice['contact_phone']); ?></p>
-            <?php if ($invoice['client_gstin']): ?>
-                <p>GSTIN: <?php echo htmlspecialchars($invoice['client_gstin']); ?></p>
+<div class="sheet">
+    <div class="title-row">TAX INVOICE</div>
+
+    <div class="company-box">
+        <div class="company-name"><?php echo safeText($company['name']); ?></div>
+        <div class="company-meta muted">Lic No. <?php echo safeText($company['lic_no']); ?>
+            <?php if (trim((string)$company['msme_no']) !== '' && trim((string)$company['msme_no']) !== '-'): ?>
+                <span style="margin-left:12px;">MSME Certificate No. <?php echo safeText($company['msme_no']); ?></span>
             <?php endif; ?>
         </div>
-        
-        <div class="address-box">
-            <h4>SHIP TO</h4>
-            <p><?php 
-                if ($invoice['delivery_address']) {
-                    echo nl2br(htmlspecialchars($invoice['delivery_address']));
-                } else {
-                    echo '<em>Same as Billing Address</em>';
-                }
-            ?></p>
+        <div class="company-meta">Address : <?php echo safeText($company['address']); ?></div>
+        <div class="company-meta">Mob. <?php echo safeText($company['phone']); ?> / Email: <?php echo safeText($company['email']); ?></div>
+        <div class="company-meta-row">
+            <div><strong>GSTIN :</strong> <?php echo safeText($company['gstin']); ?></div>
+            <div><strong>PAN NO. :</strong> <?php echo safeText($company['pan']); ?></div>
         </div>
+        <div class="company-meta" style="text-align:left;"><strong>DL No.</strong> <?php echo safeText($company['dl_no']); ?></div>
     </div>
-    
-    <!-- Items Section -->
-    <div class="items-section">
-        <table class="items-table">
+
+    <table class="party-table">
+        <tr>
+            <td class="label" style="width:66%;">Name of Buyer : <?php echo safeText($invoice['client_name'] ?? '-'); ?></td>
+            <td class="label" style="width:34%;">Tax Invoice No. : <?php echo safeText($invoice['invoice_number'] ?? '-'); ?></td>
+        </tr>
+        <tr>
+            <td><?php echo nl2br(safeText($buyerAddress)); ?></td>
+            <td class="label">Date : <?php echo safeText(fmtDate($invoice['invoice_date'] ?? null)); ?></td>
+        </tr>
+        <tr>
+            <td><strong>GSTIN:</strong> <?php echo safeText($invoice['client_gstin'] ?? '-'); ?></td>
+            <td><strong>Party Order No.:</strong> <?php echo safeText($invoice['payment_notes'] ?? '-'); ?></td>
+        </tr>
+        <tr>
+            <td><strong>Place of Supply :</strong> <?php echo safeText($placeOfSupply); ?></td>
+            <td><strong>Contact No.:</strong> <?php echo safeText($invoice['contact_phone'] ?? '-'); ?></td>
+        </tr>
+        <tr>
+            <td><strong>D.L.No.</strong> <?php echo safeText($invoice['client_dl_no'] ?? '-'); ?></td>
+            <td><strong>Payment Type:</strong> <?php echo safeText($invoice['payment_type'] ?? '-'); ?></td>
+        </tr>
+    </table>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width:4%;">Sr. No.</th>
+                <th style="width:27%;">Description of Goods</th>
+                <th style="width:8%;">Pack</th>
+                <th style="width:8%;">HSN Code</th>
+                <th style="width:10%;">Batch No.</th>
+                <th style="width:8%;">Exp.</th>
+                <th style="width:6%;">GST %</th>
+                <th style="width:6%;">QTY.</th>
+                <th style="width:8%;">MRP</th>
+                <th style="width:8%;">Rate</th>
+                <th style="width:9%;">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php $idx = 1; foreach ($items as $item): ?>
+                <?php
+                    $desc = trim((string)($item['product_name'] ?? ''));
+                    $content = trim((string)($item['content'] ?? ''));
+                    if ($content !== '') {
+                        $desc .= ($desc !== '' ? ' ' : '') . $content;
+                    }
+                    $pack = trim((string)($item['pack_size'] ?? ''));
+                    $batchNo = trim((string)($item['batch_number_display'] ?? ''));
+                    $exp = fmtMonthYear($item['expiry_display'] ?? null);
+                    $gstRate = (float)($item['gst_rate'] ?? 0);
+                    $qty = (float)($item['quantity'] ?? 0);
+                    $mrp = (float)($item['mrp_display'] ?? 0);
+                    $rate = (float)($item['unit_rate'] ?? 0);
+                    $amount = (float)($item['line_subtotal'] ?? 0);
+                    if ($amount <= 0) {
+                        $amount = (float)($item['line_total'] ?? 0);
+                    }
+                ?>
+                <tr>
+                    <td class="text-center"><?php echo $idx++; ?></td>
+                    <td><?php echo safeText($desc !== '' ? $desc : '-'); ?></td>
+                    <td class="text-center"><?php echo safeText($pack !== '' ? $pack : '-'); ?></td>
+                    <td class="text-center"><?php echo safeText($item['hsn_code'] ?? '-'); ?></td>
+                    <td class="text-center"><?php echo safeText($batchNo !== '' ? $batchNo : '-'); ?></td>
+                    <td class="text-center"><?php echo safeText($exp); ?></td>
+                    <td class="text-center"><?php echo fmtAmount($gstRate, 0); ?>%</td>
+                    <td class="text-center"><?php echo fmtAmount($qty, 2); ?></td>
+                    <td class="text-right"><?php echo fmtAmount($mrp, 2); ?></td>
+                    <td class="text-right"><?php echo fmtAmount($rate, 2); ?></td>
+                    <td class="text-right"><?php echo fmtAmount($amount, 2); ?></td>
+                </tr>
+            <?php endforeach; ?>
+
+            <?php for ($blank = count($items); $blank < $minRows; $blank++): ?>
+                <tr>
+                    <td>&nbsp;</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            <?php endfor; ?>
+        </tbody>
+    </table>
+
+    <div class="summary-wrap">
+        <table class="tax-table">
             <thead>
                 <tr>
-                    <th style="width: 5%;">SL</th>
-                    <th style="width: 30%;">Medicine / Product</th>
-                    <th style="width: 8%;">HSN</th>
-                    <th style="width: 8%;">Qty</th>
-                    <th style="width: 12%;">Rate</th>
-                    <th class="ptr-column" style="width: 10%;">PTR</th>
-                    <th style="width: 8%;">GST %</th>
-                    <th style="width: 13%;">Total</th>
+                    <th style="width:40%;">Taxable Amount</th>
+                    <?php if ($isIntrastate): ?>
+                        <th style="width:30%;">CGST</th>
+                        <th style="width:30%;">SGST</th>
+                    <?php else: ?>
+                        <th style="width:60%;">IGST</th>
+                    <?php endif; ?>
                 </tr>
             </thead>
             <tbody>
-                <?php 
-                $slNo = 1;
-                foreach ($items as $item):
-                    $lineTotal = $item['line_total'];
-                ?>
+                <?php if (empty($gstSummary)): ?>
+                    <tr>
+                        <td colspan="<?php echo $isIntrastate ? 3 : 2; ?>" class="text-center">No tax breakup</td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($gstSummary as $rateKey => $taxRow): ?>
+                        <tr>
+                            <td><?php echo safeText(rtrim(rtrim($rateKey, '0'), '.')); ?>% : <?php echo fmtAmount($taxRow['taxable'], 2); ?></td>
+                            <?php if ($isIntrastate): ?>
+                                <td class="text-right"><?php echo fmtAmount($taxRow['cgst'], 2); ?></td>
+                                <td class="text-right"><?php echo fmtAmount($taxRow['sgst'], 2); ?></td>
+                            <?php else: ?>
+                                <td class="text-right"><?php echo fmtAmount($taxRow['igst'], 2); ?></td>
+                            <?php endif; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
                 <tr>
-                    <td class="text-center"><?php echo $slNo++; ?></td>
-                    <td class="text-left">
-                        <strong><?php echo htmlspecialchars($item['product_name']); ?></strong><br>
-                        <small><?php echo htmlspecialchars($item['content'] . ' ' . $item['pack_size']); ?></small>
-                    </td>
-                    <td class="text-center"><?php echo htmlspecialchars($item['hsn_code']); ?></td>
-                    <td class="text-right"><?php echo number_format($item['quantity'], 2); ?></td>
-                    <td class="text-right">₹<?php echo number_format($item['unit_rate'], 2); ?></td>
-                    <td class="ptr-column text-right">₹<?php echo $item['purchase_rate'] ? number_format($item['purchase_rate'], 2) : '-'; ?></td>
-                    <td class="text-right"><?php echo number_format($item['gst_rate'], 1); ?></td>
-                    <td class="text-right">₹<?php echo number_format($lineTotal, 2); ?></td>
+                    <td class="text-right"><strong>TOTAL</strong></td>
+                    <?php if ($isIntrastate): ?>
+                        <td class="text-right"><strong><?php echo fmtAmount($cgstAmount, 2); ?></strong></td>
+                        <td class="text-right"><strong><?php echo fmtAmount($sgstAmount, 2); ?></strong></td>
+                    <?php else: ?>
+                        <td class="text-right"><strong><?php echo fmtAmount($igstAmount, 2); ?></strong></td>
+                    <?php endif; ?>
                 </tr>
-                <?php endforeach; ?>
             </tbody>
         </table>
-    </div>
-    
-    <!-- Financial Summary -->
-    <div class="summary-section">
+
         <table class="summary-table">
             <tr>
-                <td class="label">Subtotal:</td>
-                <td class="amount">₹<?php echo number_format($invoice['subtotal'], 2); ?></td>
+                <td class="label">Total Amount Before Tax</td>
+                <td class="text-right"><?php echo fmtAmount($amountBeforeTax, 2); ?></td>
             </tr>
-            <?php if ($invoice['discount_amount'] > 0): ?>
-            <tr>
-                <td class="label">Discount (<?php echo number_format($invoice['discount_percent'], 1); ?>%):</td>
-                <td class="amount">-₹<?php echo number_format($invoice['discount_amount'], 2); ?></td>
-            </tr>
+            <?php if (abs($transportCharges) > 0.0001): ?>
+                <tr>
+                    <td class="label">Transportation Charges</td>
+                    <td class="text-right"><?php echo fmtAmount($transportCharges, 2); ?></td>
+                </tr>
+            <?php endif; ?>
+            <?php if ($isIntrastate): ?>
+                <tr>
+                    <td class="label">CGST</td>
+                    <td class="text-right"><?php echo fmtAmount($cgstAmount, 2); ?></td>
+                </tr>
+                <tr>
+                    <td class="label">SGST</td>
+                    <td class="text-right"><?php echo fmtAmount($sgstAmount, 2); ?></td>
+                </tr>
+            <?php else: ?>
+                <tr>
+                    <td class="label">IGST</td>
+                    <td class="text-right"><?php echo fmtAmount($igstAmount, 2); ?></td>
+                </tr>
             <?php endif; ?>
             <tr>
-                <td class="label">GST (18%):</td>
-                <td class="amount">₹<?php echo number_format($invoice['gst_amount'], 2); ?></td>
+                <td class="label">Total GST</td>
+                <td class="text-right"><?php echo fmtAmount($gstAmount, 2); ?></td>
             </tr>
-            <tr class="total-row">
-                <td class="label">GRAND TOTAL:</td>
-                <td class="amount">₹<?php echo number_format($invoice['grand_total'], 2); ?></td>
+            <tr class="bold-row">
+                <td class="label">Grand Total (Rs.)</td>
+                <td class="text-right"><?php echo fmtAmount($grandTotal, 2); ?></td>
             </tr>
         </table>
     </div>
-    
-    <!-- Notes & Payment Terms -->
-    <div class="notes-section">
-        <h4>Payment Terms & Conditions:</h4>
-        <p>• Payment is due within <?php echo intval($invoice['due_date'] ? (strtotime($invoice['due_date']) - strtotime($invoice['invoice_date'])) / (60*60*24) : 30); ?> days of invoice date</p>
-        <p>• Cheques should be drawn in favor of "<?php echo htmlspecialchars($company['name']); ?>"</p>
-        <p>• All medicines are subject to expiry date validation at the time of delivery</p>
-        <p>• GST Registration No. (GSTIN): <?php echo htmlspecialchars($company['gstin']); ?></p>
-        <p>• PAN: <?php echo htmlspecialchars($company['pan']); ?></p>
+
+    <div class="amount-words">
+        Amount in Words: <?php echo safeText($amountWords); ?>
     </div>
-    
-    <!-- Signature Section -->
-    <div class="signatures">
-        <div>
-            <div class="sig-line"></div>
-            <div class="sig-label">Prepared By</div>
+
+    <div class="bank-sign-wrap">
+        <div class="bank-block">
+            <div class="bank-title">Bank Details</div>
+            <div>Account Holder : <?php echo safeText($company['name']); ?></div>
+            <div style="margin-top:4px;"><?php echo safeText($company['bank_name']); ?> &nbsp;&nbsp;&nbsp; IFSC Code : <?php echo safeText($company['ifsc']); ?></div>
+            <div style="margin-top:4px;">A/c. No. : <?php echo safeText($company['account_no']); ?> &nbsp;&nbsp;&nbsp; Branch : <?php echo safeText($company['branch']); ?></div>
         </div>
-        <div>
-            <div class="sig-line"></div>
-            <div class="sig-label">Authorized By</div>
-        </div>
-        <div>
-            <div class="sig-line"></div>
-            <div class="sig-label">Received By</div>
+        <div class="sign-block">
+            <div class="sign-company">For <?php echo safeText($company['name']); ?>.</div>
+            <div class="sign-line">Authorised Signatory</div>
         </div>
     </div>
-    
-    <!-- Footer -->
-    <div class="footer">
-        <p>Generated on <?php echo date('d-M-Y H:i'); ?></p>
-        <p>This is a computer generated document and does not require signature.</p>
-    </div>
+
+    <table class="balance-table">
+        <tr>
+            <td class="box-label-prev" style="width:42%;">Previous Balance (Rs.)</td>
+            <td style="width:12%;" class="text-right"><?php echo fmtAmount($previousBalance, 2); ?></td>
+            <td style="width:32%;" class="box-label-unpaid">Total Unpaid Balance (Rs.)</td>
+            <td style="width:14%;" class="text-right"><?php echo fmtAmount($totalUnpaidBalance, 2); ?></td>
+        </tr>
+        <tr>
+            <td class="box-label-today">Today Bill Amount (Rs.)</td>
+            <td class="text-right"><?php echo fmtAmount($todayBillAmount, 2); ?></td>
+            <td colspan="2"></td>
+        </tr>
+    </table>
+
+    <div class="footer-note">" <?php echo safeText($company['tagline']); ?> "</div>
 </div>
 
 </body>
