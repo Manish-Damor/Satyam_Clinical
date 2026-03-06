@@ -472,11 +472,20 @@ $notesVal = $editing ? $existingPo['notes'] : ($old['notes'] ?? '');
     font-size: 12px;
 }
 
-    /* allow dropdown to escape table container */
-    .table-responsive { overflow: visible !important; }
+    /* keep horizontal scroll on small screens while allowing dropdown visibility */
+    .table-responsive {
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        -webkit-overflow-scrolling: touch;
+    }
     /* ensure search input keeps full width and dropdown overlays correctly */
     .medicine-search { width: 100%; }
     .medicine-dropdown { z-index: 9999; min-width: 100%; }
+
+    @media (max-width: 768px) {
+        #itemsBody .medicine-search { min-width: 180px; }
+        #itemsBody .form-control-sm { min-width: 90px; }
+    }
 </style>
 
 <script>

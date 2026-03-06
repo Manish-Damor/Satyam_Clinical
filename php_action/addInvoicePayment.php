@@ -6,7 +6,7 @@
  */
 
 header('Content-Type: application/json');
-require '../constant/connect.php';
+require_once 'json_core.php';
 
 $response = [
     'success' => false,
@@ -25,7 +25,18 @@ try {
     $paymentMethod = trim($_POST['payment_method'] ?? '');
     $referenceNo = trim($_POST['reference_number'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
-    $userId = $_SESSION['userId'] ?? null;
+    $sessionUserId = $_SESSION['userId'] ?? ($_SESSION['user_id'] ?? null);
+    $userId = (is_numeric($sessionUserId) && intval($sessionUserId) > 0)
+        ? intval($sessionUserId)
+        : 0;
+
+    if ($userId <= 0 && PHP_SAPI === 'cli') {
+        $userId = 1;
+    }
+
+    if ($userId <= 0) {
+        throw new Exception('Unauthorized user session');
+    }
     
     if ($invoiceId <= 0) {
         throw new Exception('Invoice ID required');
@@ -42,7 +53,7 @@ try {
     }
     
     // Verify invoice exists
-    $invoiceCheck = $connect->prepare("SELECT invoice_id, client_id, payment_type, paid_amount, due_amount, grand_total FROM sales_invoices WHERE invoice_id = ?");
+    $invoiceCheck = $connect->prepare("SELECT invoice_id, client_id, payment_type, paid_amount, due_amount, grand_total, submitted_at FROM sales_invoices WHERE invoice_id = ?");
     $invoiceCheck->bind_param('i', $invoiceId);
     $invoiceCheck->execute();
     $invoiceResult = $invoiceCheck->get_result();
@@ -52,6 +63,9 @@ try {
     }
     
     $invoiceData = $invoiceResult->fetch_assoc();
+    if (empty($invoiceData['submitted_at'])) {
+        throw new Exception('Cannot record payment for draft invoice');
+    }
     $clientId = $invoiceData['client_id'];
     $invoicePaymentType = $invoiceData['payment_type'];
     $currentPaidAmount = $invoiceData['paid_amount'];
@@ -130,7 +144,8 @@ try {
                 $updateBalance = $connect->prepare("
                     UPDATE clients SET outstanding_balance = outstanding_balance - ? WHERE client_id = ?
                 ");
-                $updateBalance->bind_param('di', $amount, $clientId);
+                $adjustBalanceAmount = max(0, min($amount, $currentDueAmount));
+                $updateBalance->bind_param('di', $adjustBalanceAmount, $clientId);
                 if (!$updateBalance->execute()) {
                     throw new Exception('Failed to update client balance: ' . $updateBalance->error);
                 }

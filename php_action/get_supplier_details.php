@@ -1,7 +1,6 @@
 <?php
 header('Content-Type: application/json');
-
-include('../constant/connect.php');
+require_once 'json_core.php';
 
 try {
     $supplier_id = isset($_POST['supplier_id']) ? intval($_POST['supplier_id']) : 0;

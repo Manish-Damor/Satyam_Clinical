@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-require_once 'core.php';
+require_once 'json_core.php';
 
 function normalizeText($value)
 {
@@ -69,7 +69,8 @@ if (strlen($search) < 2) {
 $searchTerm = '%' . $search . '%';
 
 $sql = "SELECT p.product_id, p.product_name, p.pack_size, p.content,
-               p.hsn_code, p.gst_rate, COALESCE(b.brand_name, '') AS brand_name
+           p.hsn_code, p.gst_rate, p.expected_mrp, p.purchase_rate,
+           COALESCE(b.brand_name, '') AS brand_name
         FROM product p
         LEFT JOIN brands b ON b.brand_id = p.brand_id
         WHERE p.status = 1
@@ -107,13 +108,20 @@ $rows = array_slice($rows, 0, 30);
 $payload = [];
 foreach ($rows as $row) {
     $payload[] = [
+        'id' => (int) $row['product_id'],
         'product_id' => (int) $row['product_id'],
+        'medicine_id' => (int) $row['product_id'],
         'product_name' => $row['product_name'],
+        'medicine_name' => $row['product_name'],
         'brand_name' => $row['brand_name'],
         'content' => $row['content'],
         'pack_size' => $row['pack_size'],
         'hsn_code' => $row['hsn_code'],
-        'gst_rate' => (float) $row['gst_rate']
+        'gst_rate' => (float) $row['gst_rate'],
+        'expected_mrp' => (float) ($row['expected_mrp'] ?? 0),
+        'mrp' => (float) ($row['expected_mrp'] ?? 0),
+        'purchase_rate' => (float) ($row['purchase_rate'] ?? 0),
+        'ptr' => (float) ($row['purchase_rate'] ?? 0)
     ];
 }
 

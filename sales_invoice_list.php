@@ -45,8 +45,8 @@ require './constant/connect.php';
                     <div class="col-md-2">
                         <select id="paymentTypeFilter" class="form-control">
                             <option value="">-- Payment Type --</option>
-                            <option value="Cash">Cash</option>
-                            <option value="Credit">Credit</option>
+                            <option value="Cash">Cash Sale</option>
+                            <option value="Credit">Credit Sale</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -69,10 +69,11 @@ require './constant/connect.php';
                                 <th style="width: 15%;">Client</th>
                                 <th style="width: 9%;">Date</th>
                                 <th style="width: 9%;">Amount</th>
+                                <th style="width: 8%;">Invoice</th>
                                 <th style="width: 8%;">Type</th>
-                                <th style="width: 12%;">Payment Status</th>
+                                <th style="width: 10%;">Payment Status</th>
                                 <th style="width: 12%;">Paid / Due</th>
-                                <th style="width: 12%;">Action</th>
+                                <th style="width: 13%;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="invoicesBody">
@@ -117,7 +118,7 @@ $(document).ready(function() {
             },
             error: function(xhr, status, error) {
                 console.error('AJAX Error:', error);
-                $('#invoicesBody').html('<tr><td colspan="8"><div class="alert alert-danger">Error loading invoices</div></td></tr>');
+                $('#invoicesBody').html('<tr><td colspan="10"><div class="alert alert-danger">Error loading invoices</div></td></tr>');
             }
         });
     }
@@ -136,16 +137,49 @@ $(document).ready(function() {
         $('#invoicesTable').show();
         
         invoices.forEach((invoice, index) => {
+            const invoiceModeBadge = getInvoiceModeBadge(invoice.invoice_mode);
             const paymentStatusBadge = getPaymentStatusBadge(invoice.payment_status);
             const paymentTypeBadge = getPaymentTypeBadge(invoice.payment_type);
+            const isDraft = String(invoice.invoice_mode || '').toUpperCase() === 'DRAFT';
+            const isPaid = String(invoice.payment_status || '').toUpperCase() === 'PAID';
+            const dueAmount = parseFloat(invoice.due_amount || 0);
+            const itemCount = parseInt(invoice.item_count || 0, 10);
+            const hasItems = Number.isFinite(itemCount) && itemCount > 0;
+            const canRecordPayment = !isDraft && hasItems && !isPaid && dueAmount > 0.0001;
+            const paymentButtonHtml = canRecordPayment
+                ? `<button type="button" class="btn btn-xs btn-warning record-payment-btn" data-id="${invoice.invoice_id}" title="Record Payment">
+                        <i class="fa fa-rupee"></i>
+                   </button>`
+                : `<button type="button" class="btn btn-xs btn-secondary" disabled title="${isDraft ? 'Draft invoice - approve first' : (!hasItems ? 'No invoice items' : (isPaid ? 'Invoice already fully paid' : 'No due amount'))}" >
+                        <i class="fa fa-rupee"></i>
+                   </button>`;
+
+            const approveButtonHtml = (isDraft && hasItems)
+                ? `<button type="button" class="btn btn-xs btn-info approve-btn" data-id="${invoice.invoice_id}" title="Approve Draft">
+                        <i class="fa fa-check"></i>
+                   </button>`
+                : (isDraft
+                    ? `<button type="button" class="btn btn-xs btn-secondary" disabled title="Add at least one item before approval">
+                            <i class="fa fa-check"></i>
+                       </button>`
+                    : '');
+
+            const printButtonHtml = (isDraft || !hasItems)
+                ? `<button type="button" class="btn btn-xs btn-secondary" disabled title="${isDraft ? 'Approve draft to enable print' : 'No invoice items to print'}">
+                        <i class="fa fa-print"></i>
+                   </button>`
+                : `<a href="print_invoice.php?id=${invoice.invoice_id}" target="_blank" class="btn btn-xs btn-success" title="Print">
+                        <i class="fa fa-print"></i>
+                   </a>`;
             
             const row = `
                 <tr>
                     <td align="center">${index + 1}</td>
                     <td><strong>${invoice.invoice_number}</strong></td>
-                    <td>${invoice.client_name}</td>
+                    <td>${invoice.client_name || '-'}</td>
                     <td>${formatDate(invoice.invoice_date)}</td>
                     <td align="right"><strong>₹${parseFloat(invoice.grand_total).toFixed(2)}</strong></td>
+                    <td align="center">${invoiceModeBadge}</td>
                     <td align="center">${paymentTypeBadge}</td>
                     <td align="center">${paymentStatusBadge}</td>
                     <td align="center">
@@ -156,12 +190,9 @@ $(document).ready(function() {
                         <a href="sales_invoice_form.php?id=${invoice.invoice_id}" class="btn btn-xs btn-primary" title="Edit">
                             <i class="fa fa-pencil"></i>
                         </a>
-                        <a href="print_invoice.php?id=${invoice.invoice_id}" target="_blank" class="btn btn-xs btn-success" title="Print">
-                            <i class="fa fa-print"></i>
-                        </a>
-                        <button type="button" class="btn btn-xs btn-warning record-payment-btn" data-id="${invoice.invoice_id}" title="Record Payment">
-                            <i class="fa fa-rupee"></i>
-                        </button>
+                        ${printButtonHtml}
+                        ${approveButtonHtml}
+                        ${paymentButtonHtml}
                         <button type="button" class="btn btn-xs btn-danger delete-btn" data-id="${invoice.invoice_id}" title="Delete">
                             <i class="fa fa-trash"></i>
                         </button>
@@ -170,6 +201,15 @@ $(document).ready(function() {
             `;
             tbody.append(row);
         });
+    }
+
+    function getInvoiceModeBadge(mode) {
+        const normalized = String(mode || '').toUpperCase();
+        const badges = {
+            'DRAFT': '<span class="badge badge-secondary">Draft</span>',
+            'FINAL': '<span class="badge badge-primary">Final</span>'
+        };
+        return badges[normalized] || '<span class="badge badge-light">-</span>';
     }
     
     function getInvoiceStatusBadge(status) {
@@ -183,11 +223,12 @@ $(document).ready(function() {
     }
     
     function getPaymentTypeBadge(type) {
+        const normalized = String(type || '').toLowerCase();
         const badges = {
-            'Cash': '<span class="badge badge-info">💵 Cash</span>',
-            'Credit': '<span class="badge badge-warning">📋 Credit</span>'
+            'cash': '<span class="badge badge-info">Cash Sale</span>',
+            'credit': '<span class="badge badge-warning">Credit Sale</span>'
         };
-        return badges[type] || type;
+        return badges[normalized] || (type || '-');
     }
     
     function getPaymentStatusBadge(status) {
@@ -233,9 +274,11 @@ $(document).ready(function() {
         const paymentFilter = $('#paymentFilter').val();
         
         const filtered = allInvoices.filter(invoice => {
-            const matchSearch = invoice.invoice_number.toLowerCase().includes(searchTerm) || 
-                              invoice.client_name.toLowerCase().includes(searchTerm);
-            const matchPaymentType = paymentTypeFilter === '' || invoice.payment_type === paymentTypeFilter;
+            const invoiceNumber = String(invoice.invoice_number || '').toLowerCase();
+            const clientName = String(invoice.client_name || '').toLowerCase();
+            const paymentType = String(invoice.payment_type || '').toLowerCase();
+            const matchSearch = invoiceNumber.includes(searchTerm) || clientName.includes(searchTerm);
+            const matchPaymentType = paymentTypeFilter === '' || paymentType === paymentTypeFilter.toLowerCase();
             const matchPayment = paymentFilter === '' || invoice.payment_status === paymentFilter;
             
             let matchDate = true;
@@ -286,6 +329,33 @@ $(document).ready(function() {
             },
             error: function(xhr, status, error) {
                 alert('Error recording payment: ' + error);
+            }
+        });
+    });
+
+    // Approve draft functionality
+    $(document).on('click', '.approve-btn', function() {
+        const invoiceId = $(this).data('id');
+
+        if (!confirm('Approve this draft invoice and mark it as final?')) {
+            return;
+        }
+
+        $.ajax({
+            url: 'php_action/approveSalesInvoice.php',
+            type: 'POST',
+            data: { invoice_id: invoiceId },
+            dataType: 'json',
+            success: function(res) {
+                if (res.success) {
+                    alert(res.message || 'Invoice approved successfully');
+                    loadInvoices();
+                } else {
+                    alert('Error: ' + res.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('Error approving invoice: ' + error);
             }
         });
     });

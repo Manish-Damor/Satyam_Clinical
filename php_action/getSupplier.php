@@ -1,30 +1,6 @@
 <?php
-// header('Content-Type: application/json');
-// require_once 'core.php';
-
-// $supplierId = isset($_GET['id']) ? intval($_GET['id']) : 0;
-
-// if(!$supplierId) {
-//     echo json_encode(['error' => 'Supplier ID not provided']);
-//     exit;
-// }
-
-// $sql = "SELECT * FROM suppliers WHERE supplier_id = $supplierId";
-// $result = $connect->query($sql);
-
-// if($result->num_rows > 0) {
-//     $supplier = $result->fetch_assoc();
-//     echo json_encode($supplier);
-// } else {
-//     echo json_encode(['error' => 'Supplier not found']);
-// }
-
-// $connect->close();
-?>
-
-<?php
 header('Content-Type: application/json');
-require_once 'core.php';
+require_once 'json_core.php';
 
 $response = [
     "success" => false,

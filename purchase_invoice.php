@@ -206,8 +206,8 @@ $quickSupplierId = isset($_GET['supplier_id']) ? intval($_GET['supplier_id']) : 
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-                        <table class="table table-hover table-sm mb-0" id="itemsTable" style="font-size: 0.9rem;">
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                        <table class="table table-hover table-sm mb-0" id="itemsTable" style="font-size: 0.9rem; min-width: 1320px; width: max-content;">
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th style="width:17%; min-width:220px;">Medicine</th>

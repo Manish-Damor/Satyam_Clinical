@@ -5,7 +5,7 @@
  */
 
 header('Content-Type: application/json');
-require '../constant/connect.php';
+require_once 'json_core.php';
 
 $response = [
     'success' => false,
@@ -21,9 +21,19 @@ try {
             si.invoice_date,
             si.grand_total,
             si.payment_type,
-            si.payment_status,
-            si.paid_amount,
-            si.due_amount,
+            si.submitted_at,
+            CASE
+                WHEN si.submitted_at IS NULL THEN 'DRAFT'
+                ELSE 'FINAL'
+            END AS invoice_mode,
+            COALESCE(si.payment_status, 'UNPAID') AS payment_status,
+            COALESCE(si.paid_amount, 0) AS paid_amount,
+            COALESCE(si.due_amount, si.grand_total) AS due_amount,
+            (
+                SELECT COUNT(*)
+                FROM sales_invoice_items sii
+                WHERE sii.invoice_id = si.invoice_id
+            ) AS item_count,
             c.name as client_name,
             c.contact_phone
         FROM sales_invoices si

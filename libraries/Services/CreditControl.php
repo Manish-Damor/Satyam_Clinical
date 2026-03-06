@@ -342,7 +342,11 @@ class CreditControl
                 throw new \Exception("Failed to record payment");
             }
 
-            $payment_id = $this->db->get_last_insert_id();
+            if (method_exists($this->db, 'get_last_insert_id')) {
+                $payment_id = $this->db->get_last_insert_id();
+            } else {
+                $payment_id = isset($this->db->insert_id) ? intval($this->db->insert_id) : 0;
+            }
 
             // Update customer outstanding balance
             $sql = "UPDATE customers 

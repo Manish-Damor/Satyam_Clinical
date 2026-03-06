@@ -386,6 +386,75 @@ class ApprovalEngine
         return $history;
     }
 
+    /**
+     * Compatibility wrapper used by controller flows to create initial approval state.
+     */
+    public function initializeApprovalWorkflow($entity_type, $entity_id, $initial_status = 'DRAFT', $user_id = null, $remarks = '')
+    {
+        $previousUser = $this->user_id;
+        if ($user_id !== null && intval($user_id) > 0) {
+            $this->user_id = intval($user_id);
+        }
+
+        $status = strtoupper((string)$initial_status);
+        if ($status === '') {
+            $status = 'DRAFT';
+        }
+
+        $result = $this->logApproval(
+            (string)$entity_type,
+            (int)$entity_id,
+            'DRAFT',
+            $status,
+            'INIT',
+            $remarks
+        );
+
+        $this->user_id = $previousUser;
+        return $result;
+    }
+
+    /**
+     * Compatibility wrapper used by controller flows to record approval state changes.
+     */
+    public function updateApprovalStatus($entity_type, $entity_id, $new_status, $user_id = null, $remarks = '')
+    {
+        $previousUser = $this->user_id;
+        if ($user_id !== null && intval($user_id) > 0) {
+            $this->user_id = intval($user_id);
+        }
+
+        $status = strtoupper((string)$new_status);
+        if ($status === '') {
+            $status = 'DRAFT';
+        }
+
+        $fromStatus = 'DRAFT';
+        $lastStatusResult = $this->db->execute_query(
+            "SELECT status_to FROM approval_logs WHERE entity_type = ? AND entity_id = ? ORDER BY id DESC LIMIT 1",
+            [(string)$entity_type, (int)$entity_id]
+        );
+
+        if ($lastStatusResult && $lastStatusResult->num_rows > 0) {
+            $row = $lastStatusResult->fetch_assoc();
+            if (!empty($row['status_to'])) {
+                $fromStatus = $row['status_to'];
+            }
+        }
+
+        $result = $this->logApproval(
+            (string)$entity_type,
+            (int)$entity_id,
+            (string)$fromStatus,
+            $status,
+            'STATUS_UPDATE',
+            $remarks
+        );
+
+        $this->user_id = $previousUser;
+        return $result;
+    }
+
     // ======================== PRIVATE METHODS ========================
 
     /**

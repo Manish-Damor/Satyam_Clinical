@@ -57,7 +57,11 @@ class DatabaseHelper
                 throw new \Exception("Execute failed: " . $stmt->error);
             }
 
-            return $stmt->get_result();
+            if ($stmt->field_count > 0) {
+                return $stmt->get_result();
+            }
+
+            return true;
 
         } catch (\Exception $e) {
             error_log("Database Error: " . $e->getMessage());

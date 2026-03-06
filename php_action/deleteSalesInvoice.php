@@ -5,7 +5,7 @@
  */
 
 header('Content-Type: application/json');
-require '../constant/connect.php';
+require_once 'json_core.php';
 
 $response = [
     'success' => false,
@@ -22,7 +22,18 @@ try {
     }
     
     $invoiceId = intval($_POST['invoice_id']);
-    $userId = $_SESSION['userId'] ?? null;
+    $sessionUserId = $_SESSION['userId'] ?? ($_SESSION['user_id'] ?? null);
+    $userId = (is_numeric($sessionUserId) && intval($sessionUserId) > 0)
+        ? intval($sessionUserId)
+        : 0;
+
+    if ($userId <= 0 && PHP_SAPI === 'cli') {
+        $userId = 1;
+    }
+
+    if ($userId <= 0) {
+        throw new Exception('Unauthorized user session');
+    }
     
     // Soft delete: set deleted_at timestamp
     $deleteInvoice = $connect->prepare("

@@ -10,6 +10,7 @@ $userId = $_SESSION['userId'] ?? null;
 // Edit mode
 $editMode = false;
 $invoiceData = [];
+$initialInvoiceItems = [];
 if (isset($_GET['id']) && !empty($_GET['id'])) {
     $editMode = true;
     $invoiceId = intval($_GET['id']);
@@ -25,7 +26,66 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     }
 }
 
+if ($editMode) {
+    $itemStmt = $connect->prepare("\n        SELECT\n            sii.item_id,\n            sii.product_id,\n            sii.batch_id,\n            sii.quantity,\n            sii.unit_rate,\n            sii.purchase_rate,\n            sii.gst_rate,\n            sii.line_total,\n            sii.batch_number,\n            sii.expiry_date,\n            COALESCE(p.product_name, '') AS product_name,\n            COALESCE(p.hsn_code, '') AS hsn_code,\n            COALESCE(p.pack_size, '') AS pack_size,\n            COALESCE(b.brand_name, '') AS brand_name,\n            COALESCE(pb.mrp, 0) AS mrp\n        FROM sales_invoice_items sii\n        LEFT JOIN product p ON p.product_id = sii.product_id\n        LEFT JOIN brands b ON b.brand_id = p.brand_id\n        LEFT JOIN product_batches pb ON pb.batch_id = sii.batch_id\n        WHERE sii.invoice_id = ?\n        ORDER BY sii.item_id ASC\n    ");
+    $itemStmt->bind_param('i', $invoiceId);
+    $itemStmt->execute();
+    $itemResult = $itemStmt->get_result();
+
+    while ($itemRow = $itemResult->fetch_assoc()) {
+        $initialInvoiceItems[] = [
+            'product_id' => (int)$itemRow['product_id'],
+            'product_name' => (string)($itemRow['product_name'] ?? ''),
+            'brand_name' => (string)($itemRow['brand_name'] ?? ''),
+            'pack_size' => (string)($itemRow['pack_size'] ?? ''),
+            'hsn_code' => (string)($itemRow['hsn_code'] ?? ''),
+            'batch_id' => isset($itemRow['batch_id']) ? (int)$itemRow['batch_id'] : null,
+            'batch_number' => (string)($itemRow['batch_number'] ?? ''),
+            'expiry_date' => !empty($itemRow['expiry_date']) ? (string)$itemRow['expiry_date'] : '',
+            'quantity' => (float)$itemRow['quantity'],
+            'rate' => (float)$itemRow['unit_rate'],
+            'ptr' => isset($itemRow['purchase_rate']) ? (float)$itemRow['purchase_rate'] : 0.0,
+            'mrp' => isset($itemRow['mrp']) ? (float)$itemRow['mrp'] : 0.0,
+            'gst_rate' => isset($itemRow['gst_rate']) ? (float)$itemRow['gst_rate'] : 0.0,
+            'line_total' => isset($itemRow['line_total']) ? (float)$itemRow['line_total'] : 0.0,
+            'line_discount' => 0.0
+        ];
+    }
+}
+
 $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
+$initialInvoiceMode = 'FINAL';
+if ($editMode) {
+    $initialInvoiceMode = empty($invoiceData['submitted_at']) ? 'DRAFT' : 'FINAL';
+}
+
+$initialPaymentType = $invoiceData['payment_type'] ?? '';
+$initialPaymentMethod = $invoiceData['payment_method'] ?? '';
+$initialClientId = isset($invoiceData['client_id']) ? (int)$invoiceData['client_id'] : 0;
+$initialPaidAmount = isset($invoiceData['paid_amount']) ? (float)$invoiceData['paid_amount'] : 0.0;
+$initialPaymentStatus = $invoiceData['payment_status'] ?? 'UNPAID';
+$initialSubtotal = isset($invoiceData['subtotal']) ? (float)$invoiceData['subtotal'] : 0.0;
+$initialDiscountAmount = isset($invoiceData['discount_amount']) ? (float)$invoiceData['discount_amount'] : 0.0;
+$initialDiscountPercent = isset($invoiceData['discount_percent']) ? (float)$invoiceData['discount_percent'] : 0.0;
+$initialGstAmount = isset($invoiceData['gst_amount']) ? (float)$invoiceData['gst_amount'] : 0.0;
+$initialGrandTotal = isset($invoiceData['grand_total']) ? (float)$invoiceData['grand_total'] : 0.0;
+$initialDueAmount = isset($invoiceData['due_amount'])
+    ? (float)$invoiceData['due_amount']
+    : max(0, $initialGrandTotal - $initialPaidAmount);
+$initialPaymentTerms = 0;
+
+if (isset($invoiceData['payment_terms']) && $invoiceData['payment_terms'] !== null && $invoiceData['payment_terms'] !== '') {
+    $initialPaymentTerms = max(0, (int)$invoiceData['payment_terms']);
+} elseif ($editMode && !empty($invoiceData['invoice_date']) && !empty($invoiceData['due_date'])) {
+    try {
+        $invoiceDateObj = new DateTime((string)$invoiceData['invoice_date']);
+        $dueDateObj = new DateTime((string)$invoiceData['due_date']);
+        $diffDays = (int)$invoiceDateObj->diff($dueDateObj)->format('%r%a');
+        $initialPaymentTerms = max(0, $diffDays);
+    } catch (Exception $e) {
+        $initialPaymentTerms = 0;
+    }
+}
 ?>
 
 <div class="page-wrapper">
@@ -69,7 +129,7 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
                     <?php if ($editMode): ?>
                         <input type="hidden" name="invoice_id" value="<?php echo $invoiceData['invoice_id']; ?>" />
                     <?php endif; ?>
-                    <input type="hidden" name="invoice_status" id="invoiceStatus" value="<?php echo $invoiceData['invoice_status'] ?? 'FINAL'; ?>" />
+                    <input type="hidden" name="invoice_status" id="invoiceStatus" value="<?php echo htmlspecialchars($initialInvoiceMode); ?>" />
 
                     <!-- ============ SECTION 1: INVOICE HEADER ============ -->
                     <div class="card border-primary mb-3">
@@ -94,7 +154,7 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
                                 <div class="col-md-3">
                                     <label class="font-weight-bold">Payment Terms (Days) <span class="text-danger">*</span></label>
                                     <input type="number" class="form-control form-control-lg" id="paymentTerms" name="payment_terms" 
-                                        value="<?php echo $invoiceData['payment_terms'] ?? 0; ?>" min="0" required />
+                                        value="<?php echo htmlspecialchars((string)$initialPaymentTerms); ?>" min="0" required />
                                     <small class="text-muted">Auto-calculates due date</small>
                                 </div>
 
@@ -314,28 +374,28 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
                                                 <td><strong>Subtotal:</strong></td>
                                                 <td class="text-right">
                                                     <input type="text" class="form-control text-right" id="subtotal" readonly style="border: none; padding: 0.25rem; font-weight: bold;" />
-                                                    <input type="hidden" name="subtotal" id="subtotalValue" />
+                                                    <input type="hidden" name="subtotal" id="subtotalValue" value="<?php echo htmlspecialchars(number_format($initialSubtotal, 2, '.', '')); ?>" />
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td><strong>Invoice Discount (%):</strong></td>
                                                 <td class="text-right">
                                                     <input type="number" class="form-control text-right" name="discount_percent" 
-                                                        id="discountPercent" value="0" step="0.01" min="0" max="100" style="padding: 0.25rem;" />
+                                                        id="discountPercent" value="<?php echo htmlspecialchars(number_format($initialDiscountPercent, 2, '.', '')); ?>" step="0.01" min="0" max="100" style="padding: 0.25rem;" />
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td><strong>Discount Amount:</strong></td>
                                                 <td class="text-right">
                                                     <input type="text" class="form-control text-right" id="discountAmount" readonly style="border: none; padding: 0.25rem; font-weight: bold;" />
-                                                    <input type="hidden" name="discount_amount" id="discountAmountValue" />
+                                                    <input type="hidden" name="discount_amount" id="discountAmountValue" value="<?php echo htmlspecialchars(number_format($initialDiscountAmount, 2, '.', '')); ?>" />
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td><strong>GST Amount:</strong></td>
                                                 <td class="text-right">
                                                     <input type="text" class="form-control text-right" id="gstAmount" readonly style="border: none; padding: 0.25rem; font-weight: bold;" />
-                                                    <input type="hidden" name="gst_amount" id="gstAmountValue" />
+                                                    <input type="hidden" name="gst_amount" id="gstAmountValue" value="<?php echo htmlspecialchars(number_format($initialGstAmount, 2, '.', '')); ?>" />
                                                 </td>
                                             </tr>
                                             <tr style="border-top: 3px solid #333; background-color: #fff3e0;">
@@ -343,7 +403,7 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
                                                 <td class="text-right">
                                                     <input type="text" class="form-control text-right font-weight-bold" 
                                                         id="grandTotal" readonly style="border: none; padding: 0.5rem; font-size: 18px;" />
-                                                    <input type="hidden" name="grand_total" id="grandTotalValue" />
+                                                    <input type="hidden" name="grand_total" id="grandTotalValue" value="<?php echo htmlspecialchars(number_format($initialGrandTotal, 2, '.', '')); ?>" />
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -371,40 +431,46 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
                                     <label class="font-weight-bold">Payment Type <span class="text-danger">*</span></label>
                                     <select class="form-control" id="paymentTypeSelect" name="payment_type" required>
                                         <option value="">-- Select --</option>
-                                        <option value="Cash">💵 Cash</option>
-                                        <option value="Credit">📋 Credit</option>
+                                        <option value="Cash" <?php echo $initialPaymentType === 'Cash' ? 'selected' : ''; ?>>Cash Sale</option>
+                                        <option value="Credit" <?php echo $initialPaymentType === 'Credit' ? 'selected' : ''; ?>>Credit Sale</option>
                                     </select>
                                 </div>
 
-                                <div class="col-md-3" id="paymentMethodColumn" style="display: none;">
+                                <div class="col-md-3" id="paymentMethodColumn">
                                     <label class="font-weight-bold">Payment Method</label>
                                     <select class="form-control" name="payment_method" id="paymentMethodSelect">
                                         <option value="">-- Select Method --</option>
-                                        <option value="Cash">Cash</option>
-                                        <option value="Cheque">Cheque</option>
-                                        <option value="Card">Card</option>
-                                        <option value="NEFT">NEFT</option>
-                                        <option value="UPI">UPI</option>
-                                        <option value="Other">Other</option>
+                                        <option value="Cash" <?php echo $initialPaymentMethod === 'Cash' ? 'selected' : ''; ?>>Cash</option>
+                                        <option value="UPI" <?php echo $initialPaymentMethod === 'UPI' ? 'selected' : ''; ?>>UPI</option>
+                                        <option value="Card" <?php echo $initialPaymentMethod === 'Card' ? 'selected' : ''; ?>>Card</option>
+                                        <option value="Bank Transfer" <?php echo $initialPaymentMethod === 'Bank Transfer' ? 'selected' : ''; ?>>Bank Transfer</option>
+                                        <option value="Cheque" <?php echo $initialPaymentMethod === 'Cheque' ? 'selected' : ''; ?>>Cheque</option>
+                                        <option value="Other" <?php echo $initialPaymentMethod === 'Other' ? 'selected' : ''; ?>>Other</option>
                                     </select>
                                 </div>
 
                                 <div class="col-md-3">
+                                    <label class="font-weight-bold">Grand Total (Quick Ref)</label>
+                                    <input type="text" class="form-control" id="paymentGrandTotal" readonly style="font-weight: bold; background-color: #f5f5f5;" value="<?php echo htmlspecialchars(number_format($initialGrandTotal, 2, '.', '')); ?>" />
+                                </div>
+
+                                <div class="col-md-3">
                                     <label class="font-weight-bold">Paid Amount</label>
-                                    <input type="number" class="form-control" name="paid_amount" id="paidAmount" value="0" 
+                                    <input type="number" class="form-control" name="paid_amount" id="paidAmount"
+                                        value="<?php echo htmlspecialchars(number_format($initialPaidAmount, 2, '.', '')); ?>"
                                         step="0.01" min="0" />
                                 </div>
 
                                 <div class="col-md-3">
                                     <label class="font-weight-bold">Due Amount</label>
                                     <input type="text" class="form-control" id="dueAmount" readonly style="font-weight: bold; background-color: #f5f5f5;" />
-                                    <input type="hidden" name="due_amount" id="dueAmountValue" />
+                                    <input type="hidden" name="due_amount" id="dueAmountValue" value="<?php echo htmlspecialchars(number_format($initialDueAmount, 2, '.', '')); ?>" />
                                 </div>
 
                                 <div class="col-md-3">
                                     <label class="font-weight-bold">Payment Status</label>
                                     <input type="text" class="form-control" id="paymentStatus" readonly style="font-weight: bold; background-color: #e8f5e9;" />
-                                    <input type="hidden" name="payment_status" id="paymentStatusValue" />
+                                    <input type="hidden" name="payment_status" id="paymentStatusValue" value="<?php echo htmlspecialchars($initialPaymentStatus); ?>" />
                                 </div>
                             </div>
 
@@ -753,7 +819,7 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
     }
 
     #invoiceItemsTable {
-        min-width: 1900px;
+        min-width: 1580px;
         width: max-content;
     }
 
@@ -870,8 +936,19 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
     }
     
     @media (max-width: 768px) {
-        .invoice-items-scroll { font-size: 0.85rem; }
+        .invoice-items-scroll {
+            font-size: 0.85rem;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
         .form-control-sm { height: 28px; }
+        #invoiceItemsTable { min-width: 1180px; }
+        #invoiceItemsTable .product-search { min-width: 190px; }
+        #invoiceItemsTable th,
+        #invoiceItemsTable td {
+            font-size: 11px;
+            padding: 0.35rem;
+        }
     }
 
     @media print {
@@ -911,7 +988,11 @@ $pageTitle = $editMode ? 'Edit Sales Invoice' : 'Create Sales Invoice';
 let rowCount = 1;
 let allClients = [];
 let clientSearchTerm = '';
+let paymentAutoSync = false;
 const isEditMode = <?php echo $editMode ? 'true' : 'false'; ?>;
+const initialInvoiceMode = '<?php echo addslashes($initialInvoiceMode); ?>';
+const initialClientId = <?php echo (int)$initialClientId; ?>;
+const initialInvoiceItems = <?php echo json_encode($initialInvoiceItems, JSON_UNESCAPED_SLASHES); ?>;
 
 function escapeHtml(value) {
     return (value || '').toString()
@@ -1406,6 +1487,19 @@ $(document).ready(function() {
         getNextInvoiceNumber();
     }
 
+    if (isEditMode) {
+        const initialPaymentType = '<?php echo addslashes($initialPaymentType); ?>';
+        if (initialPaymentType) {
+            $('#paymentTypeSelect').val(initialPaymentType);
+        }
+    }
+
+    if (String($('#paymentTypeSelect').val() || '') === 'Cash' && initialInvoiceMode === 'FINAL') {
+        const seededPaid = parseFloat($('#paidAmount').val()) || 0;
+        const seededGrand = parseFloat($('#grandTotalValue').val()) || 0;
+        paymentAutoSync = Math.abs(seededPaid - seededGrand) < 0.01;
+    }
+
     // Calculate due date when payment terms change
     $('#paymentTerms').on('change input', function() {
         const invoiceDate = $('input[name="invoice_date"]').val();
@@ -1475,12 +1569,18 @@ $(document).ready(function() {
     // Payment type change
     $('#paymentTypeSelect').on('change', function() {
         const paymentType = $(this).val();
-        
-        // Show/hide payment method column
-        if (paymentType === 'Cash') {
-            $('#paymentMethodColumn').show();
-        } else {
-            $('#paymentMethodColumn').hide();
+        const isDraftMode = isDraftInvoice();
+
+        // Keep method visible for all types; choose sensible default.
+        if (paymentType === 'Cash' && !$('#paymentMethodSelect').val()) {
+            $('#paymentMethodSelect').val('Cash');
+        }
+
+        if (!isDraftMode && paymentType === 'Cash') {
+            paymentAutoSync = true;
+            syncPaidAmountToGrandTotal(true);
+        } else if (paymentType !== 'Cash') {
+            paymentAutoSync = false;
         }
         
         // Check credit limit when credit is selected
@@ -1489,13 +1589,19 @@ $(document).ready(function() {
         } else {
             $('#creditWarningAlert').hide();
         }
-        
+
         calculateTotals();
     });
 
     // Payment amount change - auto-calculate payment status
     $('#paidAmount').on('change input', function() {
+        paymentAutoSync = false;
         calculatePayment();
+    });
+
+    // Select full number on focus so replacing amount is quick.
+    $('#paidAmount').on('focus', function() {
+        this.select();
     });
 
     // Add row button
@@ -1527,7 +1633,9 @@ $(document).ready(function() {
                 getNextInvoiceNumber();
             }
 
-            $('#paymentMethodColumn').hide();
+            $('#paymentTypeSelect').val('');
+            $('#paymentMethodSelect').val('');
+            paymentAutoSync = false;
             calculateTotals();
         }
     });
@@ -1556,6 +1664,28 @@ $(document).ready(function() {
     $('#previewBtn').on('click', function() {
         openInvoicePreviewModal();
     });
+
+    // Initialize visible totals and payment state from hidden values before row edits.
+    if (isEditMode) {
+        const seededSubtotal = parseFloat($('#subtotalValue').val()) || 0;
+        const seededDiscount = parseFloat($('#discountAmountValue').val()) || 0;
+        const seededGst = parseFloat($('#gstAmountValue').val()) || 0;
+        const seededGrand = parseFloat($('#grandTotalValue').val()) || 0;
+        const seededDue = parseFloat($('#dueAmountValue').val()) || 0;
+
+        $('#subtotal').val(seededSubtotal.toFixed(2));
+        $('#discountAmount').val(seededDiscount.toFixed(2));
+        $('#gstAmount').val(seededGst.toFixed(2));
+        $('#grandTotal').val(seededGrand.toFixed(2));
+        $('#paymentGrandTotal').val(seededGrand.toFixed(2));
+        $('#dueAmount').val(seededDue.toFixed(2));
+    }
+
+    if (isEditMode && Array.isArray(initialInvoiceItems) && initialInvoiceItems.length > 0) {
+        populateEditInvoiceRows(initialInvoiceItems);
+    } else {
+        calculatePayment();
+    }
 
     // Product search with dropdown
     $(document).on('input', '.product-search', function() {
@@ -2006,6 +2136,10 @@ function loadClients() {
                         target.trigger('mouseup');
                     }
                 });
+
+                if (isEditMode && initialClientId > 0) {
+                    select.val(String(initialClientId)).trigger('change');
+                }
             }
         }
     });
@@ -2038,7 +2172,7 @@ function displayClientInfo(client) {
 
 function checkCreditLimit() {
     const paymentType = $('#paymentTypeSelect').val();
-    const grandTotal = parseFloat($('#grandTotal').val()) || 0;
+    const creditExposure = parseFloat($('#dueAmountValue').val()) || 0;
     
     // Only check if payment_type is Credit
     if (paymentType !== 'Credit') {
@@ -2059,16 +2193,17 @@ function checkCreditLimit() {
     const available = creditLimit - outstanding;
     
     // Check if invoice amount exceeds available credit
-    if (grandTotal > available) {
-        const exceedAmount = grandTotal - available;
+    if (creditExposure > available) {
+        const exceedAmount = creditExposure - available;
         $('#creditWarningText').html(
-            `This invoice (₹${grandTotal.toFixed(2)}) will exceed available credit by ₹${exceedAmount.toFixed(2)}<br>
+            `This invoice due (₹${creditExposure.toFixed(2)}) will exceed available credit by ₹${exceedAmount.toFixed(2)}<br>
             <small>Credit Limit: ₹${creditLimit.toFixed(2)} | Outstanding: ₹${outstanding.toFixed(2)} | Available: ₹${available.toFixed(2)}</small>`
         );
+        $('#creditWarningAlert').removeClass('alert-info').addClass('alert-warning');
         $('#creditWarningAlert').show();
-    } else if (grandTotal > 0) {
+    } else if (creditExposure > 0) {
         // Show info if credit is sufficient
-        const newOutstanding = outstanding + grandTotal;
+        const newOutstanding = outstanding + creditExposure;
         $('#creditWarningText').html(
             `Credit Usage OK<br>
             <small>After this invoice: Outstanding will be ₹${newOutstanding.toFixed(2)} (Limit: ₹${creditLimit.toFixed(2)})</small>`
@@ -2115,8 +2250,10 @@ function enforceRateLimit(row, shouldReport) {
     return true;
 }
 
-function fetchProductDetails(productId, row) {
+function fetchProductDetails(productId, row, onDone, options) {
     console.log('fetchProductDetails called with productId:', productId);
+    const config = options || {};
+    const autoSelectFirstBatch = config.autoSelectFirstBatch !== false;
 
     $.ajax({
         url: 'php_action/fetchProductInvoice.php',
@@ -2157,25 +2294,34 @@ function fetchProductDetails(productId, row) {
                     });
 
                     // Auto-select first batch (FIFO - earliest expiry)
-                    if (batches.length > 0) {
+                    if (batches.length > 0 && autoSelectFirstBatch) {
                         batchSelect.val(batches[0].batch_id).change();
                         console.log('Auto-selected batch:', batches[0].batch_id);
                     }
                 }
                 renderFefoExplain(row);
+                if (typeof onDone === 'function') {
+                    onDone(response);
+                }
             } else {
                 console.error('fetchProductInvoice failed:', response.message);
                 row.find('.batch-select').empty().append('<option value="">Error loading batches</option>');
                 row.find('.fefo-explain').text('FEFO preview unavailable.');
+                if (typeof onDone === 'function') {
+                    onDone(null);
+                }
             }
         },
         error: function(xhr, status, error) {
             console.error('AJAX error fetching product details:', {status: status, error: error, xhr: xhr});
             row.find('.batch-select').empty().append('<option value="">Error loading batches</option>');
             row.find('.fefo-explain').text('FEFO preview unavailable.');
+            if (typeof onDone === 'function') {
+                onDone(null);
+            }
         }
     });
-    }
+}
 
 function renderFefoExplainFromPlan(row, plan, requestedQty) {
     const explainEl = row.find('.fefo-explain');
@@ -2255,6 +2401,26 @@ function calculateLineTotalRow(row) {
     calculateTotals();
 }
 
+function isDraftInvoice() {
+    return String($('#invoiceStatus').val() || 'FINAL').toUpperCase() === 'DRAFT';
+}
+
+function syncPaidAmountToGrandTotal(forceApply) {
+    const paymentType = $('#paymentTypeSelect').val();
+    const grandTotal = parseFloat($('#grandTotalValue').val()) || 0;
+    const paidRaw = $('#paidAmount').val();
+    const paidAmount = parseFloat(paidRaw);
+
+    if (isDraftInvoice() || paymentType !== 'Cash') {
+        return;
+    }
+
+    if (forceApply || paymentAutoSync || paidRaw === '' || !Number.isFinite(paidAmount)) {
+        $('#paidAmount').val(grandTotal.toFixed(2));
+        paymentAutoSync = true;
+    }
+}
+
 function calculateTotals() {
     let subtotal = 0, totalDiscount = 0, totalTax = 0;
 
@@ -2291,14 +2457,30 @@ function calculateTotals() {
     $('#gstAmountValue').val(totalTax.toFixed(2));
     $('#grandTotal').val(grandTotal.toFixed(2));
     $('#grandTotalValue').val(grandTotal.toFixed(2));
+    $('#paymentGrandTotal').val(grandTotal.toFixed(2));
+
+    if (paymentAutoSync) {
+        syncPaidAmountToGrandTotal(false);
+    }
 
     calculatePayment();
 }
 
 function calculatePayment() {
     const grandTotal = parseFloat($('#grandTotalValue').val()) || 0;
-    const paidAmount = parseFloat($('#paidAmount').val()) || 0;
-    const dueAmount = grandTotal - paidAmount;
+    let paidAmount = parseFloat($('#paidAmount').val()) || 0;
+
+    if (paidAmount < 0) {
+        paidAmount = 0;
+        $('#paidAmount').val('0.00');
+    }
+
+    if (paidAmount > grandTotal && grandTotal > 0) {
+        paidAmount = grandTotal;
+        $('#paidAmount').val(grandTotal.toFixed(2));
+    }
+
+    const dueAmount = Math.max(0, grandTotal - paidAmount);
 
     $('#dueAmount').val(dueAmount.toFixed(2));
     $('#dueAmountValue').val(dueAmount.toFixed(2));
@@ -2403,6 +2585,124 @@ function addInvoiceRow() {
     rowCount++;
     const newRow = getBlankRowHTML(rowCount);
     $('#itemsBody').append(newRow);
+}
+
+function hydrateInvoiceRowForEdit(row, itemData, onDone) {
+    const productId = parseInt(itemData.product_id || 0, 10);
+    const batchId = parseInt(itemData.batch_id || 0, 10);
+    const quantity = parseFloat(itemData.quantity) || 0;
+    const rate = parseFloat(itemData.rate) || 0;
+    const gstRate = Number.isFinite(parseFloat(itemData.gst_rate)) ? parseFloat(itemData.gst_rate) : 0;
+    const lineDiscount = Number.isFinite(parseFloat(itemData.line_discount)) ? parseFloat(itemData.line_discount) : 0;
+    const lineTotal = Number.isFinite(parseFloat(itemData.line_total)) ? parseFloat(itemData.line_total) : 0;
+    const batchNumber = (itemData.batch_number || '').toString();
+    const expiryDate = (itemData.expiry_date || '').toString().substring(0, 10);
+    const ptrValue = Number.isFinite(parseFloat(itemData.ptr)) ? parseFloat(itemData.ptr) : 0;
+    const mrpValue = Number.isFinite(parseFloat(itemData.mrp)) ? parseFloat(itemData.mrp) : 0;
+
+    row.find('.product-search').val(itemData.product_name || '');
+    row.find('.product-id').val(productId > 0 ? productId : '');
+    row.find('.manufacturer-display').val(itemData.brand_name || '');
+    row.find('.manufacturer-value').val(itemData.brand_name || '');
+    row.find('.pack-display').val(itemData.pack_size || '');
+    row.find('.pack-value').val(itemData.pack_size || '');
+    row.find('.hsn-code').val(itemData.hsn_code || '');
+    row.find('.hsn-value').val(itemData.hsn_code || '');
+    row.find('.quantity-input').val(quantity > 0 ? quantity : '');
+    row.find('.rate-input').val(rate > 0 ? rate.toFixed(2) : '');
+    row.find('.gst-input').val(gstRate);
+    row.find('.discount-input').val(lineDiscount);
+    row.find('.batch-number-value').val(batchNumber);
+    row.find('.expiry-display').val(formatExpiryShort(expiryDate));
+    row.find('.expiry-value').val(expiryDate);
+    row.find('.mrp-display').val(mrpValue > 0 ? mrpValue.toFixed(2) : '0.00');
+    row.find('.mrp-value').val(mrpValue > 0 ? mrpValue.toFixed(2) : '0.00');
+    row.find('.ptr-display').val(ptrValue > 0 ? ptrValue.toFixed(2) : '0.00');
+    row.find('.ptr-value').val(ptrValue > 0 ? ptrValue.toFixed(2) : '0.00');
+    row.find('.total-display').val(lineTotal > 0 ? lineTotal.toFixed(2) : '0.00');
+    row.find('.total-value').val(lineTotal > 0 ? lineTotal.toFixed(2) : '0.00');
+
+    if (productId <= 0) {
+        if (typeof onDone === 'function') {
+            onDone();
+        }
+        return;
+    }
+
+    fetchProductDetails(productId, row, function() {
+        const batchSelect = row.find('.batch-select');
+
+        if (batchId > 0) {
+            if (!batchSelect.find(`option[value="${batchId}"]`).length) {
+                const savedLabel = batchNumber !== '' ? batchNumber : ('Batch #' + batchId);
+                batchSelect.append(
+                    `<option value="${batchId}" data-available="0" data-mrp="${mrpValue.toFixed(2)}" data-ptr="${ptrValue.toFixed(2)}" data-batch-number="${escapeHtml(batchNumber)}" data-expiry="${escapeHtml(expiryDate)}">${escapeHtml(savedLabel)} (Saved)</option>`
+                );
+            }
+            batchSelect.val(String(batchId)).trigger('change');
+        } else {
+            batchSelect.val('');
+            row.find('.available-qty').text('-');
+            row.find('.batch-number-value').val(batchNumber);
+            row.find('.expiry-display').val(formatExpiryShort(expiryDate));
+            row.find('.expiry-value').val(expiryDate);
+            row.find('.mrp-display').val(mrpValue > 0 ? mrpValue.toFixed(2) : '0.00');
+            row.find('.mrp-value').val(mrpValue > 0 ? mrpValue.toFixed(2) : '0.00');
+            row.find('.ptr-display').val(ptrValue > 0 ? ptrValue.toFixed(2) : '0.00');
+            row.find('.ptr-value').val(ptrValue > 0 ? ptrValue.toFixed(2) : '0.00');
+        }
+
+        row.find('.quantity-input').val(quantity > 0 ? quantity : '');
+        row.find('.rate-input').val(rate > 0 ? rate.toFixed(2) : '');
+        row.find('.gst-input').val(gstRate);
+        row.find('.discount-input').val(lineDiscount);
+
+        calculateLineTotalRow(row);
+
+        if (typeof onDone === 'function') {
+            onDone();
+        }
+    }, { autoSelectFirstBatch: batchId > 0 });
+}
+
+function populateEditInvoiceRows(items) {
+    if (!Array.isArray(items) || items.length === 0) {
+        calculatePayment();
+        return;
+    }
+
+    $('#itemsBody').empty();
+    rowCount = 0;
+
+    let pending = 0;
+    let inserted = 0;
+
+    items.forEach(function(item) {
+        const productId = parseInt(item.product_id || 0, 10);
+        const quantity = parseFloat(item.quantity) || 0;
+        const rate = parseFloat(item.rate) || 0;
+
+        if (productId <= 0 || quantity <= 0 || rate <= 0) {
+            return;
+        }
+
+        addInvoiceRow();
+        inserted++;
+        pending++;
+
+        const row = $('#itemsBody tr:last');
+        hydrateInvoiceRowForEdit(row, item, function() {
+            pending--;
+            if (pending <= 0) {
+                calculateTotals();
+            }
+        });
+    });
+
+    if (inserted === 0) {
+        addInvoiceRow();
+        calculatePayment();
+    }
 }
 
 function getNextInvoiceNumber() {

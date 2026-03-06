@@ -6,7 +6,7 @@
  */
 
 header('Content-Type: application/json');
-require '../constant/connect.php';
+require_once 'json_core.php';
 
 $response = [
     'success' => false,

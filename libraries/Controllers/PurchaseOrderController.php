@@ -150,7 +150,7 @@ class PurchaseOrderController {
         } else {
             // Verify supplier exists
             $supplierCheck = $this->db->execute_query(
-                "SELECT supplier_id FROM suppliers WHERE supplier_id = ? AND is_active = 1",
+                "SELECT supplier_id FROM suppliers WHERE supplier_id = ? AND supplier_status = 'Active'",
                 [$poData['supplier_id']]
             );
             if (!$supplierCheck || $supplierCheck->num_rows === 0) {
@@ -176,61 +176,46 @@ class PurchaseOrderController {
      */
     private function insertPOMaster($poData) {
         
+        $poStatus = $this->normalizePoStatus($poData['po_status'] ?? 'Draft');
+        $status = strtoupper($poStatus);
+
         $sql = "
             INSERT INTO purchase_orders (
-                po_number, po_date, po_type, supplier_id,
-                supplier_name, supplier_contact, supplier_email,
-                supplier_gst, supplier_address, supplier_city,
-                supplier_state, supplier_pincode, expected_delivery_date,
-                sub_total, total_discount, discount_percent,
-                taxable_amount, cgst_amount, sgst_amount,
-                igst_amount, round_off, grand_total,
-                payment_terms, payment_method, po_status,
-                created_by, submitted_at, status
+                po_number, po_date, supplier_id,
+                expected_delivery_date, delivery_location,
+                subtotal, discount_percentage, discount_amount,
+                gst_percentage, gst_amount, other_charges,
+                grand_total, po_status, payment_status,
+                notes, created_by, submitted_at, status
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?
+                ?, ?, ?,
+                ?, ?,
+                ?, ?, ?,
+                ?, ?, ?,
+                ?, ?, ?,
+                ?, ?, ?, ?
             )
         ";
         
         $params = [
             $poData['po_number'] ?? '',
             $poData['po_date'] ?? date('Y-m-d'),
-            $poData['po_type'] ?? 'Regular',
-            $poData['supplier_id'] ?? 0,
-            
-            $poData['supplier_name'] ?? '',
-            $poData['supplier_contact'] ?? '',
-            $poData['supplier_email'] ?? '',
-            
-            $poData['supplier_gst'] ?? '',
-            $poData['supplier_address'] ?? '',
-            $poData['supplier_city'] ?? '',
-            
-            $poData['supplier_state'] ?? '',
-            $poData['supplier_pincode'] ?? '',
+            (int)($poData['supplier_id'] ?? 0),
             $poData['expected_delivery_date'] ?? null,
-            
+            $poData['delivery_location'] ?? 'Main Warehouse',
             (float)($poData['sub_total'] ?? 0),
-            (float)($poData['total_discount'] ?? 0),
             (float)($poData['discount_percent'] ?? 0),
-            
-            (float)($poData['taxable_amount'] ?? 0),
-            (float)($poData['cgst_amount'] ?? 0),
-            (float)($poData['sgst_amount'] ?? 0),
-            
-            (float)($poData['igst_amount'] ?? 0),
-            (float)($poData['round_off'] ?? 0),
+            (float)($poData['total_discount'] ?? 0),
+            (float)($poData['gst_percent'] ?? 0),
+            (float)($poData['gst_amount'] ?? 0),
+            (float)($poData['other_charges'] ?? 0),
             (float)($poData['grand_total'] ?? 0),
-            
-            $poData['payment_terms'] ?? '',
-            $poData['payment_method'] ?? 'Online Transfer',
-            $poData['po_status'] ?? 'draft',
-            
-            $this->userId,
+            $poStatus,
+            $poData['payment_status'] ?? 'NotDue',
+            $poData['notes'] ?? '',
+            (int)$this->userId,
             date('Y-m-d H:i:s'),
-            'submitted'
+            $status
         ];
         
         $result = $this->db->execute_query($sql, $params);
@@ -246,64 +231,46 @@ class PurchaseOrderController {
      * Insert a single PO item
      */
     private function insertPOItem($poId, $poNumber, $item) {
+
+        $productId = (int)($item['product_id'] ?? ($item['medicine_id'] ?? 0));
+        if ($productId <= 0) {
+            throw new \Exception('Missing product ID');
+        }
         
         // Verify medicine exists
         $medicineCheck = $this->db->execute_query(
-            "SELECT medicine_id FROM medicine WHERE medicine_id = ?",
-            [$item['medicine_id']]
+            "SELECT product_id FROM product WHERE product_id = ? AND status = 1",
+            [$productId]
         );
         
         if (!$medicineCheck || $medicineCheck->num_rows === 0) {
-            throw new \Exception("Medicine ID {$item['medicine_id']} not found");
+            throw new \Exception("Product ID {$productId} not found");
         }
         
         $sql = "
             INSERT INTO po_items (
-                po_id, po_number,
-                medicine_id, medicine_name,
-                pack_size, hsn_code,
-                batch_number, expiry_date,
-                quantity_ordered,
-                mrp, ptr, unit_price,
-                line_amount,
-                item_discount_percent,
-                taxable_amount,
-                tax_percent, tax_amount,
-                item_total
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                po_id, product_id,
+                quantity_ordered, quantity_received,
+                unit_price, total_price,
+                item_status, notes, gst_percentage
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ";
         
-        $quantity = (int)$item['quantity'];
-        $unitPrice = (float)$item['unit_price'];
-        $discountPercent = (float)($item['discount_percent'] ?? 0);
-        $taxPercent = (float)($item['tax_percent'] ?? 18);
-        
-        // Calculate totals
-        $lineAmount = $quantity * $unitPrice;
-        $lineDiscountAmt = ($lineAmount * $discountPercent) / 100;
-        $itemTaxable = $lineAmount - $lineDiscountAmt;
-        $taxAmt = ($itemTaxable * $taxPercent) / 100;
-        $itemTotal = $itemTaxable + $taxAmt;
+        $quantity = (int)($item['quantity'] ?? 0);
+        $unitPrice = (float)($item['unit_price'] ?? 0);
+        $totalPrice = $quantity * $unitPrice;
+        $taxPercent = (float)($item['gst_percentage'] ?? ($item['tax_percent'] ?? 0));
         
         $params = [
             $poId,
-            $poNumber,
-            (int)$item['medicine_id'],
-            $item['medicine_name'] ?? '',
-            $item['pack_size'] ?? '',
-            $item['hsn_code'] ?? '',
-            $item['batch_number'] ?? '',
-            $item['expiry_date'] ?? null,
+            $productId,
             $quantity,
-            (float)($item['mrp'] ?? 0),
-            (float)($item['ptr'] ?? 0),
+            0,
             $unitPrice,
-            $lineAmount,
-            $discountPercent,
-            $itemTaxable,
-            $taxPercent,
-            $taxAmt,
-            $itemTotal
+            $totalPrice,
+            'Pending',
+            $item['notes'] ?? ($item['medicine_name'] ?? ''),
+            $taxPercent
         ];
         
         $result = $this->db->execute_query($sql, $params);
@@ -324,7 +291,7 @@ class PurchaseOrderController {
             $this->db->begin_transaction();
             
             // Update PO status
-            $sql = "UPDATE purchase_order SET po_status = 'submitted', submitted_at = ? WHERE po_id = ?";
+            $sql = "UPDATE purchase_orders SET po_status = 'Submitted', submitted_at = ?, status = 'SUBMITTED' WHERE po_id = ?";
             $this->db->execute_query($sql, [date('Y-m-d H:i:s'), $poId]);
             
             // Update approval workflow status
@@ -347,6 +314,26 @@ class PurchaseOrderController {
         }
         
         return $response;
+    }
+
+    /**
+     * Normalize PO status to enum values expected by purchase_orders.po_status.
+     */
+    private function normalizePoStatus($status)
+    {
+        $value = strtolower(trim((string)$status));
+        $map = [
+            'draft' => 'Draft',
+            'submitted' => 'Submitted',
+            'approved' => 'Approved',
+            'partialreceived' => 'PartialReceived',
+            'partial_received' => 'PartialReceived',
+            'received' => 'Received',
+            'cancelled' => 'Cancelled',
+            'canceled' => 'Cancelled'
+        ];
+
+        return $map[$value] ?? 'Draft';
     }
     
 }

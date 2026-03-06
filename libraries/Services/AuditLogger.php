@@ -101,6 +101,70 @@ class AuditLogger
     }
 
     /**
+     * Backward-compatible generic logger used by controllers.
+     *
+     * @param string $table_name
+     * @param int|null $record_id
+     * @param string $action INSERT|UPDATE|DELETE
+     * @param array|null $old_data
+     * @param array|null $new_data
+     * @param string $source
+     * @param int|null $user_id
+     * @param array $meta
+     * @return bool
+     */
+    public function logChange(
+        $table_name,
+        $record_id,
+        $action,
+        $old_data = null,
+        $new_data = null,
+        $source = '',
+        $user_id = null,
+        $meta = []
+    ) {
+        $normalizedAction = strtoupper((string)$action);
+
+        if ($user_id !== null && $user_id !== '') {
+            $this->user_id = intval($user_id);
+        }
+
+        $summaryParts = [];
+        if (!empty($source)) {
+            $summaryParts[] = 'Source: ' . $source;
+        }
+        if (is_array($meta) && !empty($meta)) {
+            $summaryParts[] = 'Meta: ' . json_encode($meta);
+        }
+
+        if ($normalizedAction === 'UPDATE') {
+            $changes = $this->calculateChanges($old_data ?? [], $new_data ?? []);
+            $summaryParts[] = $this->generateChangesSummary($changes);
+        }
+
+        $summary = trim(implode(' | ', $summaryParts));
+
+        if ($normalizedAction === 'INSERT') {
+            if ($summary === '') {
+                $summary = 'Record inserted';
+            }
+            return $this->writeAuditLog($table_name, $record_id, 'INSERT', $old_data, $new_data, $summary);
+        }
+
+        if ($normalizedAction === 'DELETE') {
+            if ($summary === '') {
+                $summary = 'Record deleted';
+            }
+            return $this->writeAuditLog($table_name, $record_id, 'DELETE', $old_data, $new_data, $summary);
+        }
+
+        if ($summary === '') {
+            $summary = 'Record updated';
+        }
+        return $this->writeAuditLog($table_name, $record_id, 'UPDATE', $old_data, $new_data, $summary);
+    }
+
+    /**
      * Get audit trail for a record
      * 
      * @param string $table_name Table name
