@@ -28,6 +28,7 @@
     
     <link href="assets/css/helper.css" rel="stylesheet">
     <link href="assets/css/style.css" rel="stylesheet">
+    <link href="assets/css/responsive-project.css" rel="stylesheet">
  <link rel="stylesheet" href="assets/css/lib/html5-editor/bootstrap-wysihtml5.css" />
  <link href="assets/css/lib/calendar2/semantic.ui.min.css" rel="stylesheet">
     <link href="assets/css/lib/calendar2/pignose.calendar.min.css" rel="stylesheet">

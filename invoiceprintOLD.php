@@ -2,8 +2,19 @@
 <html>
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Invoice Print</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 12px;
+            background: #f6f8fb;
+        }
+
         .invoice-box {
             max-width: 800px;
             margin: auto;
@@ -14,6 +25,13 @@
             line-height: 24px;
             font-family: 'Helvetica Neue', 'Helvetica', Helvetica, Arial, sans-serif;
             color: #555;
+            background: #fff;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .invoice-box table {
@@ -21,6 +39,7 @@
             line-height: inherit;
             text-align: left;
             border-collapse: collapse;
+            min-width: 760px;
         }
 
         .invoice-box table td {
@@ -69,6 +88,14 @@
         }
 
         @media only screen and (max-width: 600px) {
+            body {
+                padding: 8px;
+            }
+
+            .invoice-box {
+                padding: 14px;
+            }
+
             .invoice-box table tr.top table td {
                 width: 100%;
                 display: block;
@@ -105,6 +132,7 @@ $result = $connect->query($sql);
 foreach ($result as $row) { ?>
 <body>
 <div class="invoice-box">
+    <div class="table-wrap">
     <table cellpadding="0" cellspacing="0">
         <tr class="top">
             <td colspan="8">
@@ -252,6 +280,7 @@ foreach ($result as $row) { ?>
             </td>
         </tr>
     </table>
+    </div>
 </div>
 </body>
 <?php } ?>

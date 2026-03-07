@@ -329,6 +329,41 @@ $totalReceived = array_sum(array_column($items, 'quantity_received'));
                 box-shadow: none;
             }
         }
+
+        @media screen and (max-width: 991px) {
+            body {
+                padding: 8px;
+            }
+
+            .print-container {
+                padding: 8px;
+            }
+
+            .top-info,
+            .mid-section,
+            .signatures,
+            .footer {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .items-section {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .items-section table {
+                min-width: 900px;
+            }
+
+            .totals-section {
+                justify-content: flex-start;
+            }
+
+            .totals-box {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>

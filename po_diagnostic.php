@@ -10,6 +10,8 @@ header('Content-Type: text/html; charset=UTF-8');
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PO Creation Diagnostic Test</title>
     <style>
         * { margin: 0; padding: 0; }
@@ -65,6 +67,7 @@ header('Content-Type: text/html; charset=UTF-8');
             width: 100%;
             border-collapse: collapse;
             margin: 10px 0;
+            min-width: 760px;
         }
         th, td {
             padding: 10px;
@@ -122,6 +125,35 @@ header('Content-Type: text/html; charset=UTF-8');
             border-left: 4px solid #0066cc;
             margin-bottom: 20px;
             border-radius: 3px;
+        }
+
+        .test-section {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 767px) {
+            body {
+                padding: 10px;
+            }
+
+            .test-section {
+                padding: 14px;
+            }
+
+            h1 {
+                font-size: 22px;
+                line-height: 1.3;
+            }
+
+            button {
+                width: 100%;
+                margin: 6px 0;
+            }
+
+            .summary {
+                font-size: 14px;
+            }
         }
     </style>
 </head>

@@ -144,69 +144,8 @@
             </div>
             
         </div>
-        <!-- sidebar hide/show toggle (moved outside to avoid being clipped by transform) -->
-        <div class="sidebar-collapse-toggle"><i class="fa fa-chevron-left"></i></div>
-<script>
-// only handle the sidebar collapse/expand toggle button – submenu behavior
-// is managed by the MetisMenu plugin (
-// see assets/js/scripts.js which calls $("#sidebarnav").metisMenu()
-// and provides proper show/hide animations and sibling collapsing).
-
-function initSidebarToggle() {
-    var toggle = document.querySelector('.sidebar-collapse-toggle');
-    if (!toggle) return;
-    var storageKey = 'sc_sidebar_collapsed';
-
-    // sync icon state when page loads
-    var icon = toggle.querySelector('i');
-    var sidebar = document.querySelector('.left-sidebar');
-    var stored = null;
-    try {
-        stored = localStorage.getItem(storageKey);
-    } catch (e) {}
-
-    if (stored === '1') {
-        sidebar.classList.add('collapsed');
-        document.body.classList.add('body-with-collapsed-sidebar');
-    } else {
-        document.body.classList.remove('body-with-collapsed-sidebar');
-    }
-
-    document.body.classList.remove('sidebar-hide');
-
-    if (sidebar && sidebar.classList.contains('collapsed')) {
-        icon.classList.replace('fa-chevron-left', 'fa-chevron-right');
-        document.body.classList.add('body-with-collapsed-sidebar');
-    }
-
-    function setCollapsedState(collapsed) {
-        var sidebar = document.querySelector('.left-sidebar');
-        if (!sidebar) return;
-
-        sidebar.classList.toggle('collapsed', collapsed);
-        document.body.classList.toggle('body-with-collapsed-sidebar', collapsed);
-        document.body.classList.remove('sidebar-hide');
-        try {
-            localStorage.setItem(storageKey, collapsed ? '1' : '0');
-        } catch (e) {}
-        if (collapsed) {
-            icon.classList.replace('fa-chevron-left', 'fa-chevron-right');
-        } else {
-            icon.classList.replace('fa-chevron-right', 'fa-chevron-left');
-        }
-    }
-
-    function toggleCollapsedState() {
-        var sidebar = document.querySelector('.left-sidebar');
-        if (!sidebar) return;
-        setCollapsedState(!sidebar.classList.contains('collapsed'));
-    }
-
-    toggle.addEventListener('click', function(e) {
-        e.preventDefault();
-        toggleCollapsedState();
-    });
-}
-
-document.addEventListener('DOMContentLoaded', initSidebarToggle);
-</script>        
+        <div class="sidebar-mobile-overlay" aria-hidden="true"></div>
+        <!-- Desktop collapse toggle for sidebar width -->
+        <button type="button" class="sidebar-collapse-toggle" aria-label="Collapse sidebar">
+            <i class="fa fa-chevron-left"></i>
+        </button>

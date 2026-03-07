@@ -157,7 +157,7 @@
   top: 50%;
   transform: translateY(-50%);
   width: 24px;
-  height: 72px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -169,6 +169,12 @@
   -webkit-backdrop-filter: blur(4px);
   cursor: pointer;
   z-index: 40;
+  opacity: 0.68;
+  pointer-events: auto;
+  transition:
+    left 0.2s ease,
+    opacity 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .sidebar-collapse-toggle:hover {
@@ -178,6 +184,15 @@
 .sidebar-collapse-toggle i {
   font-size: 12px;
   color: #fff;
+}
+
+.left-sidebar.sc-sidebar:hover ~ .sidebar-collapse-toggle,
+.sidebar-collapse-toggle:hover,
+.sidebar-collapse-toggle:focus,
+.left-sidebar.sc-sidebar.collapsed
+  + .sidebar-mobile-overlay
+  + .sidebar-collapse-toggle {
+  opacity: 1;
 }
 
 /* ===== Icon Color Chips ===== */
@@ -249,6 +264,8 @@
 
 .body-with-collapsed-sidebar .sidebar-collapse-toggle {
   left: 74px;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 @media (min-width: 992px) {
@@ -274,5 +291,147 @@
 
   .left-sidebar.sc-sidebar.collapsed .sidebar-nav > ul > li:hover > ul {
     display: block !important;
+  }
+}
+
+/* ===== Header Toggle Buttons ===== */
+.header .top-navbar .nav-toggler,
+.header .top-navbar .sidebartoggler {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: #3f4d5d;
+  border-radius: 8px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.header .top-navbar .nav-toggler:hover,
+.header .top-navbar .sidebartoggler:hover {
+  background: #eef4ff;
+  color: #0d6efd;
+}
+
+/* ===== Mobile Overlay ===== */
+.sidebar-mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+  z-index: 34;
+}
+
+body.show-sidebar .sidebar-mobile-overlay {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+@media (min-width: 1024px) {
+  .header .top-navbar .nav-toggler {
+    display: none !important;
+  }
+
+  .header .top-navbar .sidebartoggler {
+    display: inline-flex !important;
+  }
+
+  .sidebar-collapse-toggle {
+    display: flex !important;
+  }
+
+  .sidebar-mobile-overlay {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  body.show-sidebar {
+    overflow: hidden;
+  }
+
+  .header .top-navbar .nav-toggler {
+    display: inline-flex !important;
+  }
+
+  .header .top-navbar .sidebartoggler {
+    display: none !important;
+  }
+
+  .left-sidebar.sc-sidebar,
+  body.mini-sidebar .left-sidebar.sc-sidebar {
+    width: 260px !important;
+    max-width: calc(100vw - 52px);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 40;
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.24);
+  }
+
+  body.show-sidebar .left-sidebar.sc-sidebar,
+  body.mini-sidebar.show-sidebar .left-sidebar.sc-sidebar {
+    transform: translateX(0);
+  }
+
+  .left-sidebar.sc-sidebar.collapsed {
+    width: 260px !important;
+  }
+
+  .left-sidebar.sc-sidebar.collapsed .sidebar-nav ul li.nav-label,
+  body.mini-sidebar .left-sidebar.sc-sidebar .sidebar-nav ul li.nav-label {
+    display: block !important;
+  }
+
+  .left-sidebar.sc-sidebar.collapsed .sidebar-nav .hide-menu,
+  body.mini-sidebar .left-sidebar.sc-sidebar .sidebar-nav .hide-menu {
+    display: inline !important;
+  }
+
+  .left-sidebar.sc-sidebar.collapsed .sidebar-nav .has-arrow:after,
+  body.mini-sidebar .left-sidebar.sc-sidebar .sidebar-nav .has-arrow:after {
+    display: block !important;
+  }
+
+  .left-sidebar.sc-sidebar.collapsed .sidebar-nav > ul > li > a,
+  body.mini-sidebar .left-sidebar.sc-sidebar .sidebar-nav > ul > li > a {
+    justify-content: flex-start;
+    width: auto;
+    min-height: 46px;
+    padding: 11px 14px;
+    margin: 3px 10px;
+  }
+
+  .left-sidebar.sc-sidebar.collapsed .sidebar-nav > ul > li > a i,
+  body.mini-sidebar .left-sidebar.sc-sidebar .sidebar-nav > ul > li > a i {
+    width: 28px;
+    height: 28px;
+  }
+
+  .page-wrapper {
+    margin-left: 0 !important;
+  }
+
+  .footer {
+    left: 0 !important;
+  }
+
+  .sidebar-collapse-toggle {
+    display: none !important;
+  }
+
+  body.mini-sidebar .sidebar-collapse-toggle {
+    display: none !important;
   }
 }

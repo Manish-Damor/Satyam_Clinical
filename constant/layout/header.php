@@ -18,6 +18,12 @@ require_once('./constant/connect.php');
             <nav class="navbar top-navbar navbar-expand-md navbar-light">
                 
                 <div class="navbar-header">
+                    <a class="nav-toggler d-block d-md-none" href="javascript:void(0)" aria-label="Toggle sidebar menu">
+                        <i class="mdi mdi-menu"></i>
+                    </a>
+                    <a class="sidebartoggler d-none d-md-block" href="javascript:void(0)" aria-label="Toggle sidebar width">
+                        <i class="ti-menu"></i>
+                    </a>
                     <a class="navbar-brand" href="index.php">
                         
                          
@@ -34,12 +40,10 @@ require_once('./constant/connect.php');
                    
                     </div>
                     <ul class="navbar-nav my-lg-0 ml-auto">
-
-                      <img src="./assets/uploadImage/Logo/transalation.png" alt="user" style="height: 30px;
-                                width: auto;
-                                margin-top: 16px;
-                                margin-right: 10px;">
-                        <div id="google_translate_element"></div>
+                        <li class="nav-item nav-translate d-none d-lg-flex">
+                            <img src="./assets/uploadImage/Logo/transalation.png" alt="Translate">
+                            <div id="google_translate_element"></div>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle text-muted  " href="#" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 

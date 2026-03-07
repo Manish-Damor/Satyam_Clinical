@@ -35,6 +35,8 @@ include_once('./php_action/expiry_housekeeping_fallback.php');
    
     
     <script src="assets/js/custom.min.js"></script>
+    <script src="assets/js/sidebar-responsive.js"></script>
+    <script src="assets/js/auto-responsive-tables.js"></script>
 
    
     <script src="assets/js/lib/datatables/datatables.min.js"></script>

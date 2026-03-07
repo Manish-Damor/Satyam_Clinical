@@ -594,6 +594,26 @@ $netAmountWords = amountInWordsIndian($netPayable);
                 page-break-inside: avoid;
             }
         }
+
+        @media screen and (max-width: 991px) {
+            .print-actions {
+                padding: 0 8px;
+                justify-content: flex-start;
+            }
+
+            .sheet {
+                width: 100%;
+                min-height: auto;
+                margin: 0;
+                padding: 6px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .invoice {
+                min-width: 1180px;
+            }
+        }
     </style>
 </head>
 <body>

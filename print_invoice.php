@@ -532,6 +532,52 @@ $minRows = 10;
                 box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
             }
         }
+
+        @media screen and (max-width: 991px) {
+            .no-print {
+                padding: 10px;
+            }
+
+            .sheet {
+                width: 100%;
+                min-height: auto;
+                margin: 0;
+                padding: 8px;
+                border: none;
+                box-shadow: none;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .company-name {
+                font-size: 30px;
+            }
+
+            .company-meta-row,
+            .summary-wrap,
+            .bank-sign-wrap,
+            .footer-lines {
+                grid-template-columns: 1fr;
+            }
+
+            .party-table,
+            .items-table,
+            .tax-table,
+            .summary-table,
+            .balance-table {
+                min-width: 860px;
+            }
+
+            .sign-company {
+                text-align: left;
+                font-size: 24px;
+                margin-bottom: 10px;
+            }
+
+            .sign-line {
+                text-align: left;
+            }
+        }
     </style>
 </head>
 <body>

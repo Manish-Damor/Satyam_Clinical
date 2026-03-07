@@ -2,12 +2,20 @@
 <html>
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Invoice Print</title>
 
 <style>
+* {
+    box-sizing: border-box;
+}
+
 body {
     font-family: Arial, sans-serif;
     font-size: 14px;
+    margin: 0;
+    padding: 16px;
+    background: #f5f7fb;
 }
 
 .invoice-box {
@@ -15,6 +23,7 @@ body {
     margin: auto;
     padding: 20px;
     border: 1px solid #333;
+    background: #fff;
 }
 
 .header {
@@ -55,6 +64,16 @@ table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
+}
+
+.table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-wrap table {
+    min-width: 760px;
 }
 
 th, td {
@@ -111,6 +130,41 @@ th {
         @media print {
             .print-btn {
                 display: none;
+            }
+            body {
+                padding: 0;
+                background: #fff;
+            }
+        }
+
+        @media (max-width: 767px) {
+            body {
+                padding: 8px;
+            }
+
+            .invoice-box {
+                padding: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .title {
+                text-align: left;
+                width: 100%;
+            }
+
+            .section {
+                grid-template-columns: 1fr;
+            }
+
+            .footer {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                text-align: left;
             }
         }
 
@@ -244,6 +298,7 @@ if($row['paymentPlace'] == 1) { // In India
 </div>
 
 <!-- ITEMS -->
+<div class="table-wrap">
 <table>
 <tr>
     <th>#</th>
@@ -276,6 +331,7 @@ $prod = $prodRes->fetch_assoc();
 </tr>
 <?php } ?>
 </table>
+</div>
 
 <!-- BANK + TOTALS ROW -->
 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">
