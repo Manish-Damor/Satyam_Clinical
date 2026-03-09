@@ -1,0 +1,1560 @@
+<?php include('./constant/layout/head.php');?>
+<?php include('./constant/layout/header.php');?>
+
+<?php include('./constant/layout/sidebar.php');?>
+  
+<!-- <link rel="stylesheet" href="custom/js/order.js"> -->
+
+<?php include('./constant/connect.php');
+
+ 
+
+
+
+if($_GET['o'] == 'add') { 
+// add order
+  echo "<div class='div-request div-hide'>add</div>";
+} else if($_GET['o'] == 'manord') { 
+  echo "<div class='div-request div-hide'>manord</div>";
+} else if($_GET['o'] == 'editOrd') { 
+  echo "<div class='div-request div-hide'>editOrd</div>";
+} // /else manage order
+
+
+?>
+
+<!-- <ol class="breadcrumb">
+  <li><a href="dashboard.php">Home</a></li>
+  <li>Order</li>
+  <li class="active">
+    <?php //if($_GET['o'] == 'add') { ?>
+      Add Order
+    <?php// } else if($_GET['o'] == 'manord') { ?>
+      Manage Order
+    <?php //} // /else manage order ?>
+  </li>
+</ol>
+
+
+<h4>
+  <i class='glyphicon glyphicon-circle-arrow-right'></i>
+  <?php //if($_GET['o'] == 'add') {
+    //echo "Add Order";
+  //} else if($_GET['o'] == 'manord') { 
+   // echo "Manage Order";
+  //} else if($_GET['o'] == 'editOrd') { 
+  //  echo "Edit Order";
+  //}
+  ?>  
+</h4>
+ -->
+
+
+ 
+  <div class="page-wrapper">
+            
+    <div class="row page-titles">
+      <div class="col-md-5 align-self-center">
+        <h3 class="text-primary">Sales Invoice Management</h3>
+      </div>
+      <div class="col-md-7 align-self-center">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="javascript:void(0)">Home</a></li>
+            <li class="breadcrumb-item active">Sales Invoice Management</li>
+        </ol>
+      </div>
+    </div>   
+            
+    <div class="container-fluid">
+              
+      <div class="row">
+        <div class="col-lg-12" style="    margin: 0 auto;">
+          <div class="card">
+            <div class="card-title">
+                
+            </div>
+            <div id="add-brand-messages">
+
+            </div>
+            <div class="card-body">
+              <div class="input-states">
+                <form class="form-horizontal" method="POST"  id="createOrderForm" action="php_action/order.php">
+                  <div class="form-group">
+                    <div class="row">
+
+                      <label class="col-sm-2 control-label">Invoice No</label>
+                      <div class="col-sm-4">
+                        <?php 
+                        $user = "select * from orders where id=(select max(id) from orders)";
+                        $year = date('y');
+                        $month = date('m');
+
+                        $result = $connect->query($user);
+                        $res = $result->fetch_assoc();
+
+                        // Get next invoice number
+                        $nextInvNum = (isset($res['id']) && $res['id']) ? $res['id'] + 1 : 1;
+
+                        // Generate Invoice Number
+                        $stall_no = 'INV-' . $year . '-' . str_pad($nextInvNum, 4, '0', STR_PAD_LEFT);
+
+                        // echo $stall_no;
+                        ?>
+
+
+                        <input type="text" class="form-control" placeholder="Invoice Number" value="<?php echo $stall_no; ?>" autocomplete="off" name="uno" required/>
+                      </div>
+
+
+                      <label class="col-sm-2 control-label">Invoice Date</label>
+
+                      <div class="col-sm-4">
+                        <input type="date" class="form-control" value="<?php echo date('Y-m-d');?>" id="orderDate" name="orderDate" autocomplete="off" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <div class="row">
+                      <label class="col-sm-2 control-label">Client Name</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="clientName" name="clientName" placeholder="Client Name" autocomplete="on" />
+                      </div>
+
+                      <label class="col-sm-2 control-label">Client Contact No.</label>
+                      <div class="col-sm-4">
+                      <input type="text" class="form-control numeric-only" id="clientContact" name="clientContact" placeholder="Contact Number No." inputmode="numeric" autocomplete="on" pattern="^[0][1-9]\d{9}$|^[1-9]\d{9}$" required/>
+                      </div>
+
+                    </div>
+                  </div>
+                                                        
+
+                  <table class="table" id="productTable">
+                    <thead>
+                      <tr>              
+                        <th style="width:40%;">Medicine</th>
+                        <th style="width:12%;">Rate</th>
+                        <th style="width:12%;" class="no-print">PTR</th>
+                        <th style="width:10%;">Batch</th>
+                        <th style="width:10%;">Avail.</th>
+                        <th style="width:15%;">Quantity</th>              
+                        <th style="width:25%;">Total</th>             
+                        <th style="width:10%;">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <?php
+                        $arrayNumber = 0;
+                        for($x = 1; $x < 2; $x++)
+                          { 
+                      ?>
+                          <tr id="row<?php echo $x; ?>" class="<?php echo $arrayNumber; ?>">                
+                            <td style="margin-left:20px;">
+                              <div class="form-group" style="position: relative;">
+                                <input type="text" class="form-control invoice-product-input" name="productName[]" id="productName<?php echo $x; ?>" placeholder="Type to search medicines..." autocomplete="off" data-row-id="<?php echo $x; ?>" style="position: relative; z-index: 1;" />
+                                <input type="hidden" class="invoice-product-id" name="productId[]" id="productId<?php echo $x; ?>" />
+                                <div class="invoice-product-dropdown" id="dropdown<?php echo $x; ?>" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15);"></div>
+                              </div>
+                            </td>
+                            <td>                 
+                              <input type="text" name="rate[]" id="rate<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />                  
+                              <input type="hidden" name="rateValue[]" id="rateValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
+                              <input type="hidden" name="gstRate[]" id="gstRate<?php echo $x; ?>" autocomplete="off" class="form-control" />
+                            </td>
+                            <td class="no-print">
+                              <input type="text" name="ptr[]" id="ptr<?php echo $x; ?>" autocomplete="off" disabled="true" class="form-control" />
+                              <input type="hidden" name="ptrValue[]" id="ptrValue<?php echo $x; ?>" autocomplete="off" class="form-control" />
+                            </td>
+                            <td>
+                              <div class="form-group">
+                                <select name="batchId[]" id="batchId<?php echo $x; ?>" class="form-control form-control-sm" onchange="updateBatchInfo(<?php echo $x ?>)">
+                                  <option value="">Select Batch</option>
+                                </select>
+                                <input type="hidden" name="batchNumber[]" id="batchNumber<?php echo $x; ?>" />
+                                <input type="hidden" name="expiryDate[]" id="expiryDate<?php echo $x; ?>" />
+                              </div>
+                            </td>
+                            <td>
+                              <div class="form-group">
+                              <p style="padding-left:4%;" id="available_quantity<?php echo $x; ?>"></p>
+                              </div>
+                            </td>
+                            <td>
+                              <div class="form-group">
+                              <input type="number" name="quantity[]" id="quantity<?php echo $x; ?>" onkeyup="getTotal(<?php echo $x ?>)" autocomplete="off" class="form-control" min="1" />
+                              </div>
+                            </td>
+                            <td >                 
+                              <input type="text" name="total[]" id="total<?php echo $x; ?>" autocomplete="off" class="form-control" disabled="true" />                  
+                              <input type="hidden" name="totalValue[]" id="totalValue<?php echo $x; ?>" autocomplete="off" class="form-control" />                  
+                            </td>
+                            <!-- <td >
+                              <div class="form-group">
+                                <button type="button" class="btn btn-primary btn-flat " onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="fa fa-plus"></i></button>                  
+                              </div>
+                            </td> -->
+                            <td > 
+                              <div class="form-group">              
+                                <button type="button" class="btn btn-danger  removeProductRowBtn" type="button" id="removeProductRowBtn" onclick="removeProductRow(<?php echo $x; ?>)"><i class="fa fa-trash"></i></button>
+                              </div>
+                            </td>
+                          </tr>
+                          <?php
+                          $arrayNumber++;
+                        } // /for
+                      ?>
+                    </tbody>          
+                  </table> 
+                  <div class="form-group col-md-12">
+                  <button type="button" class="btn btn-success" onclick="addRow()" id="addRowBtn">Add Item</button>
+                  </div>         
+                  <div class="form-group">
+                    <div class="row">
+                      <label class="col-sm-2 control-label">Sub Amount</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="subTotal" name="subTotal" disabled="true" />
+                        <input type="hidden" class="form-control" id="subTotalValue" name="subTotalValue" />
+                      </div>
+                      <label for="totalAmount" class="col-sm-2 control-label">Total Amount</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="totalAmount" name="totalAmount" disabled="true"/>
+                        <input type="hidden" class="form-control" id="totalAmountValue" name="totalAmountValue" />
+                      </div>
+                    </div>
+                  </div>                                       
+                  <div class="form-group">
+                    <div class="row">
+                      <label for="discount" class="col-sm-2 control-label">Discount RS.</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control numeric-only" id="discount" name="discount" onkeyup="discountFunc()" autocomplete="off" / pattern="^[0-9]+$"/>
+                      </div>
+                      <label for="grandTotal" class="col-sm-2 control-label">Grand Total</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="grandTotal" name="grandTotal" disabled="true" />
+                        <input type="hidden" class="form-control" id="grandTotalValue" name="grandTotalValue" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <div class="row">                          
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <div class="row">
+                      <label for="paid" class="col-sm-2 control-label">Paid Amount</label>
+                      <div class="col-sm-4">
+                      <input type="text" class="form-control numeric-only" id="paid" name="paid" autocomplete="off" onkeyup="paidAmount()" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <div class="row">
+                      <label for="due" class="col-sm-2 control-label">Due Amount</label>
+                      <div class="col-sm-4">
+                        <input type="text" class="form-control" id="due" name="due" disabled="true" />
+                        <input type="hidden" class="form-control" id="dueValue" name="dueValue" />
+                      </div>
+                      <label for="clientContact" class="col-sm-2 control-label">Payment Type</label>
+                      <div class="col-sm-4">
+                        <select class="form-control" name="paymentType" id="paymentType">
+                          <option value="">~~SELECT~~</option>
+                          <option value="2">Cash</option>
+                          <option value="4">Phone Pe</option>
+                          <option value="5">Google Pay</option>
+                          <option value="6">Amazon Pay</option>
+                          <option value="1">Cheque</option>
+                          <option value="3">Credit Card</option>                      
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="form-group">
+                    <div class="row">
+                      <label for="clientContact" class="col-sm-2 control-label">Payment Status</label>
+                      <div class="col-sm-4">
+                        <select class="form-control" name="paymentStatus" id="paymentStatus">
+                          <option value="">~~SELECT~~</option>
+                          <option value="1">Full Payment</option>
+                          <option value="2">Advance Payment</option>
+                          <option value="3">No Payment</option>
+                        </select>
+                      </div>
+
+                      <label for="clientContact" class="col-sm-2 control-label">Payment Place</label>
+                      <div class="col-sm-4">
+                        <select class="form-control" name="paymentPlace" id="paymentPlace" onchange="updateGSTLabel();">
+                          <option value="">~~SELECT~~</option>
+                          <option value="1">In India</option>
+                          <option value="2">Out Of India</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-group submitButtonFooter">
+                    <div class="col-sm-offset-2 col-sm-10">
+                      <button type="submit" id="createOrderBtn" data-loading-text="Loading..." class="btn btn-success btn-flat m-b-30 m-t-30"><i class="glyphicon glyphicon-ok-sign"></i> Submit</button>
+
+                      <button type="reset" class="btn btn-danger btn-flat m-b-30 m-t-30" onclick="resetOrderForm()"><i class="glyphicon glyphicon-erase"></i> Reset</button>
+                    </div>
+                  </div>        
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+              
+              
+
+
+ 
+<?php include('./constant/layout/footer.php');?>
+
+<script>
+
+
+// Select all elements with the "numeric-only" class
+const numericFields = document.querySelectorAll('.numeric-only');
+
+numericFields.forEach(field => {
+    // 1. Block keys as they are pressed
+    field.addEventListener('keydown', (event) => {
+        // Added '.' to the allowed list
+        const allowedKeys = ['Backspace', 'Tab', 'Enter', 'Delete', 'ArrowLeft', 'ArrowRight', '.'];
+        
+        // Check if the key is a digit [0-9]
+        const isDigit = /^[0-9]$/.test(event.key);
+
+        // If it's not a digit and not an allowed key, block it
+        if (!isDigit && !allowedKeys.includes(event.key)) {
+            event.preventDefault();
+        }
+
+        // Prevent entering more than one decimal point
+        if (event.key === '.' && event.target.value.includes('.')) {
+            event.preventDefault();
+        }
+    });
+
+    // 2. Safety for Pasted text (allows digits and one decimal point)
+    field.addEventListener('input', function() {
+        // Remove everything except numbers and dots
+        this.value = this.value.replace(/[^0-9.]/g, '');
+        
+        // Ensure only the first dot stays if there are multiples
+        const parts = this.value.split('.');
+        if (parts.length > 2) {
+            this.value = parts[0] + '.' + parts.slice(1).join('');
+        }
+    });
+});
+
+
+</script>
+
+
+<script>
+
+// 🔥 Autocomplete cache
+var productSearchCache = {};
+
+var manageOrderTable;
+
+$(document).ready(function() {
+//   $("#paymentPlace").change(function(){
+//     if($("#paymentPlace").val() == 2)
+//     {
+//       $(".gst").text("IGST 18%");
+//     }
+//     else
+//     {
+//       $(".gst").text("GST 18%");  
+//     }
+// });
+
+  var divRequest = $(".div-request").text();
+
+  // top nav bar 
+  $("#navOrder").addClass('active');
+
+  if(divRequest == 'add')  {
+    // add order  
+    // top nav child bar 
+    $('#topNavAddOrder').addClass('active');  
+
+    // order date picker
+    $("#orderDate").datepicker();
+
+    // create order form function
+    $("#createOrderForm").unbind('submit').bind('submit', function() {
+      var form = $(this);
+
+      $('.form-group').removeClass('has-error').removeClass('has-success');
+      $('.text-danger').remove();
+        
+      var orderDate = $("#orderDate").val();
+      var clientName = $("#clientName").val();
+      var clientContact = $("#clientContact").val();
+      var paid = $("#paid").val();
+      var discount = $("#discount").val();
+      var paymentType = $("#paymentType").val();
+      var paymentStatus = $("#paymentStatus").val();  
+      var gstPercentage = $("#gstPercentage").val();  
+
+      // form validation 
+      if(orderDate == "") {
+        $("#orderDate").after('<p class="text-danger"> The Order Date field is required </p>');
+        $('#orderDate').closest('.form-group').addClass('has-error');
+      } else {
+        $('#orderDate').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(clientName == "") {
+        $("#clientName").after('<p class="text-danger"> The Client Name field is required </p>');
+        $('#clientName').closest('.form-group').addClass('has-error');
+      } else {
+        $('#clientName').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(clientContact == "") {
+        $("#clientContact").after('<p class="text-danger"> The Contact field is required </p>');
+        $('#clientContact').closest('.form-group').addClass('has-error');
+      } else {
+        $('#clientContact').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(paid == "") {
+        $("#paid").after('<p class="text-danger"> The Paid field is required </p>');
+        $('#paid').closest('.form-group').addClass('has-error');
+      } else {
+        $('#paid').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(discount == "") {
+        $("#discount").after('<p class="text-danger"> The Discount field is required </p>');
+        $('#discount').closest('.form-group').addClass('has-error');
+      } else {
+        $('#discount').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(paymentType == "") {
+        $("#paymentType").after('<p class="text-danger"> The Payment Type field is required </p>');
+        $('#paymentType').closest('.form-group').addClass('has-error');
+      } else {
+        $('#paymentType').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(paymentStatus == "") {
+        $("#paymentStatus").after('<p class="text-danger"> The Payment Status field is required </p>');
+        $('#paymentStatus').closest('.form-group').addClass('has-error');
+      } else {
+        $('#paymentStatus').closest('.form-group').addClass('has-success');
+      } // /else
+
+
+      // array validation
+      var productName = document.getElementsByName('productName[]');        
+      var validateProduct;
+      for (var x = 0; x < productName.length; x++) {            
+        var productNameId = productName[x].id;        
+        if(productName[x].value == ''){               
+          $("#"+productNameId+"").after('<p class="text-danger"> Product Name Field is required!! </p>');
+          $("#"+productNameId+"").closest('.form-group').addClass('has-error');                     
+        } else {        
+          $("#"+productNameId+"").closest('.form-group').addClass('has-success');                       
+        }          
+      } // for
+
+      for (var x = 0; x < productName.length; x++) {                  
+        if(productName[x].value){                       
+          validateProduct = true;
+        } else {        
+          validateProduct = false;
+        }          
+      } // for              
+      
+      var quantity = document.getElementsByName('quantity[]');        
+      var validateQuantity;
+      for (var x = 0; x < quantity.length; x++) {       
+        var quantityId = quantity[x].id;
+        if(quantity[x].value == ''){        
+          $("#"+quantityId+"").after('<p class="text-danger"> Product Name Field is required!! </p>');
+          $("#"+quantityId+"").closest('.form-group').addClass('has-error');                        
+        } else {        
+          $("#"+quantityId+"").closest('.form-group').addClass('has-success');                                
+        } 
+      }  // for
+
+      for (var x = 0; x < quantity.length; x++) {                   
+        if(quantity[x].value){                        
+          validateQuantity = true;
+        } else {        
+          validateQuantity = false;
+        }          
+      } // for        
+      
+
+      if(orderDate && clientName && clientContact && paid && discount && paymentType && paymentStatus) {
+        if(validateProduct == true && validateQuantity == true) {
+          // create order button
+          // $("#createOrderBtn").button('loading');
+
+          $.ajax({
+            url : form.attr('action'),
+            type: form.attr('method'),
+            data: form.serialize(),         
+            dataType: 'json',
+            success:function(response) {
+              console.log(response);
+              // reset button
+              $("#createOrderBtn").button('reset');
+              
+              $(".text-danger").remove();
+              $('.form-group').removeClass('has-error').removeClass('has-success');
+
+              if(response.success == true) {
+                
+                // create order button
+                $(".success-messages").html('<div class="alert alert-success">'+
+                '<button type="button" class="close" data-dismiss="alert">&times;</button>'+
+                '<strong><i class="glyphicon glyphicon-ok-sign"></i></strong> '+ response.messages +
+                ' <br /> <br /> <a type="button" onclick="printOrder('+response.order_id+')" class="btn btn-primary"> <i class="glyphicon glyphicon-print"></i> Print </a>'+
+                '<a href="orders.php?o=add" class="btn btn-default" style="margin-left:10px;"> <i class="glyphicon glyphicon-plus-sign"></i> Add New Order </a>'+
+                
+               '</div>');
+                
+              $("html, body, div.panel, div.pane-body").animate({scrollTop: '0px'}, 100);
+
+              // disabled te modal footer button
+              $(".submitButtonFooter").addClass('div-hide');
+              // remove the product row
+              $(".removeProductRowBtn").addClass('div-hide');
+                
+              } else {
+                alert(response.messages);               
+              }
+            } // /response
+          }); // /ajax
+        } // if array validate is true
+      } // /if field validate is true
+      
+
+      return false;
+    }); // /create order form function  
+  
+  } else if(divRequest == 'manord') {
+    // top nav child bar 
+    $('#topNavManageOrder').addClass('active');
+
+    manageOrderTable = $("#manageOrderTable").DataTable({
+      'ajax': 'php_action/fetchOrder.php',
+      'order': []
+    });   
+          
+  } else if(divRequest == 'editOrd') {
+    $("#orderDate").datepicker();
+
+    // edit order form function
+    $("#editOrderForm").unbind('submit').bind('submit', function() {
+      // alert('ok');
+      var form = $(this);
+
+      $('.form-group').removeClass('has-error').removeClass('has-success');
+      $('.text-danger').remove();
+        
+      var orderDate = $("#orderDate").val();
+      var clientName = $("#clientName").val();
+      var clientContact = $("#clientContact").val();
+      var paid = $("#paid").val();
+      var discount = $("#discount").val();
+      var paymentType = $("#paymentType").val();
+      var paymentStatus = $("#paymentStatus").val();    
+      var gstPercentage = $("#gstPercentage").val();
+
+      // form validation 
+      if(orderDate == "") {
+        $("#orderDate").after('<p class="text-danger"> The Order Date field is required </p>');
+        $('#orderDate').closest('.form-group').addClass('has-error');
+      } else {
+        $('#orderDate').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(clientName == "") {
+        $("#clientName").after('<p class="text-danger"> The Client Name field is required </p>');
+        $('#clientName').closest('.form-group').addClass('has-error');
+      } else {
+        $('#clientName').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(clientContact == "") {
+        $("#clientContact").after('<p class="text-danger"> The Contact field is required </p>');
+        $('#clientContact').closest('.form-group').addClass('has-error');
+      } else {
+        $('#clientContact').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(paid == "") {
+        $("#paid").after('<p class="text-danger"> The Paid field is required </p>');
+        $('#paid').closest('.form-group').addClass('has-error');
+      } else {
+        $('#paid').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(discount == "") {
+        $("#discount").after('<p class="text-danger"> The Discount field is required </p>');
+        $('#discount').closest('.form-group').addClass('has-error');
+      } else {
+        $('#discount').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(paymentType == "") {
+        $("#paymentType").after('<p class="text-danger"> The Payment Type field is required </p>');
+        $('#paymentType').closest('.form-group').addClass('has-error');
+      } else {
+        $('#paymentType').closest('.form-group').addClass('has-success');
+      } // /else
+
+      if(paymentStatus == "") {
+        $("#paymentStatus").after('<p class="text-danger"> The Payment Status field is required </p>');
+        $('#paymentStatus').closest('.form-group').addClass('has-error');
+      } else {
+        $('#paymentStatus').closest('.form-group').addClass('has-success');
+      } // /else
+
+
+      // array validation
+      var productName = document.getElementsByName('productName[]');        
+      var validateProduct;
+      for (var x = 0; x < productName.length; x++) {            
+        var productNameId = productName[x].id;        
+        if(productName[x].value == ''){               
+          $("#"+productNameId+"").after('<p class="text-danger"> Product Name Field is required!! </p>');
+          $("#"+productNameId+"").closest('.form-group').addClass('has-error');                     
+        } else {        
+          $("#"+productNameId+"").closest('.form-group').addClass('has-success');                       
+        }          
+      } // for
+
+      for (var x = 0; x < productName.length; x++) {                  
+        if(productName[x].value){                       
+          validateProduct = true;
+        } else {        
+          validateProduct = false;
+        }          
+      } // for              
+      
+      var quantity = document.getElementsByName('quantity[]');        
+      var validateQuantity;
+      for (var x = 0; x < quantity.length; x++) {       
+        var quantityId = quantity[x].id;
+        if(quantity[x].value == ''){        
+          $("#"+quantityId+"").after('<p class="text-danger"> Product Name Field is required!! </p>');
+          $("#"+quantityId+"").closest('.form-group').addClass('has-error');                        
+        } else {        
+          $("#"+quantityId+"").closest('.form-group').addClass('has-success');                                
+        } 
+      }  // for
+
+      for (var x = 0; x < quantity.length; x++) {                   
+        if(quantity[x].value){                        
+          validateQuantity = true;
+        } else {        
+          validateQuantity = false;
+        }          
+      } // for        
+      
+
+      if(orderDate && clientName && clientContact && paid && discount && paymentType && paymentStatus) {
+        if(validateProduct == true && validateQuantity == true) {
+          // create order button
+          // $("#createOrderBtn").button('loading');
+
+          $.ajax({
+            url : form.attr('action'),
+            type: form.attr('method'),
+            data: form.serialize(),         
+            dataType: 'json',
+            success:function(response) {
+              console.log(response);
+              // reset button
+              $("#editOrderBtn").button('reset');
+              
+              $(".text-danger").remove();
+              $('.form-group').removeClass('has-error').removeClass('has-success');
+
+              if(response.success == true) {
+                
+                // create order button
+                $(".success-messages").html('<div class="alert alert-success">'+
+                '<button type="button" class="close" data-dismiss="alert">&times;</button>'+
+                '<strong><i class="glyphicon glyphicon-ok-sign"></i></strong> '+ response.messages +                                                
+               '</div>');
+                
+              $("html, body, div.panel, div.pane-body").animate({scrollTop: '0px'}, 100);
+
+              // disabled te modal footer button
+              $(".editButtonFooter").addClass('div-hide');
+              // remove the product row
+              $(".removeProductRowBtn").addClass('div-hide');
+                
+              } else {
+                alert(response.messages);               
+              }
+            } // /response
+          }); // /ajax
+        } // if array validate is true
+      } // /if field validate is true
+      
+
+      return false;
+    }); // /edit order form function  
+  }   
+
+}); // /documernt
+
+
+// print order function
+function printOrder(orderId = null) {
+  if(orderId) {   
+      
+    $.ajax({
+      url: 'php_action/printOrder.php',
+      type: 'post',
+      data: {orderId: orderId},
+      dataType: 'text',
+      success:function(response) {
+        
+        var mywindow = window.open('', 'Rupee Invoice System', 'height=400,width=600');
+        mywindow.document.write('<html><head><title>Order Invoice</title>');        
+        mywindow.document.write('</head><body>');
+        mywindow.document.write(response);
+        mywindow.document.write('</body></html>');
+
+        mywindow.document.close(); // necessary for IE >= 10
+        mywindow.focus(); // necessary for IE >= 10
+        mywindow.resizeTo(screen.width, screen.height);
+        setTimeout(function() {
+            mywindow.print();
+            mywindow.close();
+        }, 1250);
+
+        //mywindow.print();
+        //mywindow.close();
+        
+      }// /success function
+    }); // /ajax function to fetch the printable order
+  } // /if orderId
+} // /print order function
+
+function addRow() {
+  $("#addRowBtn").button("loading");
+
+  var tableLength = $("#productTable tbody tr").length;
+
+  var tableRow;
+  var arrayNumber;
+  var count;
+
+  if(tableLength > 0) {   
+    tableRow = $("#productTable tbody tr:last").attr('id');
+    arrayNumber = $("#productTable tbody tr:last").attr('class');
+    count = tableRow.substring(3);  
+    count = Number(count) + 1;
+    arrayNumber = Number(arrayNumber) + 1;          
+  } else {
+    // no table row
+    count = 1;
+    arrayNumber = 0;
+  }
+
+  $.ajax({
+    url: 'php_action/fetchProductData.php',
+    type: 'post',
+    dataType: 'json',
+    success:function(response) {
+      $("#addRowBtn").button("reset");      
+
+      var tr = '<tr id="row'+count+'" class="'+arrayNumber+'">'+                
+        // '<td>'+
+        //   '<div class="form-group">'+
+
+        //   '<select class="form-control" name="productName[]" id="productName'+count+'" onchange="getProductData('+count+')" >'+
+        //     '<option value="">~~SELECT~~</option>';
+        //     // console.log(response);
+        //     $.each(response, function(index, value) {
+        //       tr += '<option value="'+value[0]+'">'+value[1]+'</option>';             
+        //     });
+                          
+        //   tr += '</select>'+
+        //   '</div>'+
+        // '</td>'+
+
+        '<td style="margin-left:20px;">'+
+          '<div class="form-group" style="position: relative;">'+
+            '<input type="text" class="form-control invoice-product-input" name="productName[]" id="productName'+count+'" placeholder="Type to search medicines..." autocomplete="off" data-row-id="'+count+'" style="position: relative; z-index: 1;" />'+
+            '<input type="hidden" class="invoice-product-id" name="productId[]" id="productId'+count+'" />'+
+            '<div class="invoice-product-dropdown" id="dropdown'+count+'" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 10000; box-shadow: 0 4px 8px rgba(0,0,0,0.15); min-width: 300px;"></div>'+
+          '</div>'+
+        '</td>'+
+        '<td>'+
+          '<div class="form-group">'+
+            '<input type="text" name="rate[]" id="rate'+count+'" autocomplete="off" disabled="true" class="form-control" />'+
+            '<input type="hidden" name="rateValue[]" id="rateValue'+count+'" autocomplete="off" class="form-control" />'+
+          '</div>'+
+        '</td>'+
+        '<td class="no-print">'+
+          '<div class="form-group">'+
+            '<input type="text" name="ptr[]" id="ptr'+count+'" autocomplete="off" disabled="true" class="form-control" />'+
+            '<input type="hidden" name="ptrValue[]" id="ptrValue'+count+'" autocomplete="off" class="form-control" />'+
+          '</div>'+
+        '</td>'+
+        '<td>'+
+          '<div class="form-group">'+
+          '<p id="available_quantity'+count+'"></p>'+
+          '</div>'+
+        '</td>'+
+        '<td>'+
+          '<div class="form-group">'+
+            '<input type="number" name="quantity[]" id="quantity'+count+'" onkeyup="getTotal('+count+')" autocomplete="off" class="form-control" min="1" />'+
+          '</div>'+
+        '</td>'+
+        '<td>'+
+          '<div class="form-group">'+
+            '<input type="text" name="total[]" id="total'+count+'" autocomplete="off" class="form-control" disabled="true" />'+
+            '<input type="hidden" name="totalValue[]" id="totalValue'+count+'" autocomplete="off" class="form-control" />'+
+          '</div>'+
+        '</td>'+
+        // '<td>'+
+          // '<div class="form-group">'+
+          //   // '<button class="btn btn-primary removeProductRowBtn" type="button" onclick="addRow('+count+')"><i class="fa fa-plus"></i></button>'+
+          //   '<button type="button" class="btn btn-primary btn-flat " onclick="addRow()" id="addRowBtn" data-loading-text="Loading..."> <i class="fa fa-plus"></i></button>'+
+          // '</div>'+
+        // '</td>'+
+        '<td>'+
+          '<div class="form-group">'+
+            '<button class="btn btn-danger removeProductRowBtn" type="button" onclick="removeProductRow('+count+')"><i class="fa fa-trash"></i></i></button>'+
+          '</div>'+
+        '</td>'+
+
+      '</tr>';
+      if(tableLength > 0) {             
+        $("#productTable tbody tr:last").after(tr);
+      } else {        
+        $("#productTable tbody").append(tr);
+      }   
+
+    } // /success
+  }); // get the product data
+
+} // /add row
+
+function updateBatchInfo(row = null) {
+  if(row) {
+    var batchSelect = document.getElementById('batchId' + row);
+    var selectedOption = batchSelect.options[batchSelect.selectedIndex];
+    
+    if(selectedOption.value) {
+      // Extract batch info from data attributes
+      var batchNum = selectedOption.getAttribute('data-batch-num');
+      var expiryDate = selectedOption.getAttribute('data-expiry');
+      var available = selectedOption.getAttribute('data-available');
+      
+      // Store in hidden fields
+      $("#batchNumber"+row).val(batchNum);
+      $("#expiryDate"+row).val(expiryDate);
+      
+      // Update available quantity for this specific batch
+      $("#available_quantity"+row).text(available);
+      
+      // Reset quantity to 1
+      $("#quantity"+row).val(1);
+      
+      // Recalculate totals
+      subAmount();
+    }
+  }
+}
+
+function removeProductRow(row = null) {
+  if(row) {
+    $("#row"+row).remove();
+
+
+    subAmount();
+  } else {
+    alert('error! Refresh the page again');
+  }
+}
+
+// select on product data
+function getProductData(row = null) {
+
+  if(row) {
+    var productId = $("#productId"+row).val();    
+    
+    if(productId == "") {
+      $("#rate"+row).val("");
+      $("#batchId"+row).html('<option value="">Select Batch</option>');
+      $("#quantity"+row).val("");           
+      $("#total"+row).val("");
+
+    } else {
+      $.ajax({
+        url: 'php_action/fetchSelectedProduct.php',
+        type: 'post',
+        data: {productId : productId},
+        dataType: 'json',
+        success:function(response) {
+          // setting the rate value into the rate input field
+          
+          $("#rate"+row).val(response.rate);
+          $("#rateValue"+row).val(response.rate);
+
+          // Store GST rate in hidden field (per-product)
+          $("#gstRate"+row).val(response.gst_rate ?? 5);
+
+          // PTR (purchase rate) - only visible to invoice creator
+          $("#ptr"+row).val(response.purchase_rate ?? '');
+          $("#ptrValue"+row).val(response.purchase_rate ?? 0);
+
+          // Populate batch dropdown
+          var batchList = response.batches || [];
+          var batchOptions = '<option value="">Select Batch</option>';
+          
+          if(batchList.length > 0) {
+            $.each(batchList, function(i, batch) {
+              var expiryText = new Date(batch.expiry_date).toLocaleDateString();
+              batchOptions += '<option value="' + batch.batch_id + '" data-batch-num="' + batch.batch_number + '" data-expiry="' + batch.expiry_date + '" data-available="' + batch.available_quantity + '">' + 
+                              batch.batch_number + ' (Exp: ' + expiryText + ', Qty: ' + batch.available_quantity + ')' + 
+                              '</option>';
+            });
+          }
+          $("#batchId"+row).html(batchOptions);
+
+          $("#quantity"+row).val(1);
+          $("#available_quantity"+row).text(response.quantity);
+
+          var total = Number(response.rate) * 1;
+          total = total.toFixed(2);
+          $("#total"+row).val(total);
+          $("#totalValue"+row).val(total);
+          
+          
+      
+          subAmount();
+        } // /success
+      }); // /ajax function to fetch the product data 
+    }
+        
+  } else {
+    alert('no row! please refresh the page');
+  }
+} // /select on product data
+
+// table total
+// function getTotal(row = null) {
+//   if(row) {
+//     var total = Number($("#rate"+row).val()) * Number($("#quantity"+row).val());
+//     total = total.toFixed(2);
+//     $("#total"+row).val(total);
+//     $("#totalValue"+row).val(total);
+    
+//     subAmount();
+
+//   } else {
+//     alert('no row !! please refresh the page');
+//   }
+// }
+
+function getTotal(row = null) {
+  if(row) {
+
+    var rate = Number($("#rate"+row).val());
+    var qty  = Number($("#quantity"+row).val());
+    var available = Number($("#available_quantity"+row).text());
+
+    // Stock validation
+    if(qty > available) {
+      alert("Only " + available + " items available in stock!");
+      $("#quantity"+row).val(available);
+      qty = available;
+    }
+
+    var total = rate * qty;
+    total = total.toFixed(2);
+
+    $("#total"+row).val(total);
+    $("#totalValue"+row).val(total);
+
+    subAmount();
+
+  } else {
+    alert('no row !! please refresh the page');
+  }
+}
+
+
+function subAmount() {
+  var tableProductLength = $("#productTable tbody tr").length;
+  var totalSubAmount = 0;
+  var totalGST = 0;
+  
+  // Calculate line items total and per-item GST
+  for(x = 0; x < tableProductLength; x++) {
+    var tr = $("#productTable tbody tr")[x];
+    var count = $(tr).attr('id');
+    count = count.substring(3);
+
+    var lineAmount = Number($("#total"+count).val()) || 0;
+    var gstRate = Number($("#gstRate"+count).val()) || 5;
+    var lineGST = (lineAmount / 100) * gstRate;
+    
+    totalSubAmount = Number(totalSubAmount) + lineAmount;
+    totalGST = Number(totalGST) + lineGST;
+  } // /for
+
+  totalSubAmount = totalSubAmount.toFixed(2);
+  totalGST = totalGST.toFixed(2);
+
+  // sub total
+  $("#subTotal").val(totalSubAmount);
+  $("#subTotalValue").val(totalSubAmount);
+
+  // vat - calculated per-item GST rates
+  var vat = totalGST;
+  vat = vat.toFixed(2);
+  $("#vat").val(vat);
+  $("#vatValue").val(vat);
+
+  // total amount
+  var totalAmount = (Number($("#subTotal").val()) + Number($("#vat").val()));
+  totalAmount = totalAmount.toFixed(2);
+  $("#totalAmount").val(totalAmount);
+  $("#totalAmountValue").val(totalAmount);
+
+  var discount = $("#discount").val();
+  if(discount) {
+    var grandTotal = Number($("#totalAmount").val()) - Number(discount);
+    grandTotal = grandTotal.toFixed(2);
+    $("#grandTotal").val(grandTotal);
+    $("#grandTotalValue").val(grandTotal);
+  } else {
+    $("#grandTotal").val(totalAmount);
+    $("#grandTotalValue").val(totalAmount);
+  } // /else discount 
+
+  var paidAmount = $("#paid").val();
+  if(paidAmount) {
+    paidAmount =  Number($("#grandTotal").val()) - Number(paidAmount);
+    paidAmount = paidAmount.toFixed(2);
+    $("#due").val(paidAmount);
+    $("#dueValue").val(paidAmount);
+  } else {  
+    $("#due").val($("#grandTotal").val());
+    $("#dueValue").val($("#grandTotal").val());
+  } // else
+
+} // /sub total amount
+
+function discountFunc() {
+  var discount = $("#discount").val();
+  var totalAmount = Number($("#totalAmount").val());
+  totalAmount = totalAmount.toFixed(2);
+
+  var grandTotal;
+  if(totalAmount) {   
+    grandTotal = Number($("#totalAmount").val()) - Number($("#discount").val());
+    grandTotal = grandTotal.toFixed(2);
+
+    $("#grandTotal").val(grandTotal);
+    $("#grandTotalValue").val(grandTotal);
+  } else {
+  }
+
+  var paid = $("#paid").val();
+
+  var dueAmount;  
+  if(paid) {
+    dueAmount = Number($("#grandTotal").val()) - Number($("#paid").val());
+    dueAmount = dueAmount.toFixed(2);
+
+    $("#due").val(dueAmount);
+    $("#dueValue").val(dueAmount);
+  } else {
+    $("#due").val($("#grandTotal").val());
+    $("#dueValue").val($("#grandTotal").val());
+  }
+
+} // /discount function
+
+function paidAmount() {
+  var grandTotal = $("#grandTotal").val();
+
+  if(grandTotal) {
+    var dueAmount = Number($("#grandTotal").val()) - Number($("#paid").val());
+    dueAmount = dueAmount.toFixed(2);
+    $("#due").val(dueAmount);
+    $("#dueValue").val(dueAmount);
+  } // /if
+} // /paid amoutn function
+
+function updateGSTLabel() {
+  var gstPercentage = $("#gstPercentage").val();
+  var paymentPlace = $("#paymentPlace").val();
+  var prefix = (paymentPlace == 2) ? "IGST" : "GST";
+  
+  if(gstPercentage == 'manual') {
+    $("#gstLabel").text(prefix + " (Manual)");
+  } else {
+    $("#gstLabel").text(prefix + " " + gstPercentage + "%");
+  }
+}
+
+function resetOrderForm() {
+  // reset the input field
+  $("#createOrderForm")[0].reset();
+  // remove remove text danger
+  $(".text-danger").remove();
+  // remove form group error 
+  $(".form-group").removeClass('has-success').removeClass('has-error');
+
+  $("#gstPercentage").val('5');
+  updateGSTLabel();
+} // /reset order form
+
+
+// remove order from server
+function removeOrder(orderId = null) {
+  if(orderId) {
+    $("#removeOrderBtn").unbind('click').bind('click', function() {
+      $("#removeOrderBtn").button('loading');
+
+      $.ajax({
+        url: 'php_action/removeOrder.php',
+        type: 'post',
+        data: {orderId : orderId},
+        dataType: 'json',
+        success:function(response) {
+          $("#removeOrderBtn").button('reset');
+
+          if(response.success == true) {
+
+            manageOrderTable.ajax.reload(null, false);
+            // hide modal
+            $("#removeOrderModal").modal('hide');
+            // success messages
+            $("#success-messages").html('<div class="alert alert-success">'+
+              '<button type="button" class="close" data-dismiss="alert">&times;</button>'+
+              '<strong><i class="glyphicon glyphicon-ok-sign"></i></strong> '+ response.messages +
+            '</div>');
+
+            // remove the mesages
+            $(".alert-success").delay(500).show(10, function() {
+              $(this).delay(3000).hide(10, function() {
+                $(this).remove();
+              });
+            }); // /.alert            
+
+          } else {
+            // error messages
+            $(".removeOrderMessages").html('<div class="alert alert-warning">'+
+              '<button type="button" class="close" data-dismiss="alert">&times;</button>'+
+              '<strong><i class="glyphicon glyphicon-ok-sign"></i></strong> '+ response.messages +
+            '</div>');
+
+            // remove the mesages
+            $(".alert-success").delay(500).show(10, function() {
+              $(this).delay(3000).hide(10, function() {
+                $(this).remove();
+              });
+            }); // /.alert            
+          } // /else
+
+        } // /success
+      });  // /ajax function to remove the order
+
+    }); // /remove order button clicked
+    
+
+  } else {
+    alert('error! refresh the page again');
+  }
+}
+// /remove order from server
+
+// Payment ORDER
+function paymentOrder(orderId = null) {
+  if(orderId) {
+
+    $("#orderDate").datepicker();
+
+    $.ajax({
+      url: 'php_action/fetchOrderData.php',
+      type: 'post',
+      data: {orderId: orderId},
+      dataType: 'json',
+      success:function(response) {        
+
+        // due 
+        $("#due").val(response.order[10]);        
+
+        // pay amount 
+        $("#payAmount").val(response.order[10]);
+
+        var paidAmount = response.order[9] 
+        var dueAmount = response.order[10];             
+        var grandTotal = response.order[8];
+
+        // update payment
+        $("#updatePaymentOrderBtn").unbind('click').bind('click', function() {
+          var payAmount = $("#payAmount").val();
+          var paymentType = $("#paymentType").val();
+          var paymentStatus = $("#paymentStatus").val();
+
+          if(payAmount == "") {
+            $("#payAmount").after('<p class="text-danger">The Pay Amount field is required</p>');
+            $("#payAmount").closest('.form-group').addClass('has-error');
+          } else {
+            $("#payAmount").closest('.form-group').addClass('has-success');
+          }
+
+          if(paymentType == "") {
+            $("#paymentType").after('<p class="text-danger">The Pay Amount field is required</p>');
+            $("#paymentType").closest('.form-group').addClass('has-error');
+          } else {
+            $("#paymentType").closest('.form-group').addClass('has-success');
+          }
+
+          if(paymentStatus == "") {
+            $("#paymentStatus").after('<p class="text-danger">The Pay Amount field is required</p>');
+            $("#paymentStatus").closest('.form-group').addClass('has-error');
+          } else {
+            $("#paymentStatus").closest('.form-group').addClass('has-success');
+          }
+
+          if(payAmount && paymentType && paymentStatus) {
+            $("#updatePaymentOrderBtn").button('loading');
+            $.ajax({
+              url: 'php_action/editPayment.php',
+              type: 'post',
+              data: {
+                orderId: orderId,
+                payAmount: payAmount,
+                paymentType: paymentType,
+                paymentStatus: paymentStatus,
+                paidAmount: paidAmount,
+                grandTotal: grandTotal
+              },
+              dataType: 'json',
+              success:function(response) {
+                $("#updatePaymentOrderBtn").button('loading');
+
+                // remove error
+                $('.text-danger').remove();
+                $('.form-group').removeClass('has-error').removeClass('has-success');
+
+                $("#paymentOrderModal").modal('hide');
+
+                $("#success-messages").html('<div class="alert alert-success">'+
+                  '<button type="button" class="close" data-dismiss="alert">&times;</button>'+
+                  '<strong><i class="glyphicon glyphicon-ok-sign"></i></strong> '+ response.messages +
+                '</div>');
+
+                // remove the mesages
+                $(".alert-success").delay(500).show(10, function() {
+                  $(this).delay(3000).hide(10, function() {
+                    $(this).remove();
+                  });
+                }); // /.alert  
+
+                // refresh the manage order table
+                manageOrderTable.ajax.reload(null, false);
+
+              } //
+
+            });
+          } // /if
+            
+          return false;
+        }); // /update payment      
+
+      } // /success
+    }); // fetch order data
+  } else {
+    alert('Error ! Refresh the page again');
+  }
+}
+
+// Invoice Product Autocomplete
+$(document).on('input', '.invoice-product-input', function() {
+    let searchTimer = null;
+    const $input = $(this);
+    const rowId = $input.data('row-id');
+    const $dropdown = $('#dropdown' + rowId);
+    let searchTerm = $input.val();
+
+    // 🔥 Normalize input: remove extra spaces and trim
+    searchTerm = searchTerm.replace(/[\s\-]+/g, '').toLowerCase();
+    // searchTerm = searchTerm.replace(/\s+/g, '').toLowerCase();
+
+
+    clearTimeout(searchTimer);
+
+    if(searchTerm.length < 1) {
+        $dropdown.hide();
+        return;
+    }
+
+    // Position dropdown below input
+    const offset = $input.offset();
+    $dropdown.css({
+        top: $input.outerHeight() + 'px',
+        left: 0+'px',
+        width: $input.outerWidth() + 'px'
+    });
+
+    // 🔥 Use cache if available (SAFE VERSION)
+    if(productSearchCache[searchTerm]) {
+        renderDropdown(productSearchCache[searchTerm], rowId);
+        return;
+    }
+
+
+    $.ajax({
+      url: 'php_action/searchProducts.php',
+      type: 'GET',
+      data: {q: searchTerm},
+      success: function(response) {
+        let products = [];
+        try {
+          if (typeof response === 'string') {
+            products = JSON.parse(response);
+          } else {
+            products = response;
+          }
+        } catch(e) {
+          console.error('JSON Parse Error:', e);
+          return;
+        }
+
+
+        if(products.length === 0) {
+          $dropdown.html('<div style="padding: 10px;">No medicines found</div>').show();
+          return;
+        }
+
+        // 🔥 Save result into cache
+        productSearchCache[searchTerm] = products;
+
+        // 🔥 Render normally
+        renderDropdown(products, rowId);
+
+        var html = '';
+        products.forEach(function(product) {
+
+          let stockText = '';
+          let disabledStyle = '';
+
+          if(product.outOfStock) {
+            stockText = '<span style="color:red; font-weight:bold;">Out of stock</span>';
+            disabledStyle = 'opacity:0.5; pointer-events:none; background:#f9d6d5;';
+          } else {
+            stockText = '<span style="color:green;">In stock: ' + product.quantity + '</span>';
+          }
+
+          html += `
+                  <div class="invoice-product-item" 
+                      style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s; ${disabledStyle}" 
+                      data-id="${product.id}" 
+                      data-name="${product.productName}" 
+                      data-price="${product.price}" 
+                      data-quantity="${product.quantity}" 
+                      data-row-id="${rowId}">
+
+                    <strong>${product.productName}</strong><br>
+                    <small style="color:#666;">Price: ₹${parseFloat(product.price).toFixed(2)}</small><br>
+                    <small>${stockText}</small>
+                  </div>
+                `;
+
+          // html += '<div class="invoice-product-item" style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s;" data-id="'+product.id+'" data-name="'+product.productName+'" data-price="'+product.price+'" data-quantity="'+(product.quantity||0)+'" data-row-id="'+rowId+'">'
+          //   +'<strong>'+product.productName+'</strong><br>'
+          //   +'<small style="color: #666;">Price: ₹'+parseFloat(product.price).toFixed(2)+'</small>'
+          // +'</div>';
+        });
+
+        $dropdown.html(html).show().attr('data-highlight', 0);
+        $dropdown.find('.invoice-product-item').each(function(i){ $(this).attr('data-index', i); });
+        var $items = $dropdown.find('.invoice-product-item');
+        if($items.length) {
+          $items.css('background-color','white').removeClass('selected');
+          $items.eq(0).addClass('selected').css('background-color','#f5f5f5');
+        }
+
+        // Hover effect (keep hover but preserve selected state)
+        $dropdown.find('.invoice-product-item').hover(
+          function() { $(this).css('background-color', '#f5f5f5'); },
+          function() { if(!$(this).hasClass('selected')) $(this).css('background-color', 'white'); }
+        );
+      },
+      error: function(xhr, status, error) {
+        console.error('AJAX Error:', status, error);
+      }
+    },300);
+});
+
+// Reset row fields when user edits medicine name manually
+$(document).on('input', '.invoice-product-input', function() {
+    const rowId = $(this).data('row-id');
+
+    // Clear hidden product id
+    $('#productId' + rowId).val('');
+
+    // Clear rate, quantity, total, stock
+    $('#rate' + rowId).val('');
+    $('#rateValue' + rowId).val('');
+    $('#quantity' + rowId).val('');
+    $('#total' + rowId).val('');
+    $('#totalValue' + rowId).val('');
+    $('#available_quantity' + rowId).text('');
+
+    subAmount();
+});
+
+
+
+  // Keyboard navigation for dropdown: ArrowUp, ArrowDown, Enter to select
+  $(document).on('keydown', '.invoice-product-input', function(e) {
+    var $input = $(this);
+    var rowId = $input.data('row-id');
+    var $dropdown = $('#dropdown' + rowId);
+    if(!$dropdown.is(':visible')) return;
+    var $items = $dropdown.find('.invoice-product-item');
+    if($items.length === 0) return;
+    var index = parseInt($dropdown.attr('data-highlight') || 0, 10);
+
+    if(e.key === 'ArrowDown') {
+      e.preventDefault();
+      index = Math.min(index + 1, $items.length - 1);
+    } else if(e.key === 'ArrowUp') {
+      e.preventDefault();
+      index = Math.max(index - 1, 0);
+    } else if(e.key === 'Enter') {
+      e.preventDefault();
+      $items.eq(index).trigger('click');
+      return;
+    } else {
+      return;
+    }
+
+    $items.removeClass('selected').css('background-color','white');
+    $items.eq(index).addClass('selected').css('background-color','#f5f5f5');
+    $dropdown.attr('data-highlight', index);
+  });
+
+  // inject small style for selected item if not present
+  if(!$('head').find('#invoice-product-autocomplete-style').length){
+    $('head').append('<style id="invoice-product-autocomplete-style">.invoice-product-item.selected{background-color:#f5f5f5;}</style>');
+  }
+
+// Product selection from dropdown
+$(document).on('click', '.invoice-product-item', function() {
+
+    
+
+    const $item = $(this);
+    const rowId = $item.data('row-id');
+    const $input = $('#productName' + rowId);
+    const $idField = $('#productId' + rowId);
+    const $dropdown = $('#dropdown' + rowId);
+
+    // Prevent selecting same product twice (correct version)
+    var selectedId = $item.data('id');
+    var currentRow = $item.data('row-id');
+    var duplicate = false;
+
+    $('.invoice-product-id').each(function() {
+
+        var rowId = $(this).attr('id').replace('productId', '');
+        var existingId = $(this).val();
+
+        // Skip current row
+        if(rowId == currentRow) {
+            return true; // continue loop
+        }
+
+        if(existingId == selectedId && existingId != "") {
+            duplicate = true;
+            return false; // break loop
+        }
+    });
+
+    if(duplicate) {
+        alert("This medicine is already added in another row!");
+        return;
+    }
+
+
+    $input.val($item.data('name'));
+    $idField.val($item.data('id'));
+    $dropdown.hide();
+
+    // Trigger getProductData to fetch rate and quantity
+    getProductData(rowId);
+});
+
+// Hide dropdown when clicking outside
+$(document).on('click', function(e) {
+    if(!$(e.target).closest('.form-group').length) {
+        $('.invoice-product-dropdown').hide();
+    }
+});
+
+function renderDropdown(products, rowId) {
+
+  const $dropdown = $('#dropdown' + rowId);
+
+  if(products.length === 0) {
+    $dropdown.html('<div style="padding: 10px;">No medicines found</div>').show();
+    return;
+  }
+
+  var html = '';
+
+  products.forEach(function(product) {
+
+    let stockText = '';
+    let disabledStyle = '';
+
+    if(product.outOfStock) {
+      stockText = '<span style="color:red; font-weight:bold;">Out of stock</span>';
+      disabledStyle = 'opacity:0.5; pointer-events:none; background:#f9d6d5;';
+    } else {
+      stockText = '<span style="color:green;">In stock: ' + product.quantity + '</span>';
+    }
+
+    html += `
+      <div class="invoice-product-item" 
+           style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s; ${disabledStyle}" 
+           data-id="${product.id}" 
+           data-name="${product.productName}" 
+           data-price="${product.price}" 
+           data-quantity="${product.quantity}" 
+           data-row-id="${rowId}">
+
+        <strong>${product.productName}</strong><br>
+        <small style="color:#666;">Price: ₹${parseFloat(product.price).toFixed(2)}</small><br>
+        <small>${stockText}</small>
+      </div>
+    `;
+  });
+
+  $dropdown.html(html).show().attr('data-highlight', 0);
+}
+
+
+</script>

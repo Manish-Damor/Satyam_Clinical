@@ -1,0 +1,285 @@
+﻿Field	Type	Null	Key	Default	Extra
+client_id	int(10) unsigned	NO	PRI	NULL	auto_increment
+client_code	varchar(50)	YES	UNI	NULL	
+name	varchar(255)	NO	MUL	NULL	
+contact_phone	varchar(20)	YES		NULL	
+email	varchar(100)	YES		NULL	
+billing_address	text	YES		NULL	
+shipping_address	text	YES		NULL	
+city	varchar(100)	YES		NULL	
+state	varchar(100)	YES		NULL	
+postal_code	varchar(10)	YES		NULL	
+country	varchar(100)	YES		India	
+gstin	varchar(15)	YES		NULL	
+pan	varchar(10)	YES		NULL	
+drug_licence_no	varchar(50)	YES		NULL	
+credit_limit	decimal(14,2)	YES		NULL	
+outstanding_balance	decimal(14,2)	YES		0.00	
+payment_terms	int(11)	YES		30	
+business_type	enum('Retail','Wholesale','Hospital','Clinic','Distributor','Other')	YES		Retail	
+status	enum('ACTIVE','INACTIVE','SUSPENDED')	YES	MUL	ACTIVE	
+notes	text	YES		NULL	
+created_by	int(10) unsigned	YES		NULL	
+created_at	timestamp	NO	MUL	current_timestamp()	
+updated_by	int(10) unsigned	YES		NULL	
+updated_at	timestamp	NO		current_timestamp()	on update current_timestamp()
+Field	Type	Null	Key	Default	Extra
+supplier_id	int(10) unsigned	NO	PRI	NULL	auto_increment
+supplier_code	varchar(50)	YES	UNI	NULL	
+supplier_name	varchar(150)	NO	MUL	NULL	
+company_name	varchar(150)	YES		NULL	
+contact_person	varchar(100)	YES		NULL	
+email	varchar(100)	YES		NULL	
+phone	varchar(20)	NO		NULL	
+alternate_phone	varchar(20)	YES		NULL	
+address	text	NO		NULL	
+city	varchar(100)	YES		NULL	
+state	varchar(100)	YES		NULL	
+pincode	varchar(10)	YES		NULL	
+country	varchar(50)	YES		India	
+gst_number	varchar(15)	YES		NULL	
+pan_number	varchar(10)	YES		NULL	
+credit_days	int(11)	YES		30	
+payment_terms	varchar(255)	YES		NULL	
+supplier_status	enum('Active','Inactive','Blocked')	YES	MUL	Active	
+is_verified	tinyint(1)	YES		0	
+created_at	timestamp	NO		current_timestamp()	
+updated_at	timestamp	NO		current_timestamp()	on update current_timestamp()
+Field	Type	Null	Key	Default	Extra
+product_id	int(10) unsigned	NO	PRI	NULL	auto_increment
+product_name	varchar(150)	NO	MUL	NULL	
+content	varchar(255)	NO		NULL	
+brand_id	int(10) unsigned	NO	MUL	NULL	
+categories_id	int(10) unsigned	NO	MUL	NULL	
+product_type	enum('Tablet','Capsule','Syrup','Injection','Ointment','Drops','Others')	NO		Tablet	
+unit_type	enum('Strip','Box','Bottle','Vial','Tube','Piece','Sachet')	NO		Strip	
+pack_size	varchar(100)	NO		NULL	
+hsn_code	varchar(20)	NO		NULL	
+gst_rate	decimal(5,2)	NO		5.00	
+reorder_level	int(10) unsigned	NO		0	
+status	tinyint(1)	NO	MUL	1	
+created_at	datetime	NO		current_timestamp()	
+updated_at	datetime	YES		NULL	on update current_timestamp()
+expected_mrp	decimal(14,2)	YES		NULL	
+purchase_rate	decimal(14,4)	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+batch_id	int(10) unsigned	NO	PRI	NULL	auto_increment
+product_id	int(10) unsigned	NO	MUL	NULL	
+supplier_id	int(10) unsigned	YES	MUL	NULL	
+batch_number	varchar(50)	NO		NULL	
+manufacturing_date	date	YES		NULL	
+expiry_date	date	NO	MUL	NULL	
+available_quantity	int(10) unsigned	NO		0	
+reserved_quantity	int(10) unsigned	NO		0	
+damaged_quantity	int(10) unsigned	NO		0	
+purchase_rate	decimal(10,2)	NO		NULL	
+mrp	decimal(10,2)	NO		NULL	
+status	enum('Active','Expired','Blocked','Damaged')	YES	MUL	Active	
+created_at	timestamp	NO		current_timestamp()	
+updated_at	timestamp	NO		current_timestamp()	on update current_timestamp()
+Field	Type	Null	Key	Default	Extra
+po_id	int(10) unsigned	NO	PRI	NULL	auto_increment
+po_number	varchar(50)	NO	UNI	NULL	
+po_date	date	NO	MUL	NULL	
+supplier_id	int(10) unsigned	NO	MUL	NULL	
+expected_delivery_date	date	YES		NULL	
+delivery_location	varchar(255)	YES		NULL	
+subtotal	decimal(12,2)	YES		0.00	
+discount_percentage	decimal(5,2)	YES		0.00	
+discount_amount	decimal(10,2)	YES		0.00	
+gst_percentage	decimal(5,2)	YES		0.00	
+gst_amount	decimal(10,2)	YES		0.00	
+other_charges	decimal(10,2)	YES		0.00	
+grand_total	decimal(12,2)	YES		0.00	
+po_status	enum('Draft','Submitted','Approved','PartialReceived','Received','Cancelled')	YES	MUL	Draft	
+payment_status	enum('NotDue','Due','PartialPaid','Paid','Overdue')	YES		NotDue	
+notes	text	YES		NULL	
+delete_status	tinyint(1)	YES	MUL	0	
+created_by	int(10) unsigned	YES	MUL	NULL	
+approved_by	int(10) unsigned	YES	MUL	NULL	
+created_at	timestamp	NO		current_timestamp()	
+updated_at	timestamp	NO		current_timestamp()	on update current_timestamp()
+deleted_at	datetime	YES	MUL	NULL	
+status	enum('DRAFT','SUBMITTED','APPROVED','POSTED','DELIVERED','CANCELLED')	YES	MUL	DRAFT	
+submitted_at	datetime	YES	MUL	NULL	
+approved_at	datetime	YES		NULL	
+approval_remarks	text	YES		NULL	
+submitted_by	int(10) unsigned	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+po_item_id	int(10) unsigned	NO	PRI	NULL	auto_increment
+po_id	int(10) unsigned	NO	MUL	NULL	
+product_id	int(10) unsigned	NO	MUL	NULL	
+quantity_ordered	int(10) unsigned	NO		NULL	
+pending_qty	int(10) unsigned	YES		0	
+quantity_received	int(10) unsigned	YES		0	
+unit_price	decimal(10,2)	NO		NULL	
+total_price	decimal(12,2)	NO		NULL	
+item_status	enum('Pending','PartialReceived','Received','Cancelled')	YES	MUL	Pending	
+notes	varchar(255)	YES		NULL	
+created_at	timestamp	NO		current_timestamp()	
+updated_at	timestamp	NO		current_timestamp()	on update current_timestamp()
+gst_percentage	float	YES		18	
+Field	Type	Null	Key	Default	Extra
+id	int(10) unsigned	NO	PRI	NULL	auto_increment
+supplier_id	int(10) unsigned	NO	MUL	NULL	
+invoice_no	varchar(100)	NO	UNI	NULL	
+supplier_invoice_no	varchar(100)	YES		NULL	
+supplier_invoice_date	date	YES		NULL	
+lr_no	varchar(80)	YES		NULL	
+lr_date	date	YES		NULL	
+carrier_name	varchar(150)	YES		NULL	
+vehicle_no	varchar(50)	YES		NULL	
+f_slip_no	varchar(80)	YES		NULL	
+eway_bill_no	varchar(50)	YES		NULL	
+eway_bill_date	date	YES		NULL	
+invoice_date	date	NO	MUL	NULL	
+po_reference	varchar(100)	YES		NULL	
+grn_reference	varchar(100)	YES		NULL	
+payment_terms	varchar(255)	YES		NULL	
+due_date	date	YES		NULL	
+currency	varchar(10)	YES		INR	
+subtotal	decimal(14,2)	NO		0.00	
+total_discount	decimal(14,2)	NO		0.00	
+total_tax	decimal(14,2)	NO		0.00	
+freight	decimal(14,2)	NO		0.00	
+round_off	decimal(14,2)	NO		0.00	
+grand_total	decimal(14,2)	NO		0.00	
+paid_amount	decimal(14,2)	NO		0.00	
+payment_mode	enum('Cash','Credit','Bank','Cheque','UPI')	YES		NULL	
+outstanding_amount	decimal(14,2)	NO		0.00	
+status	enum('Draft','Approved','Cancelled','Received','Paid')	YES	MUL	Draft	
+attachment_path	varchar(255)	YES		NULL	
+notes	text	YES		NULL	
+created_by	int(11)	YES		NULL	
+created_at	datetime	NO		current_timestamp()	
+matched_by	int(11)	YES		NULL	
+matched_at	datetime	YES		NULL	
+approved_by	int(11)	YES		NULL	
+approved_at	datetime	YES		NULL	
+deleted_at	datetime	YES	MUL	NULL	
+submitted_at	datetime	YES		NULL	
+approval_remarks	text	YES		NULL	
+posted_by	int(10) unsigned	YES		NULL	
+posted_at	datetime	YES		NULL	
+amount_paid	decimal(12,2)	YES		0.00	
+payment_status	enum('UNPAID','PARTIAL','PAID')	YES	MUL	UNPAID	
+last_payment_date	date	YES		NULL	
+updated_at	datetime	YES		current_timestamp()	on update current_timestamp()
+submitted_by	int(10) unsigned	YES		NULL	
+company_location_state	varchar(100)	YES		Gujarat	
+supplier_location_state	varchar(100)	YES	MUL	NULL	
+place_of_supply	varchar(100)	YES		Gujarat	
+gst_determination_type	enum('intrastate','interstate')	YES	MUL	NULL	
+is_gst_registered	tinyint(1)	YES		1	
+supplier_gstin	varchar(15)	YES		NULL	
+total_cgst	decimal(14,2)	NO		0.00	
+total_sgst	decimal(14,2)	NO		0.00	
+total_igst	decimal(14,2)	NO		0.00	
+Field	Type	Null	Key	Default	Extra
+id	int(10) unsigned	NO	PRI	NULL	auto_increment
+invoice_id	int(10) unsigned	NO	MUL	NULL	
+product_id	int(10) unsigned	NO	MUL	NULL	
+product_name	varchar(255)	YES		NULL	
+pack_size_snapshot	varchar(60)	YES		NULL	
+manufacturer_snapshot	varchar(120)	YES		NULL	
+hsn_code	varchar(50)	YES		NULL	
+batch_no	varchar(100)	YES		NULL	
+manufacture_date	date	YES		NULL	
+expiry_date	date	YES		NULL	
+qty	decimal(14,3)	NO		0.000	
+free_qty	decimal(14,3)	NO		0.000	
+unit_cost	decimal(14,4)	NO		0.0000	
+effective_rate	decimal(14,4)	YES		NULL	
+mrp	decimal(14,2)	YES		NULL	
+discount_percent	decimal(6,2)	NO		0.00	
+discount_amount	decimal(14,2)	NO		0.00	
+taxable_value	decimal(14,2)	NO		0.00	
+tax_rate	decimal(6,2)	NO		0.00	
+cgst_percent	decimal(5,2)	NO		0.00	
+sgst_percent	decimal(5,2)	NO		0.00	
+igst_percent	decimal(5,2)	NO		0.00	
+cgst_amount	decimal(14,2)	NO		0.00	
+sgst_amount	decimal(14,2)	NO		0.00	
+igst_amount	decimal(14,2)	NO		0.00	
+tax_amount	decimal(14,2)	NO		0.00	
+line_total	decimal(14,2)	NO		0.00	
+product_gst_rate	decimal(5,2)	YES	MUL	NULL	
+supplier_quoted_mrp	decimal(14,2)	YES		NULL	
+our_selling_price	decimal(14,2)	YES		NULL	
+margin_amount	decimal(14,2)	YES		NULL	
+margin_percent	decimal(6,2)	YES	MUL	NULL	
+Field	Type	Null	Key	Default	Extra
+invoice_id	int(10) unsigned	NO	PRI	NULL	auto_increment
+invoice_number	varchar(50)	NO	UNI	NULL	
+client_id	int(10) unsigned	NO	MUL	NULL	
+invoice_date	date	NO	MUL	NULL	
+due_date	date	YES		NULL	
+created_at	timestamp	NO	MUL	current_timestamp()	
+delivery_address	text	YES		NULL	
+billing_address	text	YES		NULL	
+shipping_address	text	YES		NULL	
+subtotal	decimal(14,2)	NO		0.00	
+discount_amount	decimal(14,2)	YES		0.00	
+discount_percent	decimal(5,2)	YES		0.00	
+gst_amount	decimal(14,2)	NO		0.00	
+cgst_amount	decimal(14,2)	YES		0.00	
+sgst_amount	decimal(14,2)	YES		0.00	
+igst_amount	decimal(14,2)	YES		0.00	
+gst_percent	int(11)	YES		18	
+client_gstin	varchar(15)	YES		NULL	
+client_pan	varchar(10)	YES		NULL	
+client_dl_no	varchar(50)	YES		NULL	
+cgst_percent	decimal(5,2)	YES		0.00	
+sgst_percent	decimal(5,2)	YES		0.00	
+igst_percent	decimal(5,2)	YES		0.00	
+grand_total	decimal(14,2)	NO		0.00	
+paid_amount	decimal(14,2)	YES		0.00	
+due_amount	decimal(14,2)	YES		0.00	
+payment_type	varchar(50)	YES		NULL	
+payment_method	varchar(50)	YES		NULL	
+payment_place	varchar(50)	YES		NULL	
+payment_notes	text	YES		NULL	
+payment_status	enum('UNPAID','PARTIAL','PAID')	YES	MUL	UNPAID	
+created_by	int(10) unsigned	YES		NULL	
+submitted_by	int(10) unsigned	YES		NULL	
+submitted_at	datetime	YES		NULL	
+fulfilled_by	int(10) unsigned	YES		NULL	
+fulfilled_at	datetime	YES		NULL	
+updated_by	int(10) unsigned	YES		NULL	
+updated_at	timestamp	NO		current_timestamp()	on update current_timestamp()
+is_cancelled	tinyint(4)	YES		0	
+deleted_at	datetime	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+item_id	int(10) unsigned	NO	PRI	NULL	auto_increment
+invoice_id	int(10) unsigned	NO	MUL	NULL	
+product_id	int(10) unsigned	NO	MUL	NULL	
+batch_id	int(10) unsigned	YES	MUL	NULL	
+quantity	decimal(14,3)	NO		NULL	
+unit_rate	decimal(14,4)	NO		NULL	
+purchase_rate	decimal(14,4)	YES		NULL	
+line_subtotal	decimal(14,2)	NO		NULL	
+gst_rate	decimal(5,2)	YES		18.00	
+gst_amount	decimal(14,2)	YES		NULL	
+line_total	decimal(14,2)	NO		NULL	
+batch_number	varchar(100)	YES		NULL	
+expiry_date	date	YES		NULL	
+added_date	timestamp	NO		current_timestamp()	
+Field	Type	Null	Key	Default	Extra
+movement_id	int(10) unsigned	NO	PRI	NULL	auto_increment
+product_id	int(10) unsigned	NO	MUL	NULL	
+batch_id	int(10) unsigned	YES	MUL	NULL	
+warehouse_id	int(10) unsigned	YES		NULL	
+movement_type	enum('Purchase','Sales','Adjustment','Return','Damage','Sample','Expiry','Opening')	NO	MUL	NULL	
+quantity	int(11)	NO		NULL	
+balance_before	decimal(10,2)	YES		NULL	
+balance_after	decimal(10,2)	YES		NULL	
+movement_date	datetime	YES	MUL	current_timestamp()	
+reference_number	varchar(100)	YES	MUL	NULL	
+reference_type	varchar(50)	YES		NULL	
+reference_id	int(10) unsigned	YES		NULL	
+recorded_by	int(10) unsigned	YES		NULL	
+reason	varchar(255)	YES		NULL	
+notes	text	YES		NULL	
+created_by	int(10) unsigned	YES	MUL	NULL	
+verified_by	int(10) unsigned	YES		NULL	
+created_at	timestamp	NO		current_timestamp()	
